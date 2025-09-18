@@ -87,6 +87,53 @@ struct APIConfig {
 - **Child-Safe Navigation**: Simple, large buttons and clear visual hierarchy
 - **Offline-First**: Cache content for use without internet
 
+### 🎨 Design System Constants - MANDATORY USAGE
+
+#### Colors (AppColors)
+```swift
+// ALWAYS use AppColors constants, NEVER custom colors or gradients
+AppColors.primaryBlue      // #37B6F6 - Picton Blue (primary actions)
+AppColors.primaryPurple    // #882FF6 - Blue-Violet (creative/magical)
+AppColors.primaryPink      // #FF6B9D - Bubblegum Pink (playful/warm)
+
+// Content Categories
+AppColors.coloringPagesColor  // #F97316 - Orange (creative expression)
+AppColors.stickersColor      // #10B981 - Emerald (fun/playful)
+AppColors.wallpapersColor    // #8B5CF6 - Purple (imagination)
+AppColors.mandalaColor       // #EC4899 - Pink (mindfulness)
+
+// UI Semantic Colors
+AppColors.backgroundLight    // #FEFEFE - Pure white backgrounds
+AppColors.textPrimary       // #1F2937 - Primary text
+AppColors.textSecondary     // #6B7280 - Secondary text
+AppColors.errorRed          // #EF4444 - Error states
+```
+
+#### Typography (AppTypography)
+```swift
+// Child-optimized typography - minimum 14pt fonts
+.displayLarge()    // 42pt, heavy, rounded - App titles
+.headlineLarge()   // 28pt, bold, rounded - Section headers
+.titleMedium()     // 18pt, semibold - Form labels
+.bodyMedium()      // 16pt, regular - Body text
+.buttonLarge()     // 18pt, semibold - Primary buttons
+
+// ALWAYS use these extensions, NEVER raw Font.system()
+```
+
+#### Spacing & Touch Targets (AppSpacing/AppSizing)
+```swift
+// Child-safe spacing
+AppSpacing.xs      // 4pt
+AppSpacing.md      // 16pt
+AppSpacing.xl      // 32pt
+
+// Child-safe touch targets
+.childSafeTouchTarget()    // Minimum 44pt, recommended 56pt
+.largeButtonStyle()        // Consistent button styling
+.cardStyle()              // Consistent card styling
+```
+
 ### Security Requirements
 - **Keychain Storage**: Secure token and sensitive data storage
 - **Certificate Pinning**: Prevent man-in-the-middle attacks
@@ -163,16 +210,25 @@ SketchWink/
 ├── SketchWink/
 │   ├── App/
 │   │   ├── SketchWinkApp.swift
-│   │   └── ContentView.swift
+│   │   ├── ContentView.swift
+│   │   └── AppCoordinator.swift
+│   ├── Constants/  ✨ IMPORTANT: Use these constants for ALL UI
+│   │   ├── Colors.swift        # Research-based child-friendly colors
+│   │   ├── Typography.swift    # Child-optimized fonts and text styles
+│   │   ├── Spacing.swift       # Child-safe spacing and touch targets
+│   │   └── AppConfig.swift     # API endpoints and app configuration
 │   ├── Features/
 │   │   ├── Authentication/
+│   │   │   ├── LoginView.swift
+│   │   │   └── LoginViewModel.swift
+│   │   ├── Main/
+│   │   │   └── MainAppView.swift
 │   │   ├── FamilyProfiles/
 │   │   ├── Generation/
 │   │   ├── Gallery/
 │   │   └── Settings/
 │   ├── Services/
-│   │   ├── APIService.swift
-│   │   ├── AuthService.swift
+│   │   ├── AuthService.swift    # Complete auth with Keychain storage
 │   │   └── ContentFilterService.swift
 │   ├── Models/
 │   └── Utils/
@@ -221,20 +277,52 @@ SketchWink/
 
 ## Important Notes for Claude
 
-1. **Always prioritize child safety** in all features and implementations
-2. **Follow iOS 18+ best practices** - fetch latest iOS development patterns and APIs
-3. **Implement proper parental controls** for all features that involve children
-4. **Ensure COPPA compliance** in all data handling and privacy features
-5. **Design for accessibility** - support children with different abilities
-6. **Focus on educational value** while maintaining fun and engagement
-7. **Test on actual devices** children would use, not just latest hardware
-8. **Follow Apple's Human Interface Guidelines** specifically for family apps
+### 🚨 CRITICAL: Design System Compliance
+1. **ALWAYS use AppColors constants** - Never use custom colors, gradients, or hex values directly
+2. **ALWAYS use AppTypography extensions** - Never use raw `Font.system()` calls
+3. **ALWAYS use AppSpacing constants** - Never use hardcoded spacing values
+4. **ALWAYS use AppSizing touch targets** - Ensure child-safe button sizes with `.childSafeTouchTarget()`
+5. **ALWAYS use semantic styling** - Use `.cardStyle()`, `.largeButtonStyle()`, `.formFieldStyle()`
 
-When implementing any feature, always consider:
+### 🎯 Development Guidelines
+6. **Always prioritize child safety** in all features and implementations
+7. **Follow iOS 18+ best practices** - fetch latest iOS development patterns and APIs
+8. **Implement proper parental controls** for all features that involve children
+9. **Ensure COPPA compliance** in all data handling and privacy features
+10. **Design for accessibility** - support children with different abilities
+11. **Focus on educational value** while maintaining fun and engagement
+12. **Test on actual devices** children would use, not just latest hardware
+13. **Follow Apple's Human Interface Guidelines** specifically for family apps
+
+### 🔍 Pre-Implementation Checklist
+Before writing any UI code, ask:
+- Am I using AppColors constants instead of custom colors?
+- Am I using AppTypography extensions instead of raw fonts?
+- Am I using AppSpacing constants for proper spacing?
+- Are all touch targets child-safe (44pt minimum, 56pt recommended)?
 - Is this safe for a 4-year-old to use independently?
 - Does this require parental oversight or approval?
 - Is the UI simple enough for young children?
 - Does this provide educational or creative value?
 - Is this compliant with children's privacy laws?
 
-This app should be a trusted digital creative companion for families, promoting safe, educational, and joyful creative expression for children.
+### 🎨 Design System Examples
+```swift
+// ✅ CORRECT - Using constants
+Text("Welcome")
+    .displayLarge()                    // AppTypography
+    .foregroundColor(AppColors.primaryBlue)  // AppColors
+    .padding(AppSpacing.lg)            // AppSpacing
+
+Button("Sign In") { }
+    .largeButtonStyle(backgroundColor: AppColors.primaryBlue)  // Semantic styling
+    .childSafeTouchTarget()            // Child-safe touch
+
+// ❌ WRONG - Custom styling
+Text("Welcome")
+    .font(.system(size: 42, weight: .heavy))
+    .foregroundColor(Color.blue)
+    .padding(24)
+```
+
+This app should be a trusted digital creative companion for families, promoting safe, educational, and joyful creative expression for children while maintaining strict adherence to our research-based design system.

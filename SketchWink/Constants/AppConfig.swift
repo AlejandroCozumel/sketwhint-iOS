@@ -14,21 +14,22 @@ struct AppConfig {
     // MARK: - API Configuration
     struct API {
         #if DEBUG
-        static let baseURL = "http://localhost:3000/api"
+        static let baseURL = "http://127.0.0.1:3000"  // Use IP instead of localhost
         #else
-        static let baseURL = "https://api.sketchwink.com/api"
+        static let baseURL = "https://api.sketchwink.com"
         #endif
         
         static let timeout: TimeInterval = 30
         static let maxRetries = 3
         
-        // API Endpoints
+        // API Endpoints (matching http://localhost:3000/docs)
         struct Endpoints {
             // Authentication
-            static let signUp = "/auth/sign-up"
-            static let signIn = "/auth/sign-in"
-            static let verifyOTP = "/verify-otp"
-            static let refreshToken = "/auth/refresh"
+            static let signUp = "/api/auth/sign-up"          // POST - Create new account
+            static let signIn = "/api/auth/sign-in"          // POST - Login user
+            static let verifyOTP = "/api/auth/verify-otp"    // POST - Verify email OTP
+            static let resendOTP = "/api/auth/resend-otp"    // POST - Resend verification OTP
+            static let refreshToken = "/api/auth/refresh"     // POST - Refresh access token
             
             // User & Profiles
             static let profiles = "/profiles"

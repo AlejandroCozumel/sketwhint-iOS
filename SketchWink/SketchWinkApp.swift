@@ -25,8 +25,22 @@ struct SketchWinkApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            // Use AppCoordinator for authentication flow
+            AppCoordinator()
+                .onAppear {
+                    // Configure app on launch
+                    configureApp()
+                }
         }
         .modelContainer(sharedModelContainer)
+    }
+    
+    private func configureApp() {
+        // Configure logging
+        if AppConfig.Debug.enableLogging {
+            print("🚀 SketchWink app launched - Version \(AppConfig.appVersion)")
+            print("📱 Environment: \(AppConfig.environmentName)")
+            print("🔗 API Base URL: \(AppConfig.API.baseURL)")
+        }
     }
 }
