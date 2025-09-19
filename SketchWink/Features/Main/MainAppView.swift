@@ -2,6 +2,8 @@ import SwiftUI
 
 struct MainAppView: View {
     @StateObject private var authService = AuthService.shared
+    @State private var showingCategorySelection = false
+    @State private var showingGalleryView = false
     
     var body: some View {
         NavigationView {
@@ -60,7 +62,7 @@ struct MainAppView: View {
                                 icon: "🎨",
                                 color: AppColors.coloringPagesColor,
                                 action: {
-                                    // TODO: Navigate to generation
+                                    showingCategorySelection = true
                                 }
                             )
                             
@@ -70,7 +72,7 @@ struct MainAppView: View {
                                 icon: "🖼️",
                                 color: AppColors.wallpapersColor,
                                 action: {
-                                    // TODO: Navigate to gallery
+                                    showingGalleryView = true
                                 }
                             )
                             
@@ -141,6 +143,14 @@ struct MainAppView: View {
             .background(AppColors.backgroundLight)
             .navigationTitle("SketchWink")
             .navigationBarTitleDisplayMode(.large)
+        }
+        .sheet(isPresented: $showingCategorySelection) {
+            CategorySelectionView(onDismiss: {
+                showingCategorySelection = false
+            })
+        }
+        .sheet(isPresented: $showingGalleryView) {
+            GalleryView()
         }
     }
 }

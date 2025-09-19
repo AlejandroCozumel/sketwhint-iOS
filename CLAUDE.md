@@ -24,6 +24,258 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Swift Version**: Swift 6.0+ 
 **Xcode Version**: Xcode 16+
 
+## 🚨 **CRITICAL: Design System Usage - MANDATORY**
+
+### **Typography Usage - ALWAYS Use AppTypography**
+```swift
+// ✅ CORRECT - Use font() with AppTypography constants
+Text("Hello World")
+    .font(AppTypography.bodyLarge)
+    .foregroundColor(AppColors.textPrimary)
+
+// ✅ CORRECT - Typography extensions work ONLY on Text objects
+Text("Hello World")
+    .bodyLarge()  // This works because it's a Text object
+
+// ❌ WRONG - Extensions don't work on other views
+Button("Click Me") {}
+    .bodyLarge()  // ERROR: Extensions only work on Text
+
+// ✅ CORRECT - Use font() for non-Text views
+Button("Click Me") {}
+    .font(AppTypography.bodyLarge)
+
+// ✅ CORRECT - TextField and other views
+TextField("Enter text", text: $text)
+    .font(AppTypography.bodyMedium)  // Use .font(), not .bodyMedium()
+```
+
+**Available Typography Constants:**
+- `AppTypography.displayLarge` (42pt, heavy, rounded)
+- `AppTypography.headlineLarge` (26pt, bold, rounded)
+- `AppTypography.headlineMedium` (24pt, semibold, rounded)
+- `AppTypography.titleMedium` (18pt, medium)
+- `AppTypography.bodyLarge` (18pt, regular)
+- `AppTypography.bodyMedium` (16pt, regular)
+- `AppTypography.captionLarge` (14pt, regular)
+- `AppTypography.buttonLarge` (22pt, bold, rounded)
+
+### **Colors Usage - ALWAYS Use AppColors**
+```swift
+// ✅ CORRECT - Use AppColors constants
+.foregroundColor(AppColors.textPrimary)
+.background(AppColors.backgroundLight)
+.tint(AppColors.primaryBlue)
+
+// ❌ WRONG - Never use custom colors or hex values
+.foregroundColor(Color.blue)
+.background(Color(hex: "#FF0000"))
+```
+
+**Available Color Constants:**
+- **Primary**: `AppColors.primaryBlue`, `AppColors.primaryPurple`, `AppColors.primaryPink`
+- **Categories**: `AppColors.coloringPagesColor`, `AppColors.stickersColor`, `AppColors.wallpapersColor`, `AppColors.mandalaColor`
+- **Text**: `AppColors.textPrimary`, `AppColors.textSecondary`, `AppColors.textOnDark`
+- **Backgrounds**: `AppColors.backgroundLight`, `AppColors.surfaceLight`
+- **Interactive**: `AppColors.buttonPrimary`, `AppColors.buttonSecondary`, `AppColors.buttonDisabled`
+- **States**: `AppColors.successGreen`, `AppColors.errorRed`, `AppColors.warningOrange`, `AppColors.infoBlue`
+- **Borders**: `AppColors.borderLight`, `AppColors.borderMedium`, `AppColors.borderDark`
+
+### **Spacing Usage - ALWAYS Use AppSpacing**
+```swift
+// ✅ CORRECT - Use AppSpacing constants
+.padding(AppSpacing.md)
+.spacing(AppSpacing.lg)
+
+// ✅ CORRECT - Use semantic spacing
+.contentPadding()  // Extension for standard content padding
+.pageMargins()     // Extension for page margins
+.cardStyle()       // Extension for card styling
+
+// ❌ WRONG - Never use hardcoded values
+.padding(16)
+.spacing(24)
+```
+
+**Available Spacing Constants:**
+- `AppSpacing.xs` (8pt), `AppSpacing.sm` (12pt), `AppSpacing.md` (16pt)
+- `AppSpacing.lg` (24pt), `AppSpacing.xl` (32pt), `AppSpacing.xxl` (48pt)
+- `AppSpacing.sectionSpacing` (24pt), `AppSpacing.elementSpacing` (16pt)
+
+### **Grid Layouts - Use GridLayouts**
+```swift
+// ✅ CORRECT - Use predefined grid layouts
+LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.itemSpacing)
+LazyVGrid(columns: GridLayouts.styleGrid, spacing: AppSpacing.grid.itemSpacing)
+LazyVGrid(columns: GridLayouts.threeColumnGrid, spacing: AppSpacing.grid.itemSpacing)
+
+// Available grid layouts:
+// - GridLayouts.categoryGrid (2 columns)
+// - GridLayouts.styleGrid (2 columns)
+// - GridLayouts.threeColumnGrid (3 columns)
+// - GridLayouts.fourColumnGrid (4 columns)
+```
+
+### **Button Styling - Use Extensions**
+```swift
+// ✅ CORRECT - Use styling extensions
+Button("Primary Action") {}
+    .largeButtonStyle(backgroundColor: AppColors.primaryBlue)
+    .childSafeTouchTarget()
+
+Button("Secondary Action") {}
+    .buttonStyle(
+        backgroundColor: AppColors.buttonSecondary,
+        foregroundColor: AppColors.primaryBlue
+    )
+```
+
+### **Child-Safe Touch Targets - MANDATORY**
+```swift
+// ✅ ALWAYS add child-safe touch targets for interactive elements
+Button("Tap Me") {}
+    .childSafeTouchTarget()  // Ensures minimum 44pt, recommended 56pt
+
+// ✅ Use for all interactive elements
+Toggle("Setting", isOn: $setting)
+    .childSafeTouchTarget()
+```
+
+## 🔧 **API Integration - Use AppConfig Structure**
+
+### **Correct API Configuration**
+```swift
+// ✅ CORRECT - Use AppConfig.API structure (baseURL includes /api)
+private let baseURL = AppConfig.API.baseURL  // "http://127.0.0.1:3000/api"
+let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.categories)"  // "/categories/with-options"
+// Final URL: "http://127.0.0.1:3000/api/categories/with-options"
+
+// ❌ WRONG - Don't use old APIConfig or hardcoded URLs
+private let baseURL = APIConfig.baseURL  // OLD - doesn't exist
+let endpoint = "http://localhost:3000/api/categories"  // Hardcoded
+```
+
+### **KeychainManager Usage**
+```swift
+// ✅ CORRECT - Use retrieveToken() and storeToken()
+guard let token = try KeychainManager.shared.retrieveToken() else {
+    throw AuthError.noToken
+}
+
+try KeychainManager.shared.storeToken(sessionToken)
+
+// ❌ WRONG - Old method names
+guard let token = try KeychainManager.shared.retrieve() else {  // OLD
+    throw AuthError.noToken
+}
+```
+
+### **API Endpoints Structure**
+```swift
+// ✅ CORRECT - Use AppConfig.API.Endpoints
+let categoriesURL = "\(baseURL)\(AppConfig.API.Endpoints.categories)"
+let generationsURL = "\(baseURL)\(AppConfig.API.Endpoints.generations)"
+let tokenBalanceURL = "\(baseURL)\(AppConfig.API.Endpoints.tokenBalance)"
+
+// Available endpoints in AppConfig.API.Endpoints:
+// - .signUp, .signIn, .verifyOTP, .resendOTP
+// - .categories, .generations, .enhancePrompt
+// - .images, .imageDownload, .toggleFavorite, .bulkFavorite
+// - .collections, .collectionImages, .bulkAddToCollection
+// - .subscriptionPlans, .tokenBalance, .featureAccess
+// - .analytics
+```
+
+## 🐛 **Common SwiftUI Issues & Solutions**
+
+### **AsyncImage Type Conversion**
+```swift
+// ✅ CORRECT - AsyncImage returns SwiftUI Image, not UIImage
+AsyncImage(url: URL(string: imageUrl)) { imagePhase in
+    switch imagePhase {
+    case .success(let swiftUIImage):
+        swiftUIImage  // Use directly, don't wrap in Image()
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+    case .failure(_):
+        // Handle error
+    case .empty:
+        ProgressView()
+    @unknown default:
+        EmptyView()
+    }
+}
+
+// ❌ WRONG - Don't try to convert to UIImage in success case
+case .success(let uiImage):
+    Image(uiImage: uiImage)  // ERROR: uiImage is actually SwiftUI Image
+```
+
+### **Image Conversion for Sharing**
+```swift
+// ✅ CORRECT - Convert URL to UIImage for sharing
+Task {
+    if let url = URL(string: imageUrl),
+       let data = try? Data(contentsOf: url),
+       let uiImage = UIImage(data: data) {
+        shareableImage = uiImage
+    }
+}
+```
+
+### **Navigation and Modifiers**
+```swift
+// ✅ CORRECT - Navigation in iOS 18+
+NavigationView {
+    // Content
+}
+// or
+NavigationStack {
+    // Content
+}
+
+// ✅ CORRECT - Environment dismiss
+@Environment(\.dismiss) private var dismiss
+Button("Close") {
+    dismiss()
+}
+```
+
+## 📱 **Component Naming Conventions**
+
+### **Avoid Naming Conflicts**
+```swift
+// ✅ CORRECT - Use descriptive, unique names
+struct GenerationInfoRow: View { }
+struct ProfileInfoCard: View { }
+struct CategorySelectionGrid: View { }
+
+// ❌ WRONG - Generic names that might conflict
+struct InfoRow: View { }  // Might conflict with existing InfoRow
+struct Card: View { }     // Too generic
+```
+
+### **File Organization**
+```
+SketchWink/
+├── Constants/
+│   ├── Colors.swift       ✅ AppColors
+│   ├── Typography.swift   ✅ AppTypography  
+│   ├── Spacing.swift      ✅ AppSpacing, GridLayouts
+│   └── AppConfig.swift    ✅ AppConfig.API
+├── Features/
+│   └── Generation/
+│       ├── GenerationView.swift
+│       ├── GenerationProgressView.swift
+│       ├── GenerationResultView.swift
+│       └── ColoringView.swift
+├── Models/
+│   └── GenerationModels.swift
+└── Services/
+    ├── AuthService.swift
+    └── GenerationService.swift
+```
+
 ### iOS 18+ Features to Leverage
 - **SwiftUI 6.0**: Latest UI framework capabilities
 - **Swift 6.0**: Modern concurrency and performance improvements
@@ -326,3 +578,40 @@ Text("Welcome")
 ```
 
 This app should be a trusted digital creative companion for families, promoting safe, educational, and joyful creative expression for children while maintaining strict adherence to our research-based design system.
+
+---
+
+## 🔍 **Quick Reference Checklist**
+
+### **Before Writing Any UI Code:**
+- [ ] Am I using `AppColors` constants instead of custom colors?
+- [ ] Am I using `AppTypography` with `.font()` for non-Text views?
+- [ ] Am I using `AppSpacing` constants for all spacing?
+- [ ] Are all touch targets child-safe with `.childSafeTouchTarget()`?
+- [ ] Am I using semantic styling (`.cardStyle()`, `.largeButtonStyle()`)?
+
+### **Typography Quick Check:**
+- [ ] Text views: Use `.bodyLarge()` extensions ✅
+- [ ] Other views: Use `.font(AppTypography.bodyLarge)` ✅
+- [ ] TextField: Use `.font(AppTypography.bodyMedium)` ✅
+- [ ] Button: Use `.font(AppTypography.titleMedium)` ✅
+
+### **API Integration Quick Check:**
+- [ ] Using `AppConfig.API.baseURL` not `APIConfig.baseURL`
+- [ ] Using `KeychainManager.shared.retrieveToken()` not `.retrieve()`
+- [ ] Using `AppConfig.API.Endpoints.categories` for endpoints
+- [ ] Proper error handling with custom error types
+
+### **SwiftUI Quick Check:**
+- [ ] AsyncImage success case uses `swiftUIImage` not `uiImage`
+- [ ] No naming conflicts (use descriptive component names)
+- [ ] Proper navigation with NavigationView or NavigationStack
+- [ ] Environment dismiss with `@Environment(\.dismiss)`
+
+### **Child Safety Quick Check:**
+- [ ] All interactive elements have `.childSafeTouchTarget()`
+- [ ] Text size minimum 14pt (use AppTypography constants)
+- [ ] Clear visual hierarchy with proper spacing
+- [ ] Family-friendly color palette (AppColors only)
+
+**🚨 REMEMBER: Always use the existing constants - never create custom colors, spacing, or typography!**

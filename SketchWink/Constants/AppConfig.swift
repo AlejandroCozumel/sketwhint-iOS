@@ -14,22 +14,22 @@ struct AppConfig {
     // MARK: - API Configuration
     struct API {
         #if DEBUG
-        static let baseURL = "http://127.0.0.1:3000"  // Use IP instead of localhost
+        static let baseURL = "http://127.0.0.1:3000/api"  // Include /api in baseURL
         #else
-        static let baseURL = "https://api.sketchwink.com"
+        static let baseURL = "https://api.sketchwink.com/api"
         #endif
         
         static let timeout: TimeInterval = 30
         static let maxRetries = 3
         
-        // API Endpoints (matching http://localhost:3000/docs)
+        // API Endpoints (baseURL already includes /api)
         struct Endpoints {
             // Authentication
-            static let signUp = "/api/auth/sign-up"          // POST - Create new account
-            static let signIn = "/api/auth/sign-in"          // POST - Login user
-            static let verifyOTP = "/api/verify-otp"         // POST - Verify email OTP
-            static let resendOTP = "/api/auth/resend-otp"    // POST - Resend verification OTP
-            static let refreshToken = "/api/auth/refresh"     // POST - Refresh access token
+            static let signUp = "/auth/sign-up"          // POST - Create new account
+            static let signIn = "/auth/sign-in"          // POST - Login user
+            static let verifyOTP = "/verify-otp"         // POST - Verify email OTP
+            static let resendOTP = "/auth/resend-otp"    // POST - Resend verification OTP
+            static let refreshToken = "/auth/refresh"     // POST - Refresh access token
             
             // User & Profiles
             static let profiles = "/profiles"
@@ -52,6 +52,9 @@ struct AppConfig {
             static let collections = "/collections"
             static let collectionImages = "/collections/%@/images" // %@ = collectionId
             static let bulkAddToCollection = "/collections/%@/bulk-add" // %@ = collectionId
+            
+            // User Settings
+            static let promptEnhancementSettings = "/user/settings/prompt-enhancement"
             
             // Subscription & Billing
             static let subscriptionPlans = "/subscription-plans"

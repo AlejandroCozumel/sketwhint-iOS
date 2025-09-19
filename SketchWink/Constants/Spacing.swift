@@ -315,6 +315,12 @@ struct GridLayouts {
     /// Six-column grid for color palette
     static let sixColumnGrid = Array(repeating: GridItem(.flexible(), spacing: AppSpacing.grid.itemSpacing), count: 6)
     
+    /// Two-column grid for style selection
+    static let styleGrid = [
+        GridItem(.flexible(), spacing: AppSpacing.grid.itemSpacing),
+        GridItem(.flexible(), spacing: AppSpacing.grid.itemSpacing)
+    ]
+    
     /// Adaptive grid that changes based on screen size
     static func adaptiveGrid(minItemWidth: CGFloat = 150) -> [GridItem] {
         return [GridItem(.adaptive(minimum: minItemWidth), spacing: AppSpacing.grid.itemSpacing)]
