@@ -15,8 +15,27 @@ struct GenerationView: View {
     let onDismiss: () -> Void
     
     init(preselectedCategory: CategoryWithOptions? = nil, onDismiss: @escaping () -> Void = {}) {
+        #if DEBUG
+        print("🎯 GenerationView: init() called")
+        print("🎯 GenerationView: preselectedCategory = \(preselectedCategory?.category.name ?? "nil")")
+        #endif
+        
         self.preselectedCategory = preselectedCategory
         self.onDismiss = onDismiss
+        
+        // Set up the category immediately if preselected
+        if let preselectedCategory = preselectedCategory {
+            #if DEBUG
+            print("🎯 GenerationView: Setting up preselected category in init: \(preselectedCategory.category.name)")
+            print("🎯 GenerationView: Options count: \(preselectedCategory.options.count)")
+            #endif
+            self._selectedCategory = State(initialValue: preselectedCategory)
+            self._isLoading = State(initialValue: false)
+        } else {
+            #if DEBUG
+            print("🎯 GenerationView: No preselected category, will load from API")
+            #endif
+        }
     }
     
     var body: some View {
@@ -297,6 +316,43 @@ struct GenerationView: View {
     
     // MARK: - Methods
     private func loadData() async {
+        #if DEBUG
+        print("🎯 GenerationView: loadData() called")
+        print("🎯 GenerationView: isLoading = \(isLoading)")
+        print("🎯 GenerationView: selectedCategory = \(selectedCategory?.category.name ?? "nil")")
+        #endif
+        
+        // If we already have a preselected category set in init, just load settings
+        if selectedCategory != nil {
+            #if DEBUG
+            print("🎯 GenerationView: Category already set, just loading settings")
+            #endif
+            
+            do {
+                // Set default selected option if not already set
+                if selectedOption == nil, let selectedCategory = selectedCategory {
+                    if let firstOption = selectedCategory.options.first(where: { $0.isDefault }) ?? selectedCategory.options.first {
+                        selectedOption = firstOption
+                        #if DEBUG
+                        print("🎯 GenerationView: Default option selected: \(firstOption.name)")
+                        #endif
+                    }
+                }
+                
+                // Load prompt enhancement setting
+                let settings = try await generationService.getPromptEnhancementSettings()
+                promptEnhancementEnabled = settings.promptEnhancementEnabled
+                
+            } catch {
+                #if DEBUG
+                print("❌ GenerationView: Error loading settings: \(error)")
+                #endif
+                self.error = error
+                showingError = true
+            }
+            return
+        }
+        
         isLoading = true
         
         do {
@@ -304,9 +360,20 @@ struct GenerationView: View {
             if let preselectedCategory = preselectedCategory {
                 selectedCategory = preselectedCategory
                 
+                #if DEBUG
+                print("🎯 GenerationView: Setting preselected category: \(preselectedCategory.category.name)")
+                print("🎯 GenerationView: Options count: \(preselectedCategory.options.count)")
+                for option in preselectedCategory.options {
+                    print("   - \(option.name): \(option.description)")
+                }
+                #endif
+                
                 // Set default selected option for the preselected category
                 if let firstOption = preselectedCategory.options.first(where: { $0.isDefault }) ?? preselectedCategory.options.first {
                     selectedOption = firstOption
+                    #if DEBUG
+                    print("🎯 GenerationView: Default option selected: \(firstOption.name)")
+                    #endif
                 }
             } else {
                 // Fallback: load categories and find coloring pages (for backward compatibility)
@@ -324,11 +391,17 @@ struct GenerationView: View {
             promptEnhancementEnabled = settings.promptEnhancementEnabled
             
         } catch {
+            #if DEBUG
+            print("❌ GenerationView: Error loading data: \(error)")
+            #endif
             self.error = error
             showingError = true
         }
         
         isLoading = false
+        #if DEBUG
+        print("🎯 GenerationView: Loading complete. isLoading = false")
+        #endif
     }
     
     private func generateColoring() async {
@@ -404,7 +477,7 @@ struct StyleOptionCard: View {
                 Spacer()  // Any remaining space goes to bottom
             }
             .padding(AppSpacing.sm)  // Less padding for more content space
-            .frame(width: .infinity, height: 160)  // Taller height for better description fit
+            .frame(height: 160)  // Taller height for better description fit
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)

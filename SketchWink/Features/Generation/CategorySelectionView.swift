@@ -7,13 +7,10 @@ struct CategorySelectionView: View {
     @State private var error: Error?
     @State private var showingError = false
     @State private var selectedCategory: CategoryWithOptions?
-    @State private var showingGenerationView = false
     
-    let onDismiss: () -> Void
     
     var body: some View {
-        NavigationView {
-            ScrollView {
+        ScrollView {
                 VStack(spacing: AppSpacing.sectionSpacing) {
                     
                     if isLoading {
@@ -28,20 +25,11 @@ struct CategorySelectionView: View {
                 }
                 .pageMargins()
                 .padding(.vertical, AppSpacing.sectionSpacing)
-            }
-            .background(AppColors.backgroundLight)
-            .navigationTitle("Create Art")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        onDismiss()
-                    }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.primaryBlue)
-                }
-            }
         }
+        .background(AppColors.backgroundLight)
+        .navigationTitle("Create Art")
+        .navigationBarTitleDisplayMode(.large)
+        .navigationBarBackButtonHidden(false)
         .task {
             await loadCategories()
         }
@@ -50,15 +38,18 @@ struct CategorySelectionView: View {
         } message: {
             Text(error?.localizedDescription ?? "An unknown error occurred")
         }
-        .sheet(isPresented: $showingGenerationView) {
-            if let selectedCategory = selectedCategory {
-                GenerationView(
-                    preselectedCategory: selectedCategory,
-                    onDismiss: {
-                        showingGenerationView = false
-                        self.selectedCategory = nil
-                    }
-                )
+        .sheet(item: $selectedCategory) { category in
+            GenerationView(
+                preselectedCategory: category,
+                onDismiss: {
+                    selectedCategory = nil
+                }
+            )
+            .onAppear {
+                #if DEBUG
+                print("🎯 CategorySelection: Sheet opened with category: \(category.category.name)")
+                print("🎯 CategorySelection: Options count: \(category.options.count)")
+                #endif
             }
         }
     }
@@ -110,8 +101,13 @@ struct CategorySelectionView: View {
             LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.itemSpacing) {
                 ForEach(categories) { category in
                     CategoryCard(category: category.category) {
+                        #if DEBUG
+                        print("🎯 CategorySelection: Selected \(category.category.name) with \(category.options.count) options")
+                        for option in category.options {
+                            print("   - \(option.name)")
+                        }
+                        #endif
                         selectedCategory = category
-                        showingGenerationView = true
                     }
                 }
             }
@@ -211,7 +207,7 @@ struct CategoryCard: View {
                 Spacer()
             }
             .padding(AppSpacing.md)
-            .frame(width: .infinity, height: 200)
+            .frame(height: 200)
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)

@@ -2,11 +2,10 @@ import SwiftUI
 
 struct MainAppView: View {
     @StateObject private var authService = AuthService.shared
-    @State private var showingCategorySelection = false
     @State private var showingGalleryView = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: AppSpacing.sectionSpacing) {
                     
@@ -56,15 +55,15 @@ struct MainAppView: View {
                         
                         LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.rowSpacing) {
                             
-                            FeatureCard(
-                                title: "Create Art",
-                                description: "Generate coloring pages, stickers, and more",
-                                icon: "🎨",
-                                color: AppColors.coloringPagesColor,
-                                action: {
-                                    showingCategorySelection = true
-                                }
-                            )
+                            NavigationLink(destination: CategorySelectionView()) {
+                                FeatureCardContent(
+                                    title: "Create Art",
+                                    description: "Generate coloring pages, stickers, and more",
+                                    icon: "🎨",
+                                    color: AppColors.coloringPagesColor
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
                             
                             FeatureCard(
                                 title: "My Gallery",
@@ -144,11 +143,6 @@ struct MainAppView: View {
             .navigationTitle("SketchWink")
             .navigationBarTitleDisplayMode(.large)
         }
-        .sheet(isPresented: $showingCategorySelection) {
-            CategorySelectionView(onDismiss: {
-                showingCategorySelection = false
-            })
-        }
         .sheet(isPresented: $showingGalleryView) {
             GalleryView()
         }
@@ -193,6 +187,44 @@ struct FeatureCard: View {
                 y: AppSizing.shadows.small.y
             )
         }
+        .childSafeTouchTarget()
+    }
+}
+
+struct FeatureCardContent: View {
+    let title: String
+    let description: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: AppSpacing.sm) {
+            Text(icon)
+                .font(.system(size: AppSizing.iconSizes.xl))
+            
+            VStack(spacing: AppSpacing.xs) {
+                Text(title)
+                    .categoryTitle()
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                
+                Text(description)
+                    .captionLarge()
+                    .foregroundColor(.white.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+        }
+        .frame(height: 140)
+        .frame(maxWidth: .infinity)
+        .background(color)
+        .cornerRadius(AppSizing.cornerRadius.md)
+        .shadow(
+            color: color.opacity(0.3),
+            radius: AppSizing.shadows.small.radius,
+            x: AppSizing.shadows.small.x,
+            y: AppSizing.shadows.small.y
+        )
         .childSafeTouchTarget()
     }
 }
