@@ -1,15 +1,18 @@
 import SwiftUI
 
-struct LoginView: View {
-    @StateObject private var viewModel = LoginViewModel()
+struct SignUpView: View {
+    @StateObject private var viewModel = SignUpViewModel()
+    @State private var name = ""
     @State private var email = ""
     @State private var password = ""
+    @State private var confirmPassword = ""
     @State private var showPassword = false
-    @State private var showSignUp = false
+    @State private var showConfirmPassword = false
     @FocusState private var focusedField: Field?
+    @Environment(\.dismiss) private var dismiss
 
     enum Field {
-        case email, password
+        case name, email, password, confirmPassword
     }
 
     var body: some View {
@@ -17,19 +20,27 @@ struct LoginView: View {
             ScrollView {
                 VStack(spacing: AppSpacing.xl) {
 
-                    // Spacer for better vertical centering
-                    Spacer()
-                        .frame(minHeight: AppSpacing.lg)
-
-                    // Header Section - More playful and child-friendly
+                    // Header Section
                     VStack(spacing: AppSpacing.lg) {
-                        // Magical logo with gradient and animation
+                        // Back button
+                        HStack {
+                            Button(action: { dismiss() }) {
+                                HStack {
+                                    Image(systemName: "arrow.left")
+                                    Text("Back")
+                                }
+                                .foregroundColor(AppColors.primaryBlue)
+                            }
+                            Spacer()
+                        }
+
+                        // Magical logo with gradient
                         ZStack {
                             // Outer glow ring
                             Circle()
                                 .fill(
                                     LinearGradient(
-                                        colors: [AppColors.primaryBlue.opacity(0.3), AppColors.primaryPurple.opacity(0.3)],
+                                        colors: [AppColors.primaryPink.opacity(0.3), AppColors.primaryPurple.opacity(0.3)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
@@ -40,35 +51,31 @@ struct LoginView: View {
                             Circle()
                                 .fill(
                                     LinearGradient(
-                                        colors: [AppColors.primaryBlue, AppColors.primaryPurple],
+                                        colors: [AppColors.primaryPink, AppColors.primaryPurple],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
                                 )
                                 .frame(width: 100, height: 100)
                                 .overlay(
-                                    Text("🎨")
+                                    Text("✨")
                                         .font(.system(size: 50))
                                 )
                                 .shadow(
-                                    color: AppColors.primaryBlue.opacity(0.4),
+                                    color: AppColors.primaryPink.opacity(0.4),
                                     radius: 20,
                                     x: 0,
                                     y: 8
                                 )
                         }
 
-                        // Welcome text with improved hierarchy
+                        // Welcome text
                         VStack(spacing: AppSpacing.sm) {
-                            Text("Welcome to")
-                                .titleLarge()
-                                .foregroundColor(AppColors.textSecondary)
-
-                            Text("SketchWink")
+                            Text("Join the Magic!")
                                 .font(AppTypography.appTitle)
-                                .foregroundColor(AppColors.primaryBlue)
+                                .foregroundColor(AppColors.primaryPink)
 
-                            Text("Where families create magic together! ✨")
+                            Text("Create your family account and start your creative journey! 🎨")
                                 .onboardingBody()
                                 .foregroundColor(AppColors.energyOrange)
                                 .multilineTextAlignment(.center)
@@ -76,10 +83,34 @@ struct LoginView: View {
                         }
                     }
 
-                    // Login Form - Full width design
+                    // Signup Form
                     VStack(spacing: AppSpacing.lg) {
                         VStack(spacing: AppSpacing.md) {
-                            // Email Field - Consistent style
+                            // Name Field
+                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                Text("Full Name")
+                                    .captionLarge()
+                                    .foregroundColor(AppColors.textSecondary)
+
+                                TextField("Enter your full name", text: $name)
+                                    .textInputAutocapitalization(.words)
+                                    .focused($focusedField, equals: .name)
+                                    .onSubmit {
+                                        focusedField = .email
+                                    }
+                                    .padding(AppSpacing.sm)
+                                    .background(AppColors.surfaceLight)
+                                    .cornerRadius(AppSizing.cornerRadius.sm)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                            .stroke(
+                                                focusedField == .name ? AppColors.primaryBlue : AppColors.primaryBlue.opacity(0.3),
+                                                lineWidth: focusedField == .name ? 2 : 1
+                                            )
+                                    )
+                            }
+
+                            // Email Field
                             VStack(alignment: .leading, spacing: AppSpacing.xs) {
                                 Text("Email")
                                     .captionLarge()
@@ -105,7 +136,7 @@ struct LoginView: View {
                                     )
                             }
 
-                            // Password Field - Consistent style
+                            // Password Field
                             VStack(alignment: .leading, spacing: AppSpacing.xs) {
                                 Text("Password")
                                     .captionLarge()
@@ -114,16 +145,14 @@ struct LoginView: View {
                                 HStack {
                                     Group {
                                         if showPassword {
-                                            TextField("Enter your password", text: $password)
+                                            TextField("Create a password", text: $password)
                                         } else {
-                                            SecureField("Enter your password", text: $password)
+                                            SecureField("Create a password", text: $password)
                                         }
                                     }
                                     .focused($focusedField, equals: .password)
                                     .onSubmit {
-                                        Task {
-                                            await viewModel.signIn(email: email, password: password)
-                                        }
+                                        focusedField = .confirmPassword
                                     }
 
                                     Button(action: { showPassword.toggle() }) {
@@ -143,9 +172,48 @@ struct LoginView: View {
                                         )
                                 )
                             }
+
+                            // Confirm Password Field
+                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                Text("Confirm Password")
+                                    .captionLarge()
+                                    .foregroundColor(AppColors.textSecondary)
+
+                                HStack {
+                                    Group {
+                                        if showConfirmPassword {
+                                            TextField("Confirm your password", text: $confirmPassword)
+                                        } else {
+                                            SecureField("Confirm your password", text: $confirmPassword)
+                                        }
+                                    }
+                                    .focused($focusedField, equals: .confirmPassword)
+                                    .onSubmit {
+                                        Task {
+                                            await viewModel.signUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
+                                        }
+                                    }
+
+                                    Button(action: { showConfirmPassword.toggle() }) {
+                                        Image(systemName: showConfirmPassword ? "eye.slash.fill" : "eye.fill")
+                                            .foregroundColor(AppColors.textSecondary)
+                                            .font(.body)
+                                    }
+                                }
+                                .padding(AppSpacing.sm)
+                                .background(AppColors.surfaceLight)
+                                .cornerRadius(AppSizing.cornerRadius.sm)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                        .stroke(
+                                            focusedField == .confirmPassword ? AppColors.primaryBlue : AppColors.primaryBlue.opacity(0.3),
+                                            lineWidth: focusedField == .confirmPassword ? 2 : 1
+                                        )
+                                )
+                            }
                         }
 
-                        // Error Message - More friendly design
+                        // Error Message
                         if let errorMessage = viewModel.errorMessage {
                             HStack(spacing: AppSpacing.sm) {
                                 Image(systemName: "exclamationmark.triangle.fill")
@@ -168,10 +236,10 @@ struct LoginView: View {
                             )
                         }
 
-                        // Login Button - More prominent and friendly
+                        // Sign Up Button
                         Button(action: {
                             Task {
-                                await viewModel.signIn(email: email, password: password)
+                                await viewModel.signUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
                             }
                         }) {
                             HStack(spacing: AppSpacing.sm) {
@@ -180,12 +248,12 @@ struct LoginView: View {
                                         .tint(AppColors.textOnColor)
                                         .scaleEffect(0.9)
                                 } else {
-                                    Image(systemName: "sparkles")
+                                    Image(systemName: "star.fill")
                                         .font(.title2)
                                         .foregroundColor(AppColors.textOnColor)
                                 }
 
-                                Text(viewModel.isLoading ? "Creating Magic..." : "Start Creating!")
+                                Text(viewModel.isLoading ? "Creating Account..." : "Create Account")
                                     .buttonLarge()
                                     .foregroundColor(AppColors.textOnColor)
                             }
@@ -194,43 +262,42 @@ struct LoginView: View {
                         }
                         .background(
                             LinearGradient(
-                                colors: viewModel.canSignIn(email: email, password: password)
-                                    ? [AppColors.primaryBlue, AppColors.primaryPurple]
+                                colors: viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
+                                    ? [AppColors.primaryPink, AppColors.primaryPurple]
                                     : [AppColors.buttonDisabled, AppColors.buttonDisabled],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                         .cornerRadius(AppSizing.cornerRadius.lg)
-                        .disabled(!viewModel.canSignIn(email: email, password: password) || viewModel.isLoading)
+                        .disabled(!viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword) || viewModel.isLoading)
                         .childSafeTouchTarget()
                         .shadow(
-                            color: viewModel.canSignIn(email: email, password: password)
-                                ? AppColors.primaryBlue.opacity(0.3)
+                            color: viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
+                                ? AppColors.primaryPink.opacity(0.3)
                                 : Color.clear,
                             radius: 10,
                             x: 0,
                             y: 6
                         )
 
-                        // Sign Up Link - Friendlier design
+                        // Already have account link
                         VStack(spacing: AppSpacing.sm) {
-                            Text("New to SketchWink?")
+                            Text("Already have an account?")
                                 .bodyMedium()
                                 .foregroundColor(AppColors.textSecondary)
 
-                            Button("Sign Up") {
-                                showSignUp = true
+                            Button("Sign In") {
+                                dismiss()
                             }
                             .padding(.horizontal, AppSpacing.lg)
                             .padding(.vertical, AppSpacing.sm)
-                            .background(AppColors.energyOrange)
-                            .foregroundColor(.white)
+                            .background(AppColors.buttonSecondary)
+                            .foregroundColor(AppColors.primaryBlue)
                             .cornerRadius(AppSizing.cornerRadius.lg)
                             .childSafeTouchTarget()
                         }
                     }
-
 
                     Spacer()
                         .frame(minHeight: AppSpacing.xl)
@@ -242,49 +309,38 @@ struct LoginView: View {
         .background(
             LinearGradient(
                 colors: [
-                    AppColors.softMint.opacity(0.3),
-                    AppColors.babyBlue.opacity(0.3),
-                    AppColors.lavenderMist.opacity(0.2)
+                    AppColors.peachCream.opacity(0.3),
+                    AppColors.lavenderMist.opacity(0.3),
+                    AppColors.cottonCandy.opacity(0.2)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
         )
         .navigationBarHidden(true)
-        .fullScreenCover(isPresented: $showSignUp) {
-            SignUpView()
+        .fullScreenCover(isPresented: $viewModel.showOTPVerification) {
+            OTPVerificationView(email: email)
         }
-        .alert("Welcome to SketchWink! 🎉", isPresented: $viewModel.showSuccessAlert) {
-            Button("Let's Create Magic! ✨") {
-                viewModel.navigateToMainApp()
+        .alert("Account Created! 🎉", isPresented: $viewModel.showSuccessAlert) {
+            Button("Continue") {
+                viewModel.proceedToOTPVerification()
             }
-            .foregroundColor(AppColors.primaryBlue)
         } message: {
-            Text("Get ready to create amazing art with your family!")
+            Text("Please check your email for a verification code!")
         }
     }
 }
 
 // MARK: - Preview
 #if DEBUG
-struct LoginView_Previews: PreviewProvider {
+struct SignUpView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
-            LoginView()
-        }
-        .previewDisplayName("Login View")
+        SignUpView()
+            .previewDisplayName("Sign Up View")
 
-        NavigationView {
-            LoginView()
-        }
-        .preferredColorScheme(.dark)
-        .previewDisplayName("Login View (Dark)")
-
-        NavigationView {
-            LoginView()
-        }
-        .previewDevice("iPad Pro (11-inch)")
-        .previewDisplayName("Login View (iPad)")
+        SignUpView()
+            .preferredColorScheme(.dark)
+            .previewDisplayName("Sign Up View (Dark)")
     }
 }
 #endif
