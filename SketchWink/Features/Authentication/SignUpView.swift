@@ -18,7 +18,7 @@ struct SignUpView: View {
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
-                VStack(spacing: AppSpacing.xl) {
+                VStack(spacing: AppSpacing.lg) {
 
                     // Header Section
                     VStack(spacing: AppSpacing.lg) {
@@ -73,24 +73,24 @@ struct SignUpView: View {
                         VStack(spacing: AppSpacing.sm) {
                             Text("Join the Magic!")
                                 .font(AppTypography.appTitle)
-                                .foregroundColor(AppColors.primaryPink)
+                                .foregroundColor(.white)
 
                             Text("Create your family account and start your creative journey! 🎨")
                                 .onboardingBody()
-                                .foregroundColor(AppColors.energyOrange)
+                                .foregroundColor(.white)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, AppSpacing.md)
                         }
                     }
 
                     // Signup Form
-                    VStack(spacing: AppSpacing.lg) {
+                    VStack(spacing: AppSpacing.md) {
                         VStack(spacing: AppSpacing.md) {
                             // Name Field
                             VStack(alignment: .leading, spacing: AppSpacing.xs) {
                                 Text("Full Name")
                                     .captionLarge()
-                                    .foregroundColor(AppColors.textSecondary)
+                                    .foregroundColor(.white)
 
                                 TextField("Enter your full name", text: $name)
                                     .textInputAutocapitalization(.words)
@@ -114,7 +114,7 @@ struct SignUpView: View {
                             VStack(alignment: .leading, spacing: AppSpacing.xs) {
                                 Text("Email")
                                     .captionLarge()
-                                    .foregroundColor(AppColors.textSecondary)
+                                    .foregroundColor(.white)
 
                                 TextField("Enter your email", text: $email)
                                     .keyboardType(.emailAddress)
@@ -140,7 +140,7 @@ struct SignUpView: View {
                             VStack(alignment: .leading, spacing: AppSpacing.xs) {
                                 Text("Password")
                                     .captionLarge()
-                                    .foregroundColor(AppColors.textSecondary)
+                                    .foregroundColor(.white)
 
                                 HStack {
                                     Group {
@@ -177,7 +177,7 @@ struct SignUpView: View {
                             VStack(alignment: .leading, spacing: AppSpacing.xs) {
                                 Text("Confirm Password")
                                     .captionLarge()
-                                    .foregroundColor(AppColors.textSecondary)
+                                    .foregroundColor(.white)
 
                                 HStack {
                                     Group {
@@ -250,31 +250,27 @@ struct SignUpView: View {
                                 } else {
                                     Image(systemName: "star.fill")
                                         .font(.title2)
-                                        .foregroundColor(AppColors.textOnColor)
+                                        .foregroundColor(viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword) ? AppColors.textPrimary : AppColors.textSecondary)
                                 }
 
                                 Text(viewModel.isLoading ? "Creating Account..." : "Create Account")
-                                    .buttonLarge()
-                                    .foregroundColor(AppColors.textOnColor)
+                                    .font(.body)
+                                    .foregroundColor(viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword) ? AppColors.textPrimary : AppColors.textSecondary)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, AppSpacing.md)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .padding(.horizontal, AppSpacing.sm)
                         }
                         .background(
-                            LinearGradient(
-                                colors: viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
-                                    ? [AppColors.primaryPink, AppColors.primaryPurple]
-                                    : [AppColors.buttonDisabled, AppColors.buttonDisabled],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                            viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
+                                ? AppColors.rosyPink
+                                : AppColors.buttonDisabled
                         )
-                        .cornerRadius(AppSizing.cornerRadius.lg)
+                        .cornerRadius(AppSizing.cornerRadius.sm)
                         .disabled(!viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword) || viewModel.isLoading)
                         .childSafeTouchTarget()
                         .shadow(
                             color: viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
-                                ? AppColors.primaryPink.opacity(0.3)
+                                ? AppColors.rosyPink.opacity(0.3)
                                 : Color.clear,
                             radius: 10,
                             x: 0,
@@ -282,51 +278,34 @@ struct SignUpView: View {
                         )
 
                         // Already have account link
-                        VStack(spacing: AppSpacing.sm) {
+                        HStack(spacing: AppSpacing.xs) {
                             Text("Already have an account?")
                                 .bodyMedium()
-                                .foregroundColor(AppColors.textSecondary)
-
-                            Button("Sign In") {
+                                .foregroundColor(.white)
+                            
+                            Button("Sign in") {
                                 dismiss()
                             }
-                            .padding(.horizontal, AppSpacing.lg)
-                            .padding(.vertical, AppSpacing.sm)
-                            .background(AppColors.buttonSecondary)
-                            .foregroundColor(AppColors.primaryBlue)
-                            .cornerRadius(AppSizing.cornerRadius.lg)
-                            .childSafeTouchTarget()
+                            .font(.body)
+                            .foregroundColor(.white)
+                            .underline()
                         }
                     }
 
                     Spacer()
-                        .frame(minHeight: AppSpacing.xl)
+                        .frame(minHeight: AppSpacing.md)
                 }
                 .pageMargins()
                 .frame(minHeight: geometry.size.height)
             }
         }
-        .background(
-            LinearGradient(
-                colors: [
-                    AppColors.peachCream.opacity(0.3),
-                    AppColors.lavenderMist.opacity(0.3),
-                    AppColors.cottonCandy.opacity(0.2)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .background(AppColors.lavenderPurple)
         .navigationBarHidden(true)
         .fullScreenCover(isPresented: $viewModel.showOTPVerification) {
-            OTPVerificationView(email: email)
-        }
-        .alert("Account Created! 🎉", isPresented: $viewModel.showSuccessAlert) {
-            Button("Continue") {
-                viewModel.proceedToOTPVerification()
+            OTPVerificationView(email: email) {
+                // When OTP verification is complete, dismiss the entire signup flow
+                dismiss()
             }
-        } message: {
-            Text("Please check your email for a verification code!")
         }
     }
 }

@@ -8,6 +8,7 @@ class OTPVerificationViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var showSuccessAlert = false
     @Published var showSuccessMessage = false
+    @Published var showSuccessToast = false
     @Published var shouldNavigateToMainApp = false
     @Published var canResendOTP = false
     @Published var resendCountdown = 60
@@ -31,31 +32,40 @@ class OTPVerificationViewModel: ObservableObject {
         do {
             let response = try await authService.verifyOTP(email: email, code: code)
             
-            if response.success, let user = response.user {
-                // Success - show alert
-                showSuccessAlert = true
+            if response.success, let user = response.user, let session = response.session {
+                // Success - show toast and authenticate after delay
+                showSuccessToast = true
                 isLoading = false
                 
                 // Log success for debugging
                 if AppConfig.Debug.enableLogging {
                     print("✅ OTP verification successful for: \(email)")
-                    if let tokens = response.welcomeTokens {
-                        print("🎁 Welcome tokens granted: \(tokens)")
+                    print("🔑 User authenticated with session token")
+                }
+                
+                // Store session token securely first
+                do {
+                    try KeychainManager.shared.storeToken(session.token)
+                } catch {
+                    if AppConfig.Debug.enableLogging {
+                        print("⚠️ Failed to store token in keychain: \(error)")
                     }
                 }
                 
-                // Update auth service with verified user
-                await MainActor.run {
-                    authService.currentUser = user
-                    authService.isAuthenticated = true
+                // Authenticate user after showing success toast for 1.5 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    self.authService.currentUser = user
+                    self.authService.isAuthenticated = true
+                    // This will trigger AppCoordinator to show MainAppView
                 }
                 
             } else {
-                errorMessage = response.message.isEmpty ? "Invalid verification code. Please try again." : response.message
+                errorMessage = response.message
                 isLoading = false
             }
             
         } catch let error as AuthError {
+            // Use the actual backend error message
             errorMessage = error.errorDescription
             isLoading = false
             
@@ -65,7 +75,7 @@ class OTPVerificationViewModel: ObservableObject {
             }
             
         } catch {
-            errorMessage = "An unexpected error occurred. Please try again."
+            errorMessage = error.localizedDescription
             isLoading = false
             
             // Log unexpected errors
@@ -142,7 +152,13 @@ class OTPVerificationViewModel: ObservableObject {
     
     // MARK: - Navigation
     func navigateToMainApp() {
+        // User is now authenticated, navigate to main app
+        // This will dismiss all authentication views since user is authenticated
         shouldNavigateToMainApp = true
+        
+        if AppConfig.Debug.enableLogging {
+            print("✅ User authenticated, navigating to main app")
+        }
     }
     
     // MARK: - Clear Error

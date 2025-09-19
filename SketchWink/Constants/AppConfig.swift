@@ -27,7 +27,7 @@ struct AppConfig {
             // Authentication
             static let signUp = "/api/auth/sign-up"          // POST - Create new account
             static let signIn = "/api/auth/sign-in"          // POST - Login user
-            static let verifyOTP = "/api/auth/verify-otp"    // POST - Verify email OTP
+            static let verifyOTP = "/api/verify-otp"         // POST - Verify email OTP
             static let resendOTP = "/api/auth/resend-otp"    // POST - Resend verification OTP
             static let refreshToken = "/api/auth/refresh"     // POST - Refresh access token
             

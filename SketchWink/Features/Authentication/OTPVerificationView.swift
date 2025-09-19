@@ -2,10 +2,16 @@ import SwiftUI
 
 struct OTPVerificationView: View {
     let email: String
+    let onVerificationComplete: (() -> Void)?
     @StateObject private var viewModel = OTPVerificationViewModel()
     @State private var otpCode = ""
     @FocusState private var isOTPFocused: Bool
     @Environment(\.dismiss) private var dismiss
+    
+    init(email: String, onVerificationComplete: (() -> Void)? = nil) {
+        self.email = email
+        self.onVerificationComplete = onVerificationComplete
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -166,50 +172,19 @@ struct OTPVerificationView: View {
                             )
                         }
 
-                        // Verify Button
-                        Button(action: {
-                            Task {
-                                await viewModel.verifyOTP(email: email, code: otpCode)
-                            }
-                        }) {
+                        // Auto-verification status
+                        if viewModel.isLoading {
                             HStack(spacing: AppSpacing.sm) {
-                                if viewModel.isLoading {
-                                    ProgressView()
-                                        .tint(AppColors.textOnColor)
-                                        .scaleEffect(0.9)
-                                } else {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.title2)
-                                        .foregroundColor(AppColors.textOnColor)
-                                }
-
-                                Text(viewModel.isLoading ? "Verifying..." : "Verify Code")
-                                    .buttonLarge()
-                                    .foregroundColor(AppColors.textOnColor)
+                                ProgressView()
+                                    .tint(AppColors.successGreen)
+                                    .scaleEffect(0.8)
+                                
+                                Text("Verifying...")
+                                    .bodyMedium()
+                                    .foregroundColor(AppColors.textSecondary)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, AppSpacing.md)
+                            .padding(.vertical, AppSpacing.sm)
                         }
-                        .background(
-                            LinearGradient(
-                                colors: (otpCode.count == 6 && !viewModel.isLoading)
-                                    ? [AppColors.successGreen, AppColors.aqua]
-                                    : [AppColors.buttonDisabled, AppColors.buttonDisabled],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(AppSizing.cornerRadius.lg)
-                        .disabled(otpCode.count != 6 || viewModel.isLoading)
-                        .childSafeTouchTarget()
-                        .shadow(
-                            color: (otpCode.count == 6 && !viewModel.isLoading)
-                                ? AppColors.successGreen.opacity(0.3)
-                                : Color.clear,
-                            radius: 10,
-                            x: 0,
-                            y: 6
-                        )
 
                         // Resend Code Section
                         VStack(spacing: AppSpacing.sm) {
@@ -281,14 +256,40 @@ struct OTPVerificationView: View {
         .onAppear {
             viewModel.startResendTimer()
         }
-        .alert("Welcome to SketchWink! 🎉", isPresented: $viewModel.showSuccessAlert) {
-            Button("Start Creating! ✨") {
-                viewModel.navigateToMainApp()
+        .overlay(
+            // Success Toast
+            Group {
+                if viewModel.showSuccessToast {
+                    VStack(spacing: AppSpacing.sm) {
+                        HStack(spacing: AppSpacing.sm) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(AppColors.successGreen)
+                                .font(.title2)
+                            
+                            Text("Verification successful! ✨")
+                                .titleMedium()
+                                .foregroundColor(AppColors.successGreen)
+                            
+                            Spacer()
+                        }
+                        .padding(AppSpacing.md)
+                        .background(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                                .fill(Color.white)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                                        .stroke(AppColors.successGreen.opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                    }
+                    .padding(.horizontal, AppSpacing.lg)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: viewModel.showSuccessToast)
+                }
             }
-            .foregroundColor(AppColors.primaryBlue)
-        } message: {
-            Text("Your account has been verified! Welcome to our creative family!")
-        }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.top, 0)
+        )
     }
 }
 

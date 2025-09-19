@@ -32,6 +32,14 @@ struct AppColors {
     static let coral = Color(hex: "#FF6B6B")              // Living Coral - Warmth and energy
     static let aqua = Color(hex: "#1DD1A1")               // Aqua - Refreshing and modern
     
+    // MARK: - New Kid-Friendly Colors (Login/Signup Pair)
+    static let dreamyBlue = Color(hex: "#4A90E2")         // Dreamy Blue - Calm and trustworthy
+    static let rosyPink = Color(hex: "#FF69B4")           // Rosy Pink - Playful and warm
+    static let seafoamGreen = Color(hex: "#20B2AA")       // Seafoam Green - Fresh and creative
+    static let sunsetOrange = Color(hex: "#FF7F50")       // Sunset Orange - Energetic and fun
+    static let lavenderPurple = Color(hex: "#9370DB")     // Lavender Purple - Magical and calm
+    static let goldenYellow = Color(hex: "#FFD700")       // Golden Yellow - Bright and cheerful
+    
     // MARK: - Neutral Colors
     static let backgroundLight = Color(red: 0.98, green: 0.98, blue: 1.0)    // #FAFAFF - Very light blue
     static let backgroundDark = Color(red: 0.05, green: 0.05, blue: 0.1)     // #0D0D1A - Dark blue

@@ -15,9 +15,14 @@ struct SignUpRequest: Codable {
 }
 
 struct SignUpResponse: Codable {
-    let success: Bool
     let message: String
-    let requiresVerification: Bool
+    let user: User?
+    let requiresVerification: Bool?
+    
+    // Computed property for backward compatibility
+    var success: Bool {
+        return user != nil
+    }
 }
 
 struct VerifyOTPRequest: Codable {
@@ -25,11 +30,17 @@ struct VerifyOTPRequest: Codable {
     let code: String
 }
 
+struct SessionToken: Codable {
+    let id: String
+    let token: String
+    let expiresAt: String
+}
+
 struct VerifyOTPResponse: Codable {
-    let success: Bool
     let message: String
+    let success: Bool
     let user: User?
-    let welcomeTokens: Int?
+    let session: SessionToken?
 }
 
 struct ResendOTPRequest: Codable {
@@ -97,8 +108,13 @@ struct Session: Codable {
 
 struct APIError: Codable {
     let error: String
-    let message: String
+    let message: String?
     let statusCode: Int?
+    
+    // Use error message if available, fallback to message field
+    var userMessage: String {
+        return error
+    }
 }
 
 // MARK: - Authentication Errors
@@ -115,7 +131,7 @@ enum AuthError: LocalizedError {
         case .invalidCredentials:
             return "Invalid email or password. Please check your credentials and try again."
         case .networkError(let message):
-            return "Network error: \(message)"
+            return message
         case .invalidResponse:
             return "Invalid response from server. Please try again."
         case .tokenStorageError:
@@ -228,7 +244,7 @@ class AuthService: ObservableObject {
             
             if !(200...299).contains(httpResponse.statusCode) {
                 if let apiError = try? decoder.decode(APIError.self, from: data) {
-                    throw AuthError.networkError(apiError.message)
+                    throw AuthError.networkError(apiError.userMessage)
                 } else {
                     throw AuthError.networkError("Server error: \(httpResponse.statusCode)")
                 }
@@ -271,7 +287,7 @@ class AuthService: ObservableObject {
             
             if !(200...299).contains(httpResponse.statusCode) {
                 if let apiError = try? decoder.decode(APIError.self, from: data) {
-                    throw AuthError.networkError(apiError.message)
+                    throw AuthError.networkError(apiError.userMessage)
                 } else {
                     throw AuthError.networkError("Server error: \(httpResponse.statusCode)")
                 }
@@ -314,7 +330,7 @@ class AuthService: ObservableObject {
             
             if !(200...299).contains(httpResponse.statusCode) {
                 if let apiError = try? decoder.decode(APIError.self, from: data) {
-                    throw AuthError.networkError(apiError.message)
+                    throw AuthError.networkError(apiError.userMessage)
                 } else {
                     throw AuthError.networkError("Server error: \(httpResponse.statusCode)")
                 }
@@ -377,7 +393,7 @@ class AuthService: ObservableObject {
             if !(200...299).contains(httpResponse.statusCode) {
                 // Try to decode error message
                 if let apiError = try? decoder.decode(APIError.self, from: data) {
-                    throw AuthError.networkError(apiError.message)
+                    throw AuthError.networkError(apiError.userMessage)
                 } else {
                     throw AuthError.networkError("Server error: \(httpResponse.statusCode)")
                 }

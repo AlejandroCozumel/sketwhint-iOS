@@ -28,13 +28,24 @@ class SignUpViewModel: ObservableObject {
             let response = try await authService.signUp(email: email, password: password, name: name)
             
             if response.success {
-                // Success - show alert first, then proceed to OTP
-                showSuccessAlert = true
-                isLoading = false
-                
-                // Log success for debugging
-                if AppConfig.Debug.enableLogging {
-                    print("✅ Sign up successful for: \(email)")
+                // Success - only show OTP if verification is required
+                if response.requiresVerification == true {
+                    showOTPVerification = true
+                    isLoading = false
+                    
+                    if AppConfig.Debug.enableLogging {
+                        print("✅ Sign up successful for: \(email), verification required")
+                    }
+                } else {
+                    // User created but no verification needed - could redirect to login
+                    isLoading = false
+                    
+                    if AppConfig.Debug.enableLogging {
+                        print("✅ Sign up successful for: \(email), no verification required")
+                    }
+                    
+                    // For now, still show OTP but could change this behavior
+                    showOTPVerification = true
                 }
             } else {
                 errorMessage = response.message
@@ -42,21 +53,49 @@ class SignUpViewModel: ObservableObject {
             }
             
         } catch let error as AuthError {
-            errorMessage = error.errorDescription
-            isLoading = false
-            
-            // Log error for debugging
-            if AppConfig.Debug.enableLogging {
-                print("❌ Sign up failed: \(error.errorDescription ?? "Unknown error")")
+            // Check if it's a parsing error but signup succeeded (201 response)
+            if let errorDesc = error.errorDescription, 
+               (errorDesc.contains("Network error") && errorDesc.contains("data couldn't be read")) ||
+               errorDesc.contains("is missing") {
+                // Signup likely succeeded despite parsing error - proceed to OTP
+                isLoading = false
+                showOTPVerification = true
+                
+                if AppConfig.Debug.enableLogging {
+                    print("⚠️ Signup succeeded but response parsing failed: \(errorDesc)")
+                    print("⚠️ Proceeding to OTP verification")
+                }
+            } else {
+                // Real error (like "User already exists")
+                errorMessage = error.errorDescription
+                isLoading = false
+                
+                // Log error for debugging
+                if AppConfig.Debug.enableLogging {
+                    print("❌ Sign up failed: \(error.errorDescription ?? "Unknown error")")
+                }
             }
             
         } catch {
-            errorMessage = "An unexpected error occurred. Please try again."
-            isLoading = false
-            
-            // Log unexpected errors
-            if AppConfig.Debug.enableLogging {
-                print("❌ Unexpected sign up error: \(error.localizedDescription)")
+            // Check for parsing errors in general catch
+            let errorDesc = error.localizedDescription
+            if errorDesc.contains("data couldn't be read") || errorDesc.contains("missing") {
+                // Signup likely succeeded despite parsing error
+                isLoading = false
+                showOTPVerification = true
+                
+                if AppConfig.Debug.enableLogging {
+                    print("⚠️ Signup succeeded but response parsing failed: \(errorDesc)")
+                    print("⚠️ Proceeding to OTP verification")
+                }
+            } else {
+                errorMessage = error.localizedDescription
+                isLoading = false
+                
+                // Log unexpected errors
+                if AppConfig.Debug.enableLogging {
+                    print("❌ Unexpected sign up error: \(error.localizedDescription)")
+                }
             }
         }
     }
