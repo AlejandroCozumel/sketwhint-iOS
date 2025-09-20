@@ -108,7 +108,10 @@ struct CreateGenerationRequest: Codable {
 
 struct Generation: Codable, Identifiable {
     let id: String
-    let status: String  // "processing", "completed", "failed"
+    let status: String  // "queued", "starting", "processing", "completing", "completed", "failed"
+    let progress: Int?  // Optional - might not be in GET response
+    let replicateId: String?
+    let estimatedTimeMs: Int?  // Only in creation response
     let categoryId: String
     let optionId: String
     let title: String
@@ -117,9 +120,9 @@ struct Generation: Codable, Identifiable {
     let tokensUsed: Int
     let quality: String
     let dimensions: String
-    let modelVersion: String
+    let modelVersion: String?  // Only present in completed generations
     let errorMessage: String?
-    let images: [GeneratedImage]?
+    let images: [GeneratedImage]?  // Only in detailed response
     let createdAt: String
     let updatedAt: String
 }
@@ -129,9 +132,16 @@ struct GeneratedImage: Codable, Identifiable {
     let imageUrl: String
     let optionIndex: Int
     let isFavorite: Bool
+    let originalUserPrompt: String?
+    let enhancedPrompt: String?
+    let wasEnhanced: Bool?
+    let wasFromImageUpload: Bool?
+    let modelUsed: String?
+    let qualityUsed: String?
+    let dimensionsUsed: String?
     let createdAt: String
-    let generation: GenerationInfo
-    let collections: [String]
+    let generation: GenerationInfo?  // Only in gallery response
+    let collections: [String]?       // Only in gallery response
 }
 
 struct GenerationInfo: Codable {

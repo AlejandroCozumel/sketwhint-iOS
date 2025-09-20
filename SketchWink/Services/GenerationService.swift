@@ -203,6 +203,12 @@ class GenerationService: ObservableObject {
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
+        #if DEBUG
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📥 GET Generation Response: \(responseString)")
+        }
+        #endif
+        
         guard let httpResponse = response as? HTTPURLResponse else {
             throw GenerationError.invalidResponse
         }
@@ -313,6 +319,7 @@ class GenerationService: ObservableObject {
 enum GenerationError: LocalizedError {
     case invalidURL
     case noToken
+    case authenticationFailed
     case invalidResponse
     case httpError(Int)
     case decodingError
@@ -327,6 +334,8 @@ enum GenerationError: LocalizedError {
             return "Invalid URL"
         case .noToken:
             return "Authentication token not found"
+        case .authenticationFailed:
+            return "Authentication failed"
         case .invalidResponse:
             return "Invalid server response"
         case .httpError(let code):

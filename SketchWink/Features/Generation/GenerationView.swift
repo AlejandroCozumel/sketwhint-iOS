@@ -8,7 +8,7 @@ struct GenerationView: View {
     @State private var promptEnhancementEnabled = true
     @State private var isUpdatingPromptSetting = false
     @State private var hasLoadedPromptSetting = false
-    
+
     // Generation options
     @State private var selectedMaxImages = 1
     @State private var selectedQuality = "standard"
@@ -20,19 +20,19 @@ struct GenerationView: View {
     @State private var showingError = false
     @State private var successMessage: String?
     @State private var showingSuccess = false
-    
+
     let preselectedCategory: CategoryWithOptions?
     let onDismiss: () -> Void
-    
+
     init(preselectedCategory: CategoryWithOptions? = nil, onDismiss: @escaping () -> Void = {}) {
         #if DEBUG
         print("🎯 GenerationView: init() called")
         print("🎯 GenerationView: preselectedCategory = \(preselectedCategory?.category.name ?? "nil")")
         #endif
-        
+
         self.preselectedCategory = preselectedCategory
         self.onDismiss = onDismiss
-        
+
         // Set up the category immediately if preselected
         if let preselectedCategory = preselectedCategory {
             #if DEBUG
@@ -47,12 +47,12 @@ struct GenerationView: View {
             #endif
         }
     }
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: AppSpacing.sectionSpacing) {
-                    
+
                     if isLoading {
                         loadingView
                     } else if let category = selectedCategory {
@@ -126,14 +126,14 @@ struct GenerationView: View {
             }
         }
     }
-    
+
     // MARK: - Loading View
     private var loadingView: some View {
         VStack(spacing: AppSpacing.xl) {
             ProgressView()
                 .scaleEffect(1.5)
                 .tint(AppColors.primaryBlue)
-            
+
             Text("Loading creation options...")
                 .font(AppTypography.bodyLarge)
                 .foregroundColor(AppColors.textSecondary)
@@ -142,47 +142,47 @@ struct GenerationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .frame(minHeight: 200)
     }
-    
+
     // MARK: - Generation Form
     @ViewBuilder
     private func generationFormView(category: CategoryWithOptions) -> some View {
         VStack(spacing: AppSpacing.sectionSpacing) {
-            
+
             // Category Header
             categoryHeaderView(category: category.category)
-            
+
             // Style Selection
             styleSelectionView(options: category.options)
-            
+
             // Prompt Input
             promptInputView
-            
+
             // Prompt Enhancement Toggle
             promptEnhancementToggleView
-            
+
             // Generation Options
             maxImagesSelectionView
             qualitySelectionView
             modelSelectionView
             dimensionsSelectionView
-            
+
             // Generate Button
             generateButtonView
         }
     }
-    
+
     // MARK: - Category Header
     @ViewBuilder
     private func categoryHeaderView(category: GenerationCategory) -> some View {
         VStack(spacing: AppSpacing.md) {
             Text(category.icon ?? "🎨")
                 .font(.system(size: AppSizing.iconSizes.xxl))
-            
+
             VStack(spacing: AppSpacing.xs) {
                 Text(category.name)
                     .headlineLarge()
                     .foregroundColor(AppColors.textPrimary)
-                
+
                 Text(category.description)
                     .bodyMedium()
                     .foregroundColor(AppColors.textSecondary)
@@ -199,7 +199,7 @@ struct GenerationView: View {
             y: AppSizing.shadows.small.y
         )
     }
-    
+
     // MARK: - Style Selection
     @ViewBuilder
     private func styleSelectionView(options: [GenerationOption]) -> some View {
@@ -207,7 +207,7 @@ struct GenerationView: View {
             Text("Choose Your Style")
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
-            
+
             LazyVGrid(columns: GridLayouts.styleGrid, spacing: AppSpacing.grid.itemSpacing) {
                 ForEach(options) { option in
                     StyleOptionCard(
@@ -222,14 +222,14 @@ struct GenerationView: View {
         }
         .cardStyle()
     }
-    
+
     // MARK: - Prompt Input
     private var promptInputView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             Text(selectedCategory?.category.id == "coloring_pages" ? "What would you like to color?" : "What would you like to create?")
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
-            
+
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
                 TextField("Example: cute cat playing with yarn", text: $userPrompt, axis: .vertical)
                     .textFieldStyle(.plain)
@@ -243,7 +243,7 @@ struct GenerationView: View {
                             .stroke(AppColors.primaryBlue.opacity(0.3), lineWidth: 1)
                     )
                     .lineLimit(3...6)
-                
+
                 Text(selectedCategory?.category.id == "coloring_pages" ? "Describe what you'd like to see in your coloring page" : "Describe what you'd like to create")
                     .font(AppTypography.captionMedium)
                     .foregroundColor(AppColors.textSecondary)
@@ -251,7 +251,7 @@ struct GenerationView: View {
         }
         .cardStyle()
     }
-    
+
     // MARK: - Prompt Enhancement Toggle
     private var promptEnhancementToggleView: some View {
         VStack(spacing: AppSpacing.md) {
@@ -260,14 +260,14 @@ struct GenerationView: View {
                     Text("AI Prompt Enhancement")
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
-                    
+
                     Text("Let AI improve your prompt for better results")
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
-                
+
                 Spacer()
-                
+
                 if hasLoadedPromptSetting {
                     Toggle("", isOn: $promptEnhancementEnabled)
                         .tint(AppColors.primaryBlue)
@@ -287,7 +287,7 @@ struct GenerationView: View {
         }
         .cardStyle()
     }
-    
+
     // MARK: - Max Images Selection
     private var maxImagesSelectionView: some View {
         VStack(spacing: AppSpacing.md) {
@@ -296,15 +296,15 @@ struct GenerationView: View {
                     Text("Number of Images")
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
-                    
+
                     Text("Choose how many variations to generate")
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
-                
+
                 Spacer()
             }
-            
+
             HStack(spacing: AppSpacing.sm) {
                 ForEach(1...4, id: \.self) { count in
                     Button(action: {
@@ -316,6 +316,7 @@ struct GenerationView: View {
                         }
                     }) {
                         Text("\(count)")
+
                             .font(AppTypography.titleMedium)
                             .foregroundColor(selectedMaxImages == count ? .white : AppColors.textPrimary)
                             .frame(width: 50, height: 40)
@@ -333,10 +334,10 @@ struct GenerationView: View {
                     }
                     .disabled(count > 1) // Disable for free users
                 }
-                
+
                 Spacer()
             }
-            
+
             if selectedMaxImages > 1 {
                 HStack {
                     Image(systemName: "info.circle")
@@ -350,7 +351,7 @@ struct GenerationView: View {
         }
         .cardStyle()
     }
-    
+
     // MARK: - Quality Selection
     private var qualitySelectionView: some View {
         VStack(spacing: AppSpacing.md) {
@@ -359,15 +360,15 @@ struct GenerationView: View {
                     Text("Image Quality")
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
-                    
+
                     Text("Higher quality takes more time and tokens")
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
-                
+
                 Spacer()
             }
-            
+
             VStack(spacing: AppSpacing.xs) {
                 ForEach(["standard", "high", "ultra"], id: \.self) { quality in
                     Button(action: {
@@ -383,14 +384,14 @@ struct GenerationView: View {
                                 Text(quality.capitalized)
                                     .font(AppTypography.titleMedium)
                                     .foregroundColor(selectedQuality == quality ? AppColors.primaryBlue : AppColors.textPrimary)
-                                
+
                                 Text(qualityDescription(quality))
                                     .font(AppTypography.captionMedium)
                                     .foregroundColor(AppColors.textSecondary)
                             }
-                            
+
                             Spacer()
-                            
+
                             if quality != "standard" {
                                 Image(systemName: "lock.fill")
                                     .foregroundColor(AppColors.textSecondary.opacity(0.6))
@@ -420,7 +421,7 @@ struct GenerationView: View {
         }
         .cardStyle()
     }
-    
+
     // MARK: - Model Selection
     private var modelSelectionView: some View {
         VStack(spacing: AppSpacing.md) {
@@ -429,15 +430,15 @@ struct GenerationView: View {
                     Text("AI Model")
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
-                    
+
                     Text("Different AI models produce different art styles")
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
-                
+
                 Spacer()
             }
-            
+
             VStack(spacing: AppSpacing.xs) {
                 ForEach(["seedream", "flux"], id: \.self) { model in
                     Button(action: {
@@ -453,14 +454,14 @@ struct GenerationView: View {
                                 Text(model.capitalized)
                                     .font(AppTypography.titleMedium)
                                     .foregroundColor(selectedModel == model ? AppColors.primaryBlue : AppColors.textPrimary)
-                                
+
                                 Text(modelDescription(model))
                                     .font(AppTypography.captionMedium)
                                     .foregroundColor(AppColors.textSecondary)
                             }
-                            
+
                             Spacer()
-                            
+
                             if model != "seedream" {
                                 Image(systemName: "lock.fill")
                                     .foregroundColor(AppColors.textSecondary.opacity(0.6))
@@ -490,7 +491,7 @@ struct GenerationView: View {
         }
         .cardStyle()
     }
-    
+
     // MARK: - Dimensions Selection
     private var dimensionsSelectionView: some View {
         VStack(spacing: AppSpacing.md) {
@@ -499,15 +500,15 @@ struct GenerationView: View {
                     Text("Image Dimensions")
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
-                    
+
                     Text("Choose the aspect ratio for your creation")
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
-                
+
                 Spacer()
             }
-            
+
             HStack(spacing: AppSpacing.sm) {
                 ForEach(["1:1", "2:3", "3:2", "A4"], id: \.self) { dimension in
                     Button(action: {
@@ -517,7 +518,7 @@ struct GenerationView: View {
                             Text(dimension)
                                 .font(AppTypography.titleSmall)
                                 .foregroundColor(selectedDimensions == dimension ? .white : AppColors.textPrimary)
-                            
+
                             Text(dimensionDescription(dimension))
                                 .font(AppTypography.captionSmall)
                                 .foregroundColor(selectedDimensions == dimension ? .white.opacity(0.8) : AppColors.textSecondary)
@@ -541,7 +542,7 @@ struct GenerationView: View {
         }
         .cardStyle()
     }
-    
+
     // MARK: - Generate Button
     private var generateButtonView: some View {
         VStack(spacing: AppSpacing.sm) {
@@ -553,7 +554,7 @@ struct GenerationView: View {
             .largeButtonStyle(backgroundColor: categoryColor)
             .disabled(!canGenerate)
             .childSafeTouchTarget()
-            
+
             if !canGenerate {
                 Text("Please select a style and enter a prompt")
                     .font(AppTypography.captionMedium)
@@ -562,23 +563,23 @@ struct GenerationView: View {
             }
         }
     }
-    
+
     // MARK: - Error State
     private var errorStateView: some View {
         VStack(spacing: AppSpacing.xl) {
             Text("😕")
                 .font(.system(size: 80))
-            
+
             VStack(spacing: AppSpacing.md) {
                 Text("Oops! Something went wrong")
                     .font(AppTypography.headlineMedium)
                     .foregroundColor(AppColors.textPrimary)
-                
+
                 Text("We couldn't load the coloring page options. Please try again.")
                     .font(AppTypography.bodyMedium)
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
-                
+
                 Button("Try Again") {
                     Task {
                         await loadData()
@@ -592,19 +593,19 @@ struct GenerationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .frame(minHeight: 300)
     }
-    
+
     // MARK: - Computed Properties
     private var canGenerate: Bool {
         selectedOption != nil && !userPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
-    
+
     private var categoryColor: Color {
         guard let category = selectedCategory?.category else { return AppColors.primaryBlue }
-        
+
         if let colorHex = category.color {
             return Color(hex: colorHex)
         }
-        
+
         // Fallback to hardcoded colors if backend doesn't provide color
         switch category.id {
         case "coloring_pages": return AppColors.coloringPagesColor
@@ -614,7 +615,7 @@ struct GenerationView: View {
         default: return AppColors.primaryBlue
         }
     }
-    
+
     // MARK: - Methods
     private func loadData() async {
         #if DEBUG
@@ -622,13 +623,13 @@ struct GenerationView: View {
         print("🎯 GenerationView: isLoading = \(isLoading)")
         print("🎯 GenerationView: selectedCategory = \(selectedCategory?.category.name ?? "nil")")
         #endif
-        
+
         // If we already have a preselected category set in init, just load settings
         if selectedCategory != nil {
             #if DEBUG
             print("🎯 GenerationView: Category already set, just loading settings")
             #endif
-            
+
             do {
                 // Set default selected option if not already set
                 if selectedOption == nil, let selectedCategory = selectedCategory {
@@ -639,7 +640,7 @@ struct GenerationView: View {
                         #endif
                     }
                 }
-                
+
                 // Set default dimensions based on category
                 if let selectedCategory = selectedCategory {
                     switch selectedCategory.category.id {
@@ -653,12 +654,12 @@ struct GenerationView: View {
                         selectedDimensions = "1:1"
                     }
                 }
-                
+
                 // Load prompt enhancement setting
                 let settings = try await generationService.getPromptEnhancementSettings()
                 promptEnhancementEnabled = settings.promptEnhancementEnabled
                 hasLoadedPromptSetting = true
-                
+
             } catch {
                 #if DEBUG
                 print("❌ GenerationView: Error loading settings: \(error)")
@@ -668,14 +669,14 @@ struct GenerationView: View {
             }
             return
         }
-        
+
         isLoading = true
-        
+
         do {
             // Use preselected category if provided, otherwise load from API
             if let preselectedCategory = preselectedCategory {
                 selectedCategory = preselectedCategory
-                
+
                 #if DEBUG
                 print("🎯 GenerationView: Setting preselected category: \(preselectedCategory.category.name)")
                 print("🎯 GenerationView: Options count: \(preselectedCategory.options.count)")
@@ -683,7 +684,7 @@ struct GenerationView: View {
                     print("   - \(option.name): \(option.description)")
                 }
                 #endif
-                
+
                 // Set default selected option for the preselected category
                 if let firstOption = preselectedCategory.options.first(where: { $0.isDefault }) ?? preselectedCategory.options.first {
                     selectedOption = firstOption
@@ -695,18 +696,18 @@ struct GenerationView: View {
                 // Fallback: load categories and find coloring pages (for backward compatibility)
                 let categories = try await generationService.getCategoriesWithOptions()
                 selectedCategory = categories.first { $0.category.id == "coloring_pages" }
-                
+
                 // Set default selected option
                 if let firstOption = selectedCategory?.options.first(where: { $0.isDefault }) ?? selectedCategory?.options.first {
                     selectedOption = firstOption
                 }
             }
-            
+
             // Load prompt enhancement setting
             let settings = try await generationService.getPromptEnhancementSettings()
             promptEnhancementEnabled = settings.promptEnhancementEnabled
             hasLoadedPromptSetting = true
-            
+
         } catch {
             #if DEBUG
             print("❌ GenerationView: Error loading data: \(error)")
@@ -714,13 +715,13 @@ struct GenerationView: View {
             self.error = error
             showingError = true
         }
-        
+
         isLoading = false
         #if DEBUG
         print("🎯 GenerationView: Loading complete. isLoading = false")
         #endif
     }
-    
+
     // MARK: - Helper Methods
     private func qualityDescription(_ quality: String) -> String {
         switch quality {
@@ -730,7 +731,7 @@ struct GenerationView: View {
         default: return ""
         }
     }
-    
+
     private func modelDescription(_ model: String) -> String {
         switch model {
         case "seedream": return "Fast, family-friendly AI model"
@@ -738,7 +739,7 @@ struct GenerationView: View {
         default: return ""
         }
     }
-    
+
     private func dimensionDescription(_ dimension: String) -> String {
         switch dimension {
         case "1:1": return "Square"
@@ -748,23 +749,23 @@ struct GenerationView: View {
         default: return ""
         }
     }
-    
+
     private func showUpgradeAlert(feature: String, requiredPlan: String) {
         // TODO: Show upgrade alert
         #if DEBUG
         print("🔒 Upgrade required: \(feature) needs \(requiredPlan)")
         #endif
-        
+
         // For now, show in error alert system
         error = GenerationError.upgradeRequired(feature: feature, plan: requiredPlan)
         showingError = true
     }
-    
+
     private func updatePromptEnhancementSetting(enabled: Bool) async {
         await MainActor.run {
             isUpdatingPromptSetting = true
         }
-        
+
         do {
             let result = try await generationService.updatePromptEnhancementSettings(enabled: enabled)
             #if DEBUG
@@ -788,11 +789,11 @@ struct GenerationView: View {
             showingError = true
         }
     }
-    
+
     private func generateColoring() async {
         guard let selectedOption = selectedOption,
               let selectedCategory = selectedCategory else { return }
-        
+
         let request = CreateGenerationRequest(
             categoryId: selectedCategory.category.id,
             optionId: selectedOption.id,
@@ -803,9 +804,25 @@ struct GenerationView: View {
             model: selectedModel,
             familyProfileId: nil  // TODO: Add family profile support later
         )
-        
+
         do {
+            // Connect to SSE BEFORE creating generation to avoid missing updates
+            if let token = try? KeychainManager.shared.retrieveToken() {
+                GenerationProgressSSEService.shared.connectToUserProgress(authToken: token)
+
+                // Small delay to ensure SSE connection is established
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            }
+
             let generation = try await generationService.createGeneration(request)
+
+            #if DEBUG
+            print("🎯 GenerationView: Created generation with ID: \(generation.id)")
+            #endif
+
+            // Update SSE tracking to the new generation ID (also resets progress to 0% to prevent UI flash)
+            GenerationProgressSSEService.shared.startTrackingGeneration(generation.id)
+
             generationState = .generating(generation)
         } catch {
             self.error = error
@@ -820,14 +837,14 @@ struct StyleOptionCard: View {
     let isSelected: Bool
     let categoryColor: Color
     let action: () -> Void
-    
+
     private var optionColor: Color {
         if let colorHex = option.color {
             return Color(hex: colorHex)
         }
         return categoryColor
     }
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {  // No automatic spacing - we'll control it manually
@@ -878,7 +895,7 @@ struct StyleOptionCard: View {
                     }
                 }
                 .frame(height: 60)  // Fixed height for icon section
-                
+
                 // Title Section - Always starts at same position
                 VStack {
                     Text(option.displayName)
@@ -890,8 +907,8 @@ struct StyleOptionCard: View {
                         .frame(maxWidth: .infinity)
                 }
                 .frame(height: 36)  // Fixed height for title (2 lines max)
-                
-                // Description Section - Always starts at same position  
+
+                // Description Section - Always starts at same position
                 VStack {
                     Text(option.displayDescription)
                         .font(AppTypography.captionMedium)
@@ -902,7 +919,7 @@ struct StyleOptionCard: View {
                         .frame(maxWidth: .infinity)
                 }
                 .frame(height: 48)  // Fixed height for description (3 lines max)
-                
+
                 Spacer()  // Any remaining space goes to bottom
             }
             .padding(AppSpacing.sm)  // Less padding for more content space
@@ -932,7 +949,7 @@ extension GenerationState {
         }
         return false
     }
-    
+
     var isCompleted: Bool {
         if case .completed = self {
             return true

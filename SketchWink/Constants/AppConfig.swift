@@ -63,6 +63,10 @@ struct AppConfig {
             
             // Analytics
             static let analytics = "/analytics"
+            
+            // Server-Sent Events (SSE)
+            static let sseGenerationProgress = "/sse/generation-progress/%@" // %@ = generationId
+            static let sseUserProgress = "/sse/user-progress"
         }
     }
     

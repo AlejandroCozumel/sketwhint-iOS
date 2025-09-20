@@ -329,9 +329,9 @@ struct ImageDetailView: View {
                             .foregroundColor(AppColors.textPrimary)
                         
                         VStack(spacing: AppSpacing.sm) {
-                            DetailRow(label: "Title", value: image.generation.title)
-                            DetailRow(label: "Category", value: image.generation.category)
-                            DetailRow(label: "Style", value: image.generation.option)
+                            DetailRow(label: "Title", value: image.generation?.title ?? image.originalUserPrompt ?? "Unknown")
+                            DetailRow(label: "Category", value: image.generation?.category ?? "Unknown")
+                            DetailRow(label: "Style", value: image.generation?.option ?? "Unknown")
                             DetailRow(label: "Created", value: formatDate(image.createdAt))
                         }
                     }

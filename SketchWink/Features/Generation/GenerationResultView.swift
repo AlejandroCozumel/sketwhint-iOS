@@ -78,7 +78,7 @@ struct GenerationResultView: View {
                let uiImage = UIImage(data: imageData) {
                 ColoringView(
                     sourceImage: uiImage,
-                    originalPrompt: currentImage.generation.title,
+                    originalPrompt: currentImage.generation?.title ?? currentImage.originalUserPrompt ?? "Unknown",
                     onDismiss: {
                         isShowingColoringView = false
                     }
@@ -280,28 +280,28 @@ struct GenerationResultView: View {
                 if let currentImage = currentImage {
                     GenerationInfoRow(
                         label: "Title",
-                        value: currentImage.generation.title,
+                        value: currentImage.generation?.title ?? currentImage.originalUserPrompt ?? "Unknown",
                         isExpandable: true
                     )
                     
                     GenerationInfoRow(
                         label: "Category",
-                        value: currentImage.generation.category
+                        value: currentImage.generation?.category ?? "Unknown"
                     )
                     
                     GenerationInfoRow(
                         label: "Style",
-                        value: currentImage.generation.option
+                        value: currentImage.generation?.option ?? "Unknown"
                     )
                     
                     GenerationInfoRow(
                         label: "Model",
-                        value: currentImage.generation.modelUsed
+                        value: currentImage.generation?.modelUsed ?? currentImage.modelUsed ?? "Unknown"
                     )
                     
                     GenerationInfoRow(
                         label: "Quality",
-                        value: currentImage.generation.qualityUsed.capitalized
+                        value: (currentImage.generation?.qualityUsed ?? currentImage.qualityUsed ?? "standard").capitalized
                     )
                     
                     GenerationInfoRow(
