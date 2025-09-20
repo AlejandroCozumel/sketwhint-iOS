@@ -13,6 +13,7 @@ class GenerationProgressSSEService: ObservableObject {
     private let maxReconnectAttempts = 5
     private var lastMessageAt = Date()
     private var watchdogTimer: Timer?
+    private var hasOpened = false
 
     // Current generation progress state
     @Published var currentProgress: GenerationProgress?
@@ -48,8 +49,11 @@ class GenerationProgressSSEService: ObservableObject {
             return
         }
 
-        // Disconnect any existing connection only if we need to reconnect
-        disconnect()
+        // Disconnect any existing connection object but keep current progress/state
+        if eventSource != nil {
+            eventSource?.disconnect()
+            eventSource = nil
+        }
 
         // Build SSE endpoint URL using user-progress endpoint
         let sseURLString = "\(AppConfig.API.baseURL)\(AppConfig.API.Endpoints.sseUserProgress)"
@@ -93,6 +97,7 @@ class GenerationProgressSSEService: ObservableObject {
         // Reset reconnect state
         isReconnecting = false
         reconnectAttempt = 0
+        hasOpened = false
         stopWatchdog()
 
         DispatchQueue.main.async {
@@ -146,6 +151,7 @@ class GenerationProgressSSEService: ObservableObject {
                 self.isConnected = true
                 self.connectionError = nil
                 self.lastMessageAt = Date()
+                self.hasOpened = true
                 self.startWatchdog()
             }
 
@@ -178,12 +184,15 @@ class GenerationProgressSSEService: ObservableObject {
         eventSource.$isConnected
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isConnected in
-                self?.isConnected = isConnected
+                guard let self = self else { return }
+                self.isConnected = isConnected
                 if isConnected == false {
-                    self?.scheduleReconnect()
+                    // Only schedule reconnects after a successful open
+                    guard self.hasOpened else { return }
+                    self.scheduleReconnect()
                 } else {
-                    self?.reconnectAttempt = 0
-                    self?.isReconnecting = false
+                    self.reconnectAttempt = 0
+                    self.isReconnecting = false
                 }
             }
             .store(in: &cancellables)
@@ -355,11 +364,11 @@ class GenerationProgressSSEService: ObservableObject {
             #endif
         }
     }
-    // Inactivity watchdog — detects stalls even when TCP stays open
+    // Inactivity watchdog — observe stalls but do NOT force reconnects (to avoid breaking long gaps like 30%→60%)
     private func startWatchdog() {
         stopWatchdog()
-        // Check every 8 seconds, reconnect if no messages for >12 seconds during active generation
-        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: true) { [weak self] _ in
+        // Check every 10 seconds; just log if no messages for >60 seconds. Reconnects are handled by isConnected/onError.
+        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             // If finished, stop watching
             if let status = self.currentProgress?.status, status == .completed || status == .failed {
@@ -369,11 +378,11 @@ class GenerationProgressSSEService: ObservableObject {
             // Only care when we are tracking something
             guard let trackingId = self.trackingGenerationId, !trackingId.isEmpty else { return }
             let elapsed = Date().timeIntervalSince(self.lastMessageAt)
-            if elapsed > 12.0 {
+            if elapsed > 60.0 {
                 #if DEBUG
-                print("🔗 GenerationProgressSSE: ⏳ Heartbeat stalled (\(Int(elapsed))s) while tracking \(trackingId). Forcing reconnect.")
+                print("🔗 GenerationProgressSSE: ⏳ No SSE messages for \(Int(elapsed))s while tracking \(trackingId). Not forcing reconnect (stream may be idle between stages).")
                 #endif
-                self.scheduleReconnect(force: true)
+                // No forced reconnect here. If the socket actually drops, eventSource.$isConnected or onError triggers scheduleReconnect().
             }
         }
     }
