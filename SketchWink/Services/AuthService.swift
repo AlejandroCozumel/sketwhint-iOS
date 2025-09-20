@@ -106,17 +106,6 @@ struct Session: Codable {
     let expiresAt: String
 }
 
-struct APIError: Codable {
-    let error: String
-    let message: String?
-    let statusCode: Int?
-    
-    // Use error message if available, fallback to message field
-    var userMessage: String {
-        return error
-    }
-}
-
 // MARK: - Authentication Errors
 enum AuthError: LocalizedError {
     case invalidCredentials

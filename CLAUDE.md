@@ -155,6 +155,59 @@ private let baseURL = APIConfig.baseURL  // OLD - doesn't exist
 let endpoint = "http://localhost:3000/api/categories"  // Hardcoded
 ```
 
+### **🚨 MANDATORY: Standardized Error Handling Pattern**
+
+**ALWAYS implement this error handling pattern for all API calls to support future multilingual error messages:**
+
+```swift
+// ✅ CORRECT - Try to decode API error message first, fallback to generic error
+guard 200...299 ~= httpResponse.statusCode else {
+    // Try to decode error message from API, fallback to generic error
+    if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+        throw YourServiceError.specificError(apiError.userMessage)
+    } else {
+        throw YourServiceError.httpError(httpResponse.statusCode)
+    }
+}
+
+// ❌ WRONG - Only generic errors, no API message support
+guard 200...299 ~= httpResponse.statusCode else {
+    throw YourServiceError.httpError(httpResponse.statusCode)
+}
+```
+
+**Required APIError Structure** (in `APIModels.swift`):
+```swift
+/// Standard API error response structure
+struct APIError: Codable {
+    let error: String        // Primary error message (multilingual ready)
+    let message: String?     // Optional additional context
+    let statusCode: Int?     // HTTP status code
+    
+    /// Use error message if available, fallback to message field
+    var userMessage: String {
+        return error
+    }
+}
+```
+
+**Benefits:**
+- 🌍 **Future Multilingual Support**: API can return localized error messages
+- 🎯 **Specific Error Context**: Users get meaningful error messages instead of generic ones
+- 🔄 **Graceful Fallback**: Still works if API doesn't return structured errors
+- 👨‍👩‍👧‍👦 **Family-Friendly**: Error messages can be tailored for child/parent audiences
+
+**Error Message Display:**
+```swift
+// ✅ CORRECT - Show API error message directly (already user-friendly)
+case .specificError(let message):
+    return message  // API provides ready-to-display message
+
+// ❌ WRONG - Adding redundant prefixes to API messages
+case .specificError(let message):
+    return "Generation failed: \(message)"  // Don't add prefixes to API messages
+```
+
 ### **KeychainManager Usage**
 ```swift
 // ✅ CORRECT - Use retrieveToken() and storeToken()

@@ -179,7 +179,12 @@ class GenerationService: ObservableObject {
         }
         
         guard 200...299 ~= httpResponse.statusCode else {
-            throw GenerationError.httpError(httpResponse.statusCode)
+            // Try to decode error message from API, fallback to generic error
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw GenerationError.generationFailed(apiError.userMessage)
+            } else {
+                throw GenerationError.httpError(httpResponse.statusCode)
+            }
         }
         
         return try JSONDecoder().decode(Generation.self, from: data)
@@ -343,7 +348,7 @@ enum GenerationError: LocalizedError {
         case .decodingError:
             return "Failed to decode response"
         case .generationFailed(let message):
-            return "Generation failed: \(message)"
+            return message
         case .unknownStatus(let status):
             return "Unknown generation status: \(status)"
         case .timeout:
