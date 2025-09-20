@@ -26,10 +26,13 @@ class EventSourceService: NSObject, ObservableObject {
         self.headers = headers
         super.init()
 
-        // Create URLSession with delegate
+        // Create URLSession with delegate and SSE-optimized configuration
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 0
-        config.timeoutIntervalForResource = 0
+        config.timeoutIntervalForRequest = 0  // No timeout for SSE
+        config.timeoutIntervalForResource = 0  // No timeout for SSE
+        config.waitsForConnectivity = true  // Wait for network connectivity
+        config.shouldUseExtendedBackgroundIdleMode = true  // Keep connection alive longer
+        config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData  // No caching for SSE
         self.urlSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
     }
 
@@ -267,10 +270,34 @@ extension EventSourceService: URLSessionDataDelegate {
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didCompleteWithError error: Error?) {
         #if DEBUG
         print("🔗 EventSource: ⚠️ Connection completed/disconnected")
+        print("🔗 EventSource: ⚠️ URL: \(dataTask.originalRequest?.url?.absoluteString ?? "unknown")")
+        print("🔗 EventSource: ⚠️ Response status: \((dataTask.response as? HTTPURLResponse)?.statusCode ?? -1)")
+        print("🔗 EventSource: ⚠️ Bytes received: \(dataTask.countOfBytesReceived)")
+        
         if let error = error {
             print("🔗 EventSource: ❌ Error: \(error)")
+            print("🔗 EventSource: ❌ Error code: \((error as NSError).code)")
+            print("🔗 EventSource: ❌ Error domain: \((error as NSError).domain)")
+            print("🔗 EventSource: ❌ Error description: \(error.localizedDescription)")
+            
+            // Check for specific error types
+            if let urlError = error as? URLError {
+                print("🔗 EventSource: ❌ URLError code: \(urlError.code.rawValue)")
+                switch urlError.code {
+                case .cancelled:
+                    print("🔗 EventSource: ❌ Connection was cancelled")
+                case .timedOut:
+                    print("🔗 EventSource: ❌ Connection timed out")
+                case .networkConnectionLost:
+                    print("🔗 EventSource: ❌ Network connection lost")
+                case .notConnectedToInternet:
+                    print("🔗 EventSource: ❌ Not connected to internet")
+                default:
+                    print("🔗 EventSource: ❌ Other URLError: \(urlError.localizedDescription)")
+                }
+            }
         } else {
-            print("🔗 EventSource: ℹ️ Connection closed normally")
+            print("🔗 EventSource: ℹ️ Connection closed normally (no error)")
         }
         #endif
 

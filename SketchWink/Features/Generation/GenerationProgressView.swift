@@ -237,16 +237,13 @@ struct GenerationProgressView: View {
         print("🔗 GenerationProgressView: Will track generation ID: '\(currentGeneration.id)'")
         #endif
         
-        // Start tracking this specific generation (SSE should already be connected)
+        // Start tracking this specific generation (SSE should already be connected from GenerationView)
         progressSSEService.startTrackingGeneration(currentGeneration.id)
         
-        // If not connected, connect now (fallback)
-        if !progressSSEService.isConnected {
-            progressSSEService.connectToUserProgress(
-                authToken: token,
-                trackingGenerationId: currentGeneration.id
-            )
-        }
+        #if DEBUG
+        print("🔗 GenerationProgressView: SSE connection status: \(progressSSEService.isConnected)")
+        print("🔗 GenerationProgressView: Started tracking generation: \(currentGeneration.id)")
+        #endif
         
         // Set up a timeout fallback - if no progress after 10 seconds, start polling
         Task {

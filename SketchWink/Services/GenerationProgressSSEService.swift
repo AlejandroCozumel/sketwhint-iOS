@@ -45,6 +45,7 @@ class GenerationProgressSSEService: ObservableObject {
             #if DEBUG
             let tracked = self.trackingGenerationId ?? "nil"
             print("🔗 GenerationProgressSSE: Already connected. Keeping connection. Current tracking ID: \(tracked)")
+            print("🔗 GenerationProgressSSE: Note: This should not happen with fresh connection per generation approach")
             #endif
             return
         }
@@ -88,7 +89,9 @@ class GenerationProgressSSEService: ObservableObject {
 
     func disconnect() {
         #if DEBUG
-        print("🔗 GenerationProgressSSE: Disconnecting")
+        print("🔗 GenerationProgressSSE: Disconnecting SSE connection")
+        print("🔗 GenerationProgressSSE: Current tracking ID: \(trackingGenerationId ?? "nil")")
+        print("🔗 GenerationProgressSSE: Connection status before disconnect: \(isConnected)")
         #endif
 
         eventSource?.disconnect()
@@ -102,8 +105,13 @@ class GenerationProgressSSEService: ObservableObject {
 
         DispatchQueue.main.async {
             self.isConnected = false
+            // Clear current progress when disconnecting
             self.currentProgress = nil
         }
+        
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: Disconnection complete")
+        #endif
     }
 
     // Method to start tracking a new generation without reconnecting
@@ -250,6 +258,7 @@ class GenerationProgressSSEService: ObservableObject {
             if let progress = progressData.progress {
                 print("🔗 GenerationProgressSSE: ✅ Progress: \(progress)%")
             }
+            print("🔗 GenerationProgressSSE: ✅ Current connection status: \(self.isConnected)")
             #endif
 
             // Refresh heartbeat timestamp for any valid decoded message

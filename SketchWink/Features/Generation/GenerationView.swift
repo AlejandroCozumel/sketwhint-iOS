@@ -70,6 +70,10 @@ struct GenerationView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
+                        #if DEBUG
+                        print("🔗 GenerationView: User tapped Done, disconnecting SSE and dismissing")
+                        #endif
+                        GenerationProgressSSEService.shared.disconnect()
                         onDismiss()
                     }
                     .font(AppTypography.titleMedium)
@@ -79,12 +83,21 @@ struct GenerationView: View {
         }
         .task {
             await loadData()
+            await establishSSEConnection()
         }
         .onAppear {
             // Reset success state when view appears
             showingSuccess = false
             successMessage = nil
             hasLoadedPromptSetting = false
+        }
+        .onDisappear {
+            #if DEBUG
+            print("🔗 GenerationView: onDisappear called - but NOT disconnecting SSE")
+            print("🔗 GenerationView: SSE will disconnect when onDismiss is called or view is truly deallocated")
+            #endif
+            // Don't disconnect SSE here because fullScreenCover incorrectly triggers onDisappear
+            // SSE will be cleaned up via onDismiss callback instead
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
@@ -806,13 +819,9 @@ struct GenerationView: View {
         )
 
         do {
-            // Connect to SSE BEFORE creating generation to avoid missing updates
-            if let token = try? KeychainManager.shared.retrieveToken() {
-                GenerationProgressSSEService.shared.connectToUserProgress(authToken: token)
-
-                // Small delay to ensure SSE connection is established
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-            }
+            #if DEBUG
+            print("🔗 GenerationView: Creating generation, SSE connection status: \(GenerationProgressSSEService.shared.isConnected)")
+            #endif
 
             let generation = try await generationService.createGeneration(request)
 
@@ -820,7 +829,7 @@ struct GenerationView: View {
             print("🎯 GenerationView: Created generation with ID: \(generation.id)")
             #endif
 
-            // Update SSE tracking to the new generation ID (also resets progress to 0% to prevent UI flash)
+            // Start tracking this specific generation (resets progress to 0% to prevent UI flash)
             GenerationProgressSSEService.shared.startTrackingGeneration(generation.id)
 
             generationState = .generating(generation)
@@ -828,6 +837,31 @@ struct GenerationView: View {
             self.error = error
             showingError = true
         }
+    }
+    
+    // MARK: - SSE Connection Management
+    private func establishSSEConnection() async {
+        guard let token = try? KeychainManager.shared.retrieveToken() else {
+            #if DEBUG
+            print("🔗 GenerationView: No auth token available for SSE connection")
+            #endif
+            return
+        }
+        
+        #if DEBUG
+        print("🔗 GenerationView: Establishing SSE connection for GenerationView session")
+        print("🔗 GenerationView: Current connection status: \(GenerationProgressSSEService.shared.isConnected)")
+        #endif
+        
+        // Establish connection if not already connected
+        GenerationProgressSSEService.shared.connectToUserProgress(authToken: token)
+        
+        // Wait for connection to establish
+        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        
+        #if DEBUG
+        print("🔗 GenerationView: SSE connection established: \(GenerationProgressSSEService.shared.isConnected)")
+        #endif
     }
 }
 
