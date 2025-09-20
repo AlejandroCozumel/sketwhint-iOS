@@ -78,7 +78,7 @@ struct GenerationResultView: View {
                let uiImage = UIImage(data: imageData) {
                 ColoringView(
                     sourceImage: uiImage,
-                    originalPrompt: currentImage.originalUserPrompt,
+                    originalPrompt: currentImage.generation.title,
                     onDismiss: {
                         isShowingColoringView = false
                     }
@@ -277,33 +277,40 @@ struct GenerationResultView: View {
                 .foregroundColor(AppColors.textPrimary)
             
             VStack(spacing: AppSpacing.sm) {
-                GenerationInfoRow(
-                    label: "Prompt",
-                    value: generation.userPrompt,
-                    isExpandable: true
-                )
-                
-                GenerationInfoRow(
-                    label: "Style",
-                    value: generation.modelVersion
-                )
-                
-                GenerationInfoRow(
-                    label: "Quality",
-                    value: generation.quality.capitalized
-                )
-                
-                GenerationInfoRow(
-                    label: "Created",
-                    value: formatDate(generation.createdAt)
-                )
-                
-                if let currentImage = currentImage, currentImage.wasEnhanced {
+                if let currentImage = currentImage {
                     GenerationInfoRow(
-                        label: "AI Enhanced",
-                        value: "Yes ✨"
+                        label: "Title",
+                        value: currentImage.generation.title,
+                        isExpandable: true
+                    )
+                    
+                    GenerationInfoRow(
+                        label: "Category",
+                        value: currentImage.generation.category
+                    )
+                    
+                    GenerationInfoRow(
+                        label: "Style",
+                        value: currentImage.generation.option
+                    )
+                    
+                    GenerationInfoRow(
+                        label: "Model",
+                        value: currentImage.generation.modelUsed
+                    )
+                    
+                    GenerationInfoRow(
+                        label: "Quality",
+                        value: currentImage.generation.qualityUsed.capitalized
+                    )
+                    
+                    GenerationInfoRow(
+                        label: "Created",
+                        value: formatDate(currentImage.createdAt)
                     )
                 }
+                
+                // Note: Enhancement info not available in current API response
             }
         }
         .cardStyle()

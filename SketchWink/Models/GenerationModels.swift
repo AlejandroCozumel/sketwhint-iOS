@@ -5,7 +5,9 @@ struct GenerationCategory: Codable, Identifiable {
     let id: String  // "coloring_pages", "stickers", "wallpapers", "mandalas"
     let name: String
     let description: String
-    let icon: String
+    let icon: String?
+    let imageUrl: String?
+    let color: String?
     let tokenCost: Int
     let multipleOptions: Bool
     let maxOptionsCount: Int
@@ -21,6 +23,8 @@ struct GenerationOption: Codable, Identifiable {
     let description: String
     let promptTemplate: String
     let style: String
+    let imageUrl: String?
+    let color: String?
     let isActive: Bool
     let isDefault: Bool
     let sortOrder: Int
@@ -57,6 +61,8 @@ struct CategoryWithOptionsFlat: Codable {
     let name: String
     let description: String
     let icon: String?
+    let imageUrl: String?
+    let color: String?
     let tokenCost: Int
     let multipleOptions: Bool
     let maxOptionsCount: Int
@@ -73,7 +79,9 @@ struct CategoryWithOptionsFlat: Codable {
             id: id,
             name: name,
             description: description,
-            icon: icon ?? "",
+            icon: icon,
+            imageUrl: imageUrl,
+            color: color,
             tokenCost: tokenCost,
             multipleOptions: multipleOptions,
             maxOptionsCount: maxOptionsCount,
@@ -95,6 +103,7 @@ struct CreateGenerationRequest: Codable {
     let dimensions: String?  // "1:1", "2:3", "3:2", "a4"
     let maxImages: Int?      // 1-4 images per generation
     let model: String?       // "seedream", "flux"
+    let familyProfileId: String?  // Family profile ID (optional)
 }
 
 struct Generation: Codable, Identifiable {
@@ -117,21 +126,31 @@ struct Generation: Codable, Identifiable {
 
 struct GeneratedImage: Codable, Identifiable {
     let id: String
-    let imageUrl: String  // Permanent Cloudflare R2 URL
-    let optionIndex: Int  // 0-3 for multiple variations
+    let imageUrl: String
+    let optionIndex: Int
     let isFavorite: Bool
-    let originalUserPrompt: String
-    let enhancedPrompt: String?
-    let wasEnhanced: Bool
+    let createdAt: String
+    let generation: GenerationInfo
+    let collections: [String]
+}
+
+struct GenerationInfo: Codable {
+    let id: String
+    let title: String
+    let category: String
+    let option: String
     let modelUsed: String
     let qualityUsed: String
-    let dimensionsUsed: String
-    let createdAt: String
 }
 
 // MARK: - User Settings Models
 struct PromptEnhancementSettings: Codable {
     let promptEnhancementEnabled: Bool
+}
+
+struct PromptEnhancementResponse: Codable {
+    let message: String
+    let settings: PromptEnhancementSettings
 }
 
 // MARK: - Generation State for UI
@@ -146,15 +165,15 @@ enum GenerationState {
 // MARK: - Gallery Models
 struct ImagesResponse: Codable {
     let images: [GeneratedImage]
-    let pagination: PaginationInfo
-    let totalCount: Int
+    let total: Int
+    let page: Int
+    let limit: Int
+    let filters: FilterInfo?
 }
 
-struct PaginationInfo: Codable {
-    let currentPage: Int
-    let totalPages: Int
-    let hasNext: Bool
-    let hasPrev: Bool
+struct FilterInfo: Codable {
+    let categories: [String]?
+    let totalFavorites: Int?
 }
 
 // MARK: - Extensions for UI

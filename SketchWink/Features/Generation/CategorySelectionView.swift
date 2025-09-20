@@ -136,47 +136,68 @@ struct CategoryCard: View {
     let action: () -> Void
     
     private var categoryColor: Color {
-        switch category.id {
-        case "coloring_pages":
-            return AppColors.coloringPagesColor
-        case "stickers":
-            return AppColors.stickersColor
-        case "wallpapers":
-            return AppColors.wallpapersColor
-        case "mandalas":
-            return AppColors.mandalasColor
-        default:
-            return AppColors.primaryBlue
+        if let colorHex = category.color {
+            return Color(hex: colorHex)
         }
-    }
-    
-    private var categoryIcon: String {
+        
+        // Fallback to hardcoded colors if backend doesn't provide color
         switch category.id {
-        case "coloring_pages":
-            return "🎨"
-        case "stickers":
-            return "✨"
-        case "wallpapers":
-            return "🖼️"
-        case "mandalas":
-            return "🌸"
-        default:
-            return "🎨"
+        case "coloring_pages": return AppColors.coloringPagesColor
+        case "stickers": return AppColors.stickersColor
+        case "wallpapers": return AppColors.wallpapersColor
+        case "mandalas": return AppColors.mandalasColor
+        default: return AppColors.primaryBlue
         }
     }
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {
-                // Icon Section
+                // Icon/Image Section
                 VStack {
-                    Circle()
-                        .fill(categoryColor.opacity(0.2))
-                        .frame(width: 60, height: 60)
-                        .overlay(
-                            Text(categoryIcon)
-                                .font(.system(size: 28))
-                        )
+                    if let imageUrl = category.imageUrl, let url = URL(string: imageUrl) {
+                        // Use backend image
+                        AsyncImage(url: url) { imagePhase in
+                            switch imagePhase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 60, height: 60)
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(categoryColor.opacity(0.3), lineWidth: 2)
+                                    )
+                            case .failure(_), .empty:
+                                // Fallback to colored circle with icon
+                                Circle()
+                                    .fill(categoryColor.opacity(0.2))
+                                    .frame(width: 60, height: 60)
+                                    .overlay(
+                                        Text(category.icon ?? "🎨")
+                                            .font(.system(size: 28))
+                                    )
+                            @unknown default:
+                                Circle()
+                                    .fill(categoryColor.opacity(0.2))
+                                    .frame(width: 60, height: 60)
+                                    .overlay(
+                                        Text(category.icon ?? "🎨")
+                                            .font(.system(size: 28))
+                                    )
+                            }
+                        }
+                    } else {
+                        // Fallback to icon or default
+                        Circle()
+                            .fill(categoryColor.opacity(0.2))
+                            .frame(width: 60, height: 60)
+                            .overlay(
+                                Text(category.icon ?? "🎨")
+                                    .font(.system(size: 28))
+                            )
+                    }
                 }
                 .frame(height: 80)
                 
@@ -211,7 +232,7 @@ struct CategoryCard: View {
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                    .fill(AppColors.backgroundLight)
+                    .fill(categoryColor.opacity(0.08))
                     .shadow(
                         color: categoryColor.opacity(0.1),
                         radius: 10,

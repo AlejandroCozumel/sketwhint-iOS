@@ -185,7 +185,8 @@ struct GalleryView: View {
             
             await MainActor.run {
                 images = response.images
-                hasMorePages = response.pagination.hasNext
+                // Calculate if there are more pages: (page * limit) < total
+                hasMorePages = (response.page * response.limit) < response.total
                 isLoading = false
             }
         } catch {
@@ -208,7 +209,8 @@ struct GalleryView: View {
             
             await MainActor.run {
                 images.append(contentsOf: response.images)
-                hasMorePages = response.pagination.hasNext
+                // Calculate if there are more pages: (page * limit) < total
+                hasMorePages = (response.page * response.limit) < response.total
                 isLoading = false
             }
         } catch {
@@ -327,11 +329,10 @@ struct ImageDetailView: View {
                             .foregroundColor(AppColors.textPrimary)
                         
                         VStack(spacing: AppSpacing.sm) {
-                            DetailRow(label: "Prompt", value: image.originalUserPrompt)
+                            DetailRow(label: "Title", value: image.generation.title)
+                            DetailRow(label: "Category", value: image.generation.category)
+                            DetailRow(label: "Style", value: image.generation.option)
                             DetailRow(label: "Created", value: formatDate(image.createdAt))
-                            if image.wasEnhanced {
-                                DetailRow(label: "AI Enhanced", value: "Yes ✨")
-                            }
                         }
                     }
                     .cardStyle()

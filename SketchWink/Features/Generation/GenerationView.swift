@@ -6,10 +6,20 @@ struct GenerationView: View {
     @State private var selectedOption: GenerationOption?
     @State private var userPrompt = ""
     @State private var promptEnhancementEnabled = true
+    @State private var isUpdatingPromptSetting = false
+    @State private var hasLoadedPromptSetting = false
+    
+    // Generation options
+    @State private var selectedMaxImages = 1
+    @State private var selectedQuality = "standard"
+    @State private var selectedModel = "seedream"
+    @State private var selectedDimensions = "1:1"
     @State private var generationState: GenerationState = .idle
     @State private var isLoading = true
     @State private var error: Error?
     @State private var showingError = false
+    @State private var successMessage: String?
+    @State private var showingSuccess = false
     
     let preselectedCategory: CategoryWithOptions?
     let onDismiss: () -> Void
@@ -70,10 +80,21 @@ struct GenerationView: View {
         .task {
             await loadData()
         }
+        .onAppear {
+            // Reset success state when view appears
+            showingSuccess = false
+            successMessage = nil
+            hasLoadedPromptSetting = false
+        }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
         } message: {
             Text(error?.localizedDescription ?? "An unknown error occurred")
+        }
+        .alert("Success", isPresented: $showingSuccess) {
+            Button("OK") { }
+        } message: {
+            Text(successMessage ?? "Settings updated successfully")
         }
         .fullScreenCover(isPresented: .constant(generationState.isGenerating)) {
             if case .generating(let generation) = generationState {
@@ -139,6 +160,12 @@ struct GenerationView: View {
             // Prompt Enhancement Toggle
             promptEnhancementToggleView
             
+            // Generation Options
+            maxImagesSelectionView
+            qualitySelectionView
+            modelSelectionView
+            dimensionsSelectionView
+            
             // Generate Button
             generateButtonView
         }
@@ -148,7 +175,7 @@ struct GenerationView: View {
     @ViewBuilder
     private func categoryHeaderView(category: GenerationCategory) -> some View {
         VStack(spacing: AppSpacing.md) {
-            Text(category.icon)
+            Text(category.icon ?? "🎨")
                 .font(.system(size: AppSizing.iconSizes.xxl))
             
             VStack(spacing: AppSpacing.xs) {
@@ -162,7 +189,15 @@ struct GenerationView: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .cardStyle()
+        .padding(AppSpacing.cardPadding.inner)
+        .background(categoryColor.opacity(0.1))
+        .cornerRadius(AppSizing.cornerRadius.md)
+        .shadow(
+            color: Color.black.opacity(AppSizing.shadows.small.opacity),
+            radius: AppSizing.shadows.small.radius,
+            x: AppSizing.shadows.small.x,
+            y: AppSizing.shadows.small.y
+        )
     }
     
     // MARK: - Style Selection
@@ -233,9 +268,275 @@ struct GenerationView: View {
                 
                 Spacer()
                 
-                Toggle("", isOn: $promptEnhancementEnabled)
-                    .tint(AppColors.primaryBlue)
-                    .childSafeTouchTarget()
+                if hasLoadedPromptSetting {
+                    Toggle("", isOn: $promptEnhancementEnabled)
+                        .tint(AppColors.primaryBlue)
+                        .childSafeTouchTarget()
+                        .disabled(isUpdatingPromptSetting)
+                        .onChange(of: promptEnhancementEnabled) { _, newValue in
+                            Task {
+                                await updatePromptEnhancementSetting(enabled: newValue)
+                            }
+                        }
+                } else {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .frame(width: 51, height: 31) // Same size as Toggle
+                }
+            }
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - Max Images Selection
+    private var maxImagesSelectionView: some View {
+        VStack(spacing: AppSpacing.md) {
+            HStack {
+                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                    Text("Number of Images")
+                        .font(AppTypography.titleMedium)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Text("Choose how many variations to generate")
+                        .font(AppTypography.captionLarge)
+                        .foregroundColor(AppColors.textSecondary)
+                }
+                
+                Spacer()
+            }
+            
+            HStack(spacing: AppSpacing.sm) {
+                ForEach(1...4, id: \.self) { count in
+                    Button(action: {
+                        if count == 1 {
+                            selectedMaxImages = count
+                        } else {
+                            // Show upgrade prompt for free users
+                            showUpgradeAlert(feature: "Multiple Images", requiredPlan: "Basic or higher")
+                        }
+                    }) {
+                        Text("\(count)")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(selectedMaxImages == count ? .white : AppColors.textPrimary)
+                            .frame(width: 50, height: 40)
+                            .background(
+                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                    .fill(selectedMaxImages == count ? AppColors.primaryBlue : (count > 1 ? AppColors.textSecondary.opacity(0.1) : AppColors.backgroundLight))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                    .stroke(
+                                        selectedMaxImages == count ? AppColors.primaryBlue : (count > 1 ? AppColors.textSecondary.opacity(0.3) : AppColors.textSecondary.opacity(0.2)),
+                                        lineWidth: 1
+                                    )
+                            )
+                    }
+                    .disabled(count > 1) // Disable for free users
+                }
+                
+                Spacer()
+            }
+            
+            if selectedMaxImages > 1 {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(AppColors.primaryBlue)
+                    Text("Multiple images available with paid plans")
+                        .font(AppTypography.captionMedium)
+                        .foregroundColor(AppColors.textSecondary)
+                    Spacer()
+                }
+            }
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - Quality Selection
+    private var qualitySelectionView: some View {
+        VStack(spacing: AppSpacing.md) {
+            HStack {
+                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                    Text("Image Quality")
+                        .font(AppTypography.titleMedium)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Text("Higher quality takes more time and tokens")
+                        .font(AppTypography.captionLarge)
+                        .foregroundColor(AppColors.textSecondary)
+                }
+                
+                Spacer()
+            }
+            
+            VStack(spacing: AppSpacing.xs) {
+                ForEach(["standard", "high", "ultra"], id: \.self) { quality in
+                    Button(action: {
+                        if quality == "standard" {
+                            selectedQuality = quality
+                        } else {
+                            // Show upgrade prompt for premium quality
+                            showUpgradeAlert(feature: "High/Ultra Quality", requiredPlan: "Max or higher")
+                        }
+                    }) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: AppSpacing.xxxs) {
+                                Text(quality.capitalized)
+                                    .font(AppTypography.titleMedium)
+                                    .foregroundColor(selectedQuality == quality ? AppColors.primaryBlue : AppColors.textPrimary)
+                                
+                                Text(qualityDescription(quality))
+                                    .font(AppTypography.captionMedium)
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                            
+                            Spacer()
+                            
+                            if quality != "standard" {
+                                Image(systemName: "lock.fill")
+                                    .foregroundColor(AppColors.textSecondary.opacity(0.6))
+                                    .font(.system(size: 16))
+                            } else if selectedQuality == quality {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(AppColors.primaryBlue)
+                                    .font(.system(size: 20))
+                            }
+                        }
+                        .padding(AppSpacing.sm)
+                        .background(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                .fill(selectedQuality == quality ? AppColors.primaryBlue.opacity(0.1) : AppColors.backgroundLight)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                .stroke(
+                                    selectedQuality == quality ? AppColors.primaryBlue : (quality != "standard" ? AppColors.textSecondary.opacity(0.3) : AppColors.textSecondary.opacity(0.2)),
+                                    lineWidth: 1
+                                )
+                        )
+                    }
+                    .disabled(quality != "standard") // Disable premium options for free users
+                }
+            }
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - Model Selection
+    private var modelSelectionView: some View {
+        VStack(spacing: AppSpacing.md) {
+            HStack {
+                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                    Text("AI Model")
+                        .font(AppTypography.titleMedium)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Text("Different AI models produce different art styles")
+                        .font(AppTypography.captionLarge)
+                        .foregroundColor(AppColors.textSecondary)
+                }
+                
+                Spacer()
+            }
+            
+            VStack(spacing: AppSpacing.xs) {
+                ForEach(["seedream", "flux"], id: \.self) { model in
+                    Button(action: {
+                        if model == "seedream" {
+                            selectedModel = model
+                        } else {
+                            // Show upgrade prompt for premium models
+                            showUpgradeAlert(feature: "Multiple AI Models", requiredPlan: "Business")
+                        }
+                    }) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: AppSpacing.xxxs) {
+                                Text(model.capitalized)
+                                    .font(AppTypography.titleMedium)
+                                    .foregroundColor(selectedModel == model ? AppColors.primaryBlue : AppColors.textPrimary)
+                                
+                                Text(modelDescription(model))
+                                    .font(AppTypography.captionMedium)
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                            
+                            Spacer()
+                            
+                            if model != "seedream" {
+                                Image(systemName: "lock.fill")
+                                    .foregroundColor(AppColors.textSecondary.opacity(0.6))
+                                    .font(.system(size: 16))
+                            } else if selectedModel == model {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(AppColors.primaryBlue)
+                                    .font(.system(size: 20))
+                            }
+                        }
+                        .padding(AppSpacing.sm)
+                        .background(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                .fill(selectedModel == model ? AppColors.primaryBlue.opacity(0.1) : AppColors.backgroundLight)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                .stroke(
+                                    selectedModel == model ? AppColors.primaryBlue : (model != "seedream" ? AppColors.textSecondary.opacity(0.3) : AppColors.textSecondary.opacity(0.2)),
+                                    lineWidth: 1
+                                )
+                        )
+                    }
+                    .disabled(model != "seedream") // Disable premium models for free users
+                }
+            }
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - Dimensions Selection
+    private var dimensionsSelectionView: some View {
+        VStack(spacing: AppSpacing.md) {
+            HStack {
+                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                    Text("Image Dimensions")
+                        .font(AppTypography.titleMedium)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Text("Choose the aspect ratio for your creation")
+                        .font(AppTypography.captionLarge)
+                        .foregroundColor(AppColors.textSecondary)
+                }
+                
+                Spacer()
+            }
+            
+            HStack(spacing: AppSpacing.sm) {
+                ForEach(["1:1", "2:3", "3:2", "A4"], id: \.self) { dimension in
+                    Button(action: {
+                        selectedDimensions = dimension
+                    }) {
+                        VStack(spacing: AppSpacing.xxs) {
+                            Text(dimension)
+                                .font(AppTypography.titleSmall)
+                                .foregroundColor(selectedDimensions == dimension ? .white : AppColors.textPrimary)
+                            
+                            Text(dimensionDescription(dimension))
+                                .font(AppTypography.captionSmall)
+                                .foregroundColor(selectedDimensions == dimension ? .white.opacity(0.8) : AppColors.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 60)
+                        .background(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                .fill(selectedDimensions == dimension ? AppColors.primaryBlue : AppColors.backgroundLight)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                .stroke(
+                                    selectedDimensions == dimension ? AppColors.primaryBlue : AppColors.textSecondary.opacity(0.2),
+                                    lineWidth: 1
+                                )
+                        )
+                    }
+                }
             }
         }
         .cardStyle()
@@ -298,19 +599,19 @@ struct GenerationView: View {
     }
     
     private var categoryColor: Color {
-        guard let categoryId = selectedCategory?.category.id else { return AppColors.primaryBlue }
+        guard let category = selectedCategory?.category else { return AppColors.primaryBlue }
         
-        switch categoryId {
-        case "coloring_pages":
-            return AppColors.coloringPagesColor
-        case "stickers":
-            return AppColors.stickersColor
-        case "wallpapers":
-            return AppColors.wallpapersColor
-        case "mandalas":
-            return AppColors.mandalasColor
-        default:
-            return AppColors.primaryBlue
+        if let colorHex = category.color {
+            return Color(hex: colorHex)
+        }
+        
+        // Fallback to hardcoded colors if backend doesn't provide color
+        switch category.id {
+        case "coloring_pages": return AppColors.coloringPagesColor
+        case "stickers": return AppColors.stickersColor
+        case "wallpapers": return AppColors.wallpapersColor
+        case "mandalas": return AppColors.mandalasColor
+        default: return AppColors.primaryBlue
         }
     }
     
@@ -339,9 +640,24 @@ struct GenerationView: View {
                     }
                 }
                 
+                // Set default dimensions based on category
+                if let selectedCategory = selectedCategory {
+                    switch selectedCategory.category.id {
+                    case "coloring_pages", "mandalas":
+                        selectedDimensions = "2:3" // Portrait for coloring
+                    case "stickers":
+                        selectedDimensions = "1:1" // Square for stickers
+                    case "wallpapers":
+                        selectedDimensions = "3:2" // Landscape for wallpapers
+                    default:
+                        selectedDimensions = "1:1"
+                    }
+                }
+                
                 // Load prompt enhancement setting
                 let settings = try await generationService.getPromptEnhancementSettings()
                 promptEnhancementEnabled = settings.promptEnhancementEnabled
+                hasLoadedPromptSetting = true
                 
             } catch {
                 #if DEBUG
@@ -389,6 +705,7 @@ struct GenerationView: View {
             // Load prompt enhancement setting
             let settings = try await generationService.getPromptEnhancementSettings()
             promptEnhancementEnabled = settings.promptEnhancementEnabled
+            hasLoadedPromptSetting = true
             
         } catch {
             #if DEBUG
@@ -404,6 +721,74 @@ struct GenerationView: View {
         #endif
     }
     
+    // MARK: - Helper Methods
+    private func qualityDescription(_ quality: String) -> String {
+        switch quality {
+        case "standard": return "Fast generation, good quality"
+        case "high": return "Better quality, slower generation"
+        case "ultra": return "Best quality, longest generation time"
+        default: return ""
+        }
+    }
+    
+    private func modelDescription(_ model: String) -> String {
+        switch model {
+        case "seedream": return "Fast, family-friendly AI model"
+        case "flux": return "Advanced model with more detail"
+        default: return ""
+        }
+    }
+    
+    private func dimensionDescription(_ dimension: String) -> String {
+        switch dimension {
+        case "1:1": return "Square"
+        case "2:3": return "Portrait"
+        case "3:2": return "Landscape"
+        case "A4": return "Paper"
+        default: return ""
+        }
+    }
+    
+    private func showUpgradeAlert(feature: String, requiredPlan: String) {
+        // TODO: Show upgrade alert
+        #if DEBUG
+        print("🔒 Upgrade required: \(feature) needs \(requiredPlan)")
+        #endif
+        
+        // For now, show in error alert system
+        error = GenerationError.upgradeRequired(feature: feature, plan: requiredPlan)
+        showingError = true
+    }
+    
+    private func updatePromptEnhancementSetting(enabled: Bool) async {
+        await MainActor.run {
+            isUpdatingPromptSetting = true
+        }
+        
+        do {
+            let result = try await generationService.updatePromptEnhancementSettings(enabled: enabled)
+            #if DEBUG
+            print("🎯 GenerationView: Prompt enhancement updated to: \(result.settings.promptEnhancementEnabled)")
+            #endif
+            await MainActor.run {
+                isUpdatingPromptSetting = false
+                successMessage = result.message
+                showingSuccess = true
+            }
+        } catch {
+            #if DEBUG
+            print("❌ GenerationView: Failed to update prompt enhancement setting: \(error)")
+            #endif
+            // Revert the toggle state on error
+            await MainActor.run {
+                promptEnhancementEnabled = !enabled
+                isUpdatingPromptSetting = false
+            }
+            self.error = error
+            showingError = true
+        }
+    }
+    
     private func generateColoring() async {
         guard let selectedOption = selectedOption,
               let selectedCategory = selectedCategory else { return }
@@ -412,10 +797,11 @@ struct GenerationView: View {
             categoryId: selectedCategory.category.id,
             optionId: selectedOption.id,
             prompt: userPrompt.trimmingCharacters(in: .whitespacesAndNewlines),
-            quality: "standard",
-            dimensions: "1:1",
-            maxImages: 1,
-            model: "seedream"
+            quality: selectedQuality,
+            dimensions: selectedDimensions,
+            maxImages: selectedMaxImages,
+            model: selectedModel,
+            familyProfileId: nil  // TODO: Add family profile support later
         )
         
         do {
@@ -435,18 +821,61 @@ struct StyleOptionCard: View {
     let categoryColor: Color
     let action: () -> Void
     
+    private var optionColor: Color {
+        if let colorHex = option.color {
+            return Color(hex: colorHex)
+        }
+        return categoryColor
+    }
+    
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {  // No automatic spacing - we'll control it manually
-                // Icon Section - Always starts at same position
+                // Icon/Image Section - Always starts at same position
                 VStack {
-                    Circle()
-                        .fill(categoryColor.opacity(0.2))
-                        .frame(width: 44, height: 44)
-                        .overlay(
-                            Text("🎨")
-                                .font(.system(size: 20))
-                        )
+                    if let imageUrl = option.imageUrl, let url = URL(string: imageUrl) {
+                        // Use backend image
+                        AsyncImage(url: url) { imagePhase in
+                            switch imagePhase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 44, height: 44)
+                                    .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(optionColor.opacity(0.4), lineWidth: 1)
+                                    )
+                            case .failure(_), .empty:
+                                // Fallback to colored circle
+                                Circle()
+                                    .fill(optionColor.opacity(0.2))
+                                    .frame(width: 44, height: 44)
+                                    .overlay(
+                                        Text("🎨")
+                                            .font(.system(size: 20))
+                                    )
+                            @unknown default:
+                                Circle()
+                                    .fill(optionColor.opacity(0.2))
+                                    .frame(width: 44, height: 44)
+                                    .overlay(
+                                        Text("🎨")
+                                            .font(.system(size: 20))
+                                    )
+                            }
+                        }
+                    } else {
+                        // Fallback to colored circle
+                        Circle()
+                            .fill(optionColor.opacity(0.2))
+                            .frame(width: 44, height: 44)
+                            .overlay(
+                                Text("🎨")
+                                    .font(.system(size: 20))
+                            )
+                    }
                 }
                 .frame(height: 60)  // Fixed height for icon section
                 
@@ -481,11 +910,11 @@ struct StyleOptionCard: View {
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                    .fill(isSelected ? categoryColor.opacity(0.1) : AppColors.backgroundLight)
+                    .fill(isSelected ? optionColor.opacity(0.2) : optionColor.opacity(0.05))
                     .overlay(
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
                             .stroke(
-                                isSelected ? categoryColor : AppColors.textSecondary.opacity(0.2),
+                                isSelected ? optionColor : AppColors.textSecondary.opacity(0.2),
                                 lineWidth: isSelected ? 2 : 1
                             )
                     )

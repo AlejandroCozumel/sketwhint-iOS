@@ -85,10 +85,11 @@ class GenerationService: ObservableObject {
             throw GenerationError.httpError(httpResponse.statusCode)
         }
         
+        // GET endpoint returns direct format: {"promptEnhancementEnabled": true}
         return try JSONDecoder().decode(PromptEnhancementSettings.self, from: data)
     }
     
-    func updatePromptEnhancementSettings(enabled: Bool) async throws -> PromptEnhancementSettings {
+    func updatePromptEnhancementSettings(enabled: Bool) async throws -> (settings: PromptEnhancementSettings, message: String) {
         let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.promptEnhancementSettings)"
         
         guard let url = URL(string: endpoint) else {
@@ -102,6 +103,13 @@ class GenerationService: ObservableObject {
         let requestBody = PromptEnhancementSettings(promptEnhancementEnabled: enabled)
         let jsonData = try JSONEncoder().encode(requestBody)
         
+        #if DEBUG
+        if let requestString = String(data: jsonData, encoding: .utf8) {
+            print("🌐 PUT \(endpoint)")
+            print("📤 Request Body: \(requestString)")
+        }
+        #endif
+        
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -111,6 +119,12 @@ class GenerationService: ObservableObject {
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
+        #if DEBUG
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📥 Response: \(responseString)")
+        }
+        #endif
+        
         guard let httpResponse = response as? HTTPURLResponse else {
             throw GenerationError.invalidResponse
         }
@@ -119,7 +133,9 @@ class GenerationService: ObservableObject {
             throw GenerationError.httpError(httpResponse.statusCode)
         }
         
-        return try JSONDecoder().decode(PromptEnhancementSettings.self, from: data)
+        // PUT endpoint returns wrapper format: {"message": "...", "settings": {...}}
+        let decodedResponse = try JSONDecoder().decode(PromptEnhancementResponse.self, from: data)
+        return (settings: decodedResponse.settings, message: decodedResponse.message)
     }
     
     // MARK: - Generation
@@ -136,6 +152,13 @@ class GenerationService: ObservableObject {
         
         let jsonData = try JSONEncoder().encode(request)
         
+        #if DEBUG
+        if let requestString = String(data: jsonData, encoding: .utf8) {
+            print("🌐 POST \(endpoint)")
+            print("📤 Generation Request: \(requestString)")
+        }
+        #endif
+        
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -144,6 +167,12 @@ class GenerationService: ObservableObject {
         urlRequest.httpBody = jsonData
         
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        
+        #if DEBUG
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📥 Generation Response: \(responseString)")
+        }
+        #endif
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw GenerationError.invalidResponse
@@ -211,6 +240,13 @@ class GenerationService: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         
         let (data, response) = try await URLSession.shared.data(for: request)
+        
+        #if DEBUG
+        print("🌐 GET \(url.absoluteString)")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📥 Gallery Response: \(responseString)")
+        }
+        #endif
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw GenerationError.invalidResponse
@@ -283,6 +319,7 @@ enum GenerationError: LocalizedError {
     case generationFailed(String)
     case unknownStatus(String)
     case timeout
+    case upgradeRequired(feature: String, plan: String)
     
     var errorDescription: String? {
         switch self {
@@ -302,6 +339,8 @@ enum GenerationError: LocalizedError {
             return "Unknown generation status: \(status)"
         case .timeout:
             return "Generation timed out"
+        case .upgradeRequired(let feature, let plan):
+            return "\(feature) requires \(plan) subscription. Upgrade to unlock this feature!"
         }
     }
 }
