@@ -226,16 +226,31 @@ class GenerationService: ObservableObject {
     }
     
     // MARK: - Gallery/Images
-    func getUserImages(page: Int = 1, limit: Int = 20) async throws -> ImagesResponse {
+    func getUserImages(page: Int = 1, limit: Int = 20, favorites: Bool? = nil, category: String? = nil, search: String? = nil) async throws -> ImagesResponse {
         let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.images)"
         
         var components = URLComponents(string: endpoint)!
-        components.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "page", value: "\(page)"),
             URLQueryItem(name: "limit", value: "\(limit)"),
             URLQueryItem(name: "sortBy", value: "createdAt"),
             URLQueryItem(name: "sortOrder", value: "desc")
         ]
+        
+        // Add filtering parameters
+        if let favorites = favorites {
+            queryItems.append(URLQueryItem(name: "favorites", value: favorites ? "true" : "false"))
+        }
+        
+        if let category = category {
+            queryItems.append(URLQueryItem(name: "category", value: category))
+        }
+        
+        if let search = search {
+            queryItems.append(URLQueryItem(name: "search", value: search))
+        }
+        
+        components.queryItems = queryItems
         
         guard let url = components.url else {
             throw GenerationError.invalidURL
@@ -268,6 +283,11 @@ class GenerationService: ObservableObject {
         }
         
         return try JSONDecoder().decode(ImagesResponse.self, from: data)
+    }
+    
+    // MARK: - Favorites Management
+    func getFavoriteImages(page: Int = 1, limit: Int = 20) async throws -> ImagesResponse {
+        return try await getUserImages(page: page, limit: limit, favorites: true)
     }
     
     func toggleImageFavorite(imageId: String) async throws {

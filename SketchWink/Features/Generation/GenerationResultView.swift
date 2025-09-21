@@ -286,12 +286,12 @@ struct GenerationResultView: View {
                     
                     GenerationInfoRow(
                         label: "Category",
-                        value: currentImage.generation?.category ?? "Unknown"
+                        value: generation.categoryName ?? currentImage.generation?.category ?? "Unknown"
                     )
                     
                     GenerationInfoRow(
                         label: "Style",
-                        value: currentImage.generation?.option ?? "Unknown"
+                        value: generation.optionName ?? currentImage.generation?.option ?? "Unknown"
                     )
                     
                     GenerationInfoRow(

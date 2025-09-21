@@ -125,13 +125,16 @@ struct Generation: Codable, Identifiable {
     let images: [GeneratedImage]?  // Only in detailed response
     let createdAt: String
     let updatedAt: String
+    // Resolved display names from backend
+    let categoryName: String?
+    let optionName: String?
 }
 
 struct GeneratedImage: Codable, Identifiable {
     let id: String
     let imageUrl: String
     let optionIndex: Int
-    let isFavorite: Bool
+    var isFavorite: Bool
     let originalUserPrompt: String?
     let enhancedPrompt: String?
     let wasEnhanced: Bool?
