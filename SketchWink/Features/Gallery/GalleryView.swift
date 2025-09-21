@@ -195,60 +195,101 @@ struct GalleryView: View {
         .cardStyle()
     }
     
-    // MARK: - Filters View
+    // MARK: - Modern Filters View
     private var filtersView: some View {
-        VStack(spacing: AppSpacing.md) {
+        VStack(spacing: AppSpacing.sm) {
             
             // Search Bar
-            searchBarView
+            modernSearchBarView
             
-            // All/Favorites Toggle
-            favoritesToggleView
-            
-            // Category Filters
-            categoryFiltersView
+            // Filter Chips Row
+            modernFilterChipsView
         }
-        .cardStyle()
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.vertical, AppSpacing.sm)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
     
-    // MARK: - Search Bar
-    private var searchBarView: some View {
+    // MARK: - Modern Search Bar
+    private var modernSearchBarView: some View {
         HStack(spacing: AppSpacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(AppColors.textSecondary)
+                .font(.system(size: 16, weight: .medium))
+            
+            TextField("Search your creations...", text: $searchText)
+                .font(AppTypography.bodyMedium)
+                .foregroundColor(AppColors.textPrimary)
+                .onSubmit {
+                    applyFilters()
+                }
+            
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                    applyFilters()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(AppColors.textSecondary)
+                        .font(.system(size: 16))
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.vertical, AppSpacing.sm)
+        .background(AppColors.surfaceLight.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        .animation(.easeInOut(duration: 0.2), value: searchText.isEmpty)
+    }
+    
+    // MARK: - Modern Filter Chips
+    private var modernFilterChipsView: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: AppSpacing.sm) {
-                Text("🔍")
-                    .font(.system(size: 16))
-                
-                TextField("Search your creations...", text: $searchText)
-                    .font(AppTypography.bodyMedium)
-                    .foregroundColor(AppColors.textPrimary)
-                    .onSubmit {
+                // All/Favorites Toggle Chips
+                FilterChip(
+                    title: "All",
+                    icon: "square.grid.2x2",
+                    isSelected: !showFavoritesOnly,
+                    action: {
+                        showFavoritesOnly = false
                         applyFilters()
                     }
+                )
                 
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
+                FilterChip(
+                    title: "Favorites",
+                    icon: "heart.fill",
+                    isSelected: showFavoritesOnly,
+                    action: {
+                        showFavoritesOnly = true
                         applyFilters()
-                    } label: {
-                        Text("✕")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(AppColors.textSecondary)
                     }
-                    .childSafeTouchTarget()
+                )
+                
+                // Separator
+                Rectangle()
+                    .fill(AppColors.borderLight)
+                    .frame(width: 1, height: 24)
+                    .padding(.horizontal, AppSpacing.xs)
+                
+                // Dynamic Category Chips
+                ForEach(availableCategories, id: \.id) { categoryWithOptions in
+                    let category = categoryWithOptions.category
+                    ModernCategoryChip(
+                        category: category,
+                        isSelected: selectedCategory == category.id,
+                        action: {
+                            selectedCategory = selectedCategory == category.id ? nil : category.id
+                            applyFilters()
+                        }
+                    )
                 }
             }
             .padding(.horizontal, AppSpacing.md)
-            .padding(.vertical, AppSpacing.sm)
-            .background(AppColors.surfaceLight)
-            .cornerRadius(AppSizing.cornerRadius.lg)
-            
-            Button("Search") {
-                applyFilters()
-            }
-            .font(AppTypography.captionLarge)
-            .foregroundColor(AppColors.primaryBlue)
-            .opacity(searchText.isEmpty ? 0.6 : 1.0)
         }
+        .padding(.horizontal, -AppSpacing.md)
     }
     
     // MARK: - Favorites Toggle
@@ -314,7 +355,7 @@ struct GalleryView: View {
                         categoryChip(
                             name: category.name,
                             id: category.id,
-                            color: parseColor(category.color),
+                            color: GalleryView.parseColor(category.color),
                             icon: category.icon,
                             imageUrl: category.imageUrl
                         )
@@ -506,7 +547,7 @@ struct GalleryView: View {
     }
     
     // MARK: - Color Parsing Helper
-    private func parseColor(_ colorString: String?) -> Color? {
+    static func parseColor(_ colorString: String?) -> Color? {
         guard let colorString = colorString else { return nil }
         
         // Handle hex colors
@@ -871,6 +912,113 @@ struct Sparkle: View {
         let randomX = cos(angle) * distance + CGFloat.random(in: -8...8)
         let randomY = sin(angle) * distance + CGFloat.random(in: -8...8)
         return CGSize(width: randomX, height: randomY)
+    }
+}
+
+// MARK: - Modern Filter Chip
+struct FilterChip: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                
+                Text(title)
+                    .font(AppTypography.captionLarge)
+                    .fontWeight(.medium)
+            }
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.vertical, AppSpacing.sm)
+            .background(
+                isSelected ? AppColors.primaryBlue : Color.clear,
+                in: Capsule()
+            )
+            .foregroundColor(isSelected ? .white : AppColors.textPrimary)
+            .overlay(
+                Capsule()
+                    .stroke(
+                        isSelected ? Color.clear : AppColors.borderMedium,
+                        lineWidth: 1
+                    )
+            )
+            .scaleEffect(isSelected ? 1.05 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
+        }
+        .childSafeTouchTarget()
+    }
+}
+
+// MARK: - Modern Category Chip
+struct ModernCategoryChip: View {
+    let category: GenerationCategory
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpacing.xs) {
+                // Category image or icon
+                if let imageUrl = category.imageUrl, !imageUrl.isEmpty {
+                    AsyncImage(url: URL(string: imageUrl)) { imagePhase in
+                        switch imagePhase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 20, height: 20)
+                                .clipShape(Circle())
+                        case .failure(_), .empty:
+                            Text(category.icon ?? "📂")
+                                .font(.system(size: 14))
+                        @unknown default:
+                            Text(category.icon ?? "📂")
+                                .font(.system(size: 14))
+                        }
+                    }
+                } else {
+                    Text(category.icon ?? "📂")
+                        .font(.system(size: 14))
+                }
+                
+                Text(category.name)
+                    .font(AppTypography.captionLarge)
+                    .fontWeight(.medium)
+            }
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.vertical, AppSpacing.sm)
+            .background(
+                isSelected ? 
+                (GalleryView.parseColor(category.color) ?? AppColors.primaryBlue) : 
+                Color.clear,
+                in: Capsule()
+            )
+            .foregroundColor(isSelected ? .white : AppColors.textPrimary)
+            .overlay(
+                Capsule()
+                    .stroke(
+                        isSelected ? 
+                        Color.clear : 
+                        (GalleryView.parseColor(category.color)?.opacity(0.3) ?? AppColors.borderMedium),
+                        lineWidth: 1.5
+                    )
+            )
+            .scaleEffect(isSelected ? 1.05 : 1.0)
+            .shadow(
+                color: isSelected ? 
+                (GalleryView.parseColor(category.color)?.opacity(0.3) ?? AppColors.primaryBlue.opacity(0.3)) : 
+                Color.clear,
+                radius: isSelected ? 4 : 0,
+                x: 0,
+                y: 2
+            )
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
+        }
+        .childSafeTouchTarget()
     }
 }
 
