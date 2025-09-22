@@ -15,9 +15,12 @@ struct GenerationView: View {
     @State private var selectedModel = "seedream"
     @State private var selectedDimensions = "1:1"
     @State private var generationState: GenerationState = .idle
+    @State private var userPermissions: UserPermissions?
     @State private var isLoading = true
     @State private var error: Error?
     @State private var showingError = false
+    @State private var showingSubscriptionPlans = false
+    @State private var highlightedFeature: String?
     @State private var successMessage: String?
     @State private var showingSuccess = false
 
@@ -137,6 +140,12 @@ struct GenerationView: View {
                     }
                 )
             }
+        }
+        .sheet(isPresented: $showingSubscriptionPlans) {
+            SubscriptionPlansView(
+                highlightedFeature: highlightedFeature,
+                currentPlan: userPermissions?.planName.lowercased()
+            )
         }
     }
 
@@ -320,42 +329,73 @@ struct GenerationView: View {
 
             HStack(spacing: AppSpacing.sm) {
                 ForEach(1...4, id: \.self) { count in
+                    let isAvailable = count <= (userPermissions?.maxImagesPerGeneration ?? 1)
+                    let isSelected = selectedMaxImages == count
+                    
                     Button(action: {
-                        if count == 1 {
+                        #if DEBUG
+                        print("🔘 Image count \(count) tapped")
+                        print("🔘 isAvailable: \(isAvailable)")
+                        print("🔘 userPermissions?.maxImagesPerGeneration: \(userPermissions?.maxImagesPerGeneration ?? -1)")
+                        print("🔘 showingSubscriptionPlans before: \(showingSubscriptionPlans)")
+                        #endif
+                        
+                        if isAvailable {
                             selectedMaxImages = count
+                            #if DEBUG
+                            print("🔘 Selected max images: \(count)")
+                            #endif
                         } else {
-                            // Show upgrade prompt for free users
-                            showUpgradeAlert(feature: "Multiple Images", requiredPlan: "Basic or higher")
+                            // Navigate to subscription plans for restricted users
+                            highlightedFeature = "Multiple Images"
+                            showingSubscriptionPlans = true
+                            #if DEBUG
+                            print("🔘 Navigating to subscription plans")
+                            print("🔘 highlightedFeature: \(highlightedFeature ?? "nil")")
+                            print("🔘 showingSubscriptionPlans after: \(showingSubscriptionPlans)")
+                            #endif
                         }
                     }) {
-                        Text("\(count)")
-
-                            .font(AppTypography.titleMedium)
-                            .foregroundColor(selectedMaxImages == count ? .white : AppColors.textPrimary)
-                            .frame(width: 50, height: 40)
-                            .background(
-                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                    .fill(selectedMaxImages == count ? AppColors.primaryBlue : (count > 1 ? AppColors.textSecondary.opacity(0.1) : AppColors.backgroundLight))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                    .stroke(
-                                        selectedMaxImages == count ? AppColors.primaryBlue : (count > 1 ? AppColors.textSecondary.opacity(0.3) : AppColors.textSecondary.opacity(0.2)),
-                                        lineWidth: 1
-                                    )
-                            )
+                        HStack(spacing: AppSpacing.xs) {
+                            Text("\(count)")
+                                .font(AppTypography.titleMedium)
+                                .foregroundColor(isSelected ? .white : (isAvailable ? AppColors.textPrimary : AppColors.textSecondary))
+                            
+                            if !isAvailable {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(AppColors.textSecondary.opacity(0.6))
+                            } else if isSelected {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .frame(width: 60, height: 40)
+                        .background(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                .fill(isSelected ? AppColors.primaryBlue : (isAvailable ? AppColors.backgroundLight : AppColors.textSecondary.opacity(0.1)))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                .stroke(
+                                    isSelected ? AppColors.primaryBlue : (isAvailable ? AppColors.textSecondary.opacity(0.2) : AppColors.textSecondary.opacity(0.3)),
+                                    lineWidth: 1
+                                )
+                        )
                     }
-                    .disabled(count > 1) // Disable for free users
+                    .childSafeTouchTarget()
                 }
 
                 Spacer()
             }
 
-            if selectedMaxImages > 1 {
+            // Show info for current plan limits
+            if let permissions = userPermissions {
                 HStack {
                     Image(systemName: "info.circle")
                         .foregroundColor(AppColors.primaryBlue)
-                    Text("Multiple images available with paid plans")
+                    Text("Your \(permissions.planName) plan allows up to \(permissions.maxImagesPerGeneration) image\(permissions.maxImagesPerGeneration == 1 ? "" : "s") per generation")
                         .font(AppTypography.captionMedium)
                         .foregroundColor(AppColors.textSecondary)
                     Spacer()
@@ -384,12 +424,28 @@ struct GenerationView: View {
 
             VStack(spacing: AppSpacing.xs) {
                 ForEach(["standard", "high", "ultra"], id: \.self) { quality in
+                    let isAvailable = userPermissions?.availableQuality.contains(quality) ?? (quality == "standard")
+                    
                     Button(action: {
-                        if quality == "standard" {
+                        #if DEBUG
+                        print("🔘 Quality \(quality) tapped")
+                        print("🔘 isAvailable: \(isAvailable)")
+                        print("🔘 userPermissions?.availableQuality: \(userPermissions?.availableQuality ?? [])")
+                        #endif
+                        
+                        if isAvailable {
                             selectedQuality = quality
+                            #if DEBUG
+                            print("🔘 Selected quality: \(quality)")
+                            #endif
                         } else {
-                            // Show upgrade prompt for premium quality
-                            showUpgradeAlert(feature: "High/Ultra Quality", requiredPlan: "Max or higher")
+                            // Navigate to subscription plans for premium quality
+                            highlightedFeature = "High/Ultra Quality"
+                            showingSubscriptionPlans = true
+                            #if DEBUG
+                            print("🔘 Navigating to subscription plans for quality")
+                            print("🔘 showingSubscriptionPlans: \(showingSubscriptionPlans)")
+                            #endif
                         }
                     }) {
                         HStack {
@@ -405,7 +461,7 @@ struct GenerationView: View {
 
                             Spacer()
 
-                            if quality != "standard" {
+                            if !isAvailable {
                                 Image(systemName: "lock.fill")
                                     .foregroundColor(AppColors.textSecondary.opacity(0.6))
                                     .font(.system(size: 16))
@@ -423,12 +479,11 @@ struct GenerationView: View {
                         .overlay(
                             RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
                                 .stroke(
-                                    selectedQuality == quality ? AppColors.primaryBlue : (quality != "standard" ? AppColors.textSecondary.opacity(0.3) : AppColors.textSecondary.opacity(0.2)),
+                                    selectedQuality == quality ? AppColors.primaryBlue : (isAvailable ? AppColors.textSecondary.opacity(0.2) : AppColors.textSecondary.opacity(0.3)),
                                     lineWidth: 1
                                 )
                         )
                     }
-                    .disabled(quality != "standard") // Disable premium options for free users
                 }
             }
         }
@@ -454,12 +509,15 @@ struct GenerationView: View {
 
             VStack(spacing: AppSpacing.xs) {
                 ForEach(["seedream", "flux"], id: \.self) { model in
+                    let isAvailable = userPermissions?.availableModels.contains(model) ?? (model == "seedream")
+                    
                     Button(action: {
-                        if model == "seedream" {
+                        if isAvailable {
                             selectedModel = model
                         } else {
-                            // Show upgrade prompt for premium models
-                            showUpgradeAlert(feature: "Multiple AI Models", requiredPlan: "Business")
+                            // Navigate to subscription plans for premium models
+                            highlightedFeature = "Multiple AI Models"
+                            showingSubscriptionPlans = true
                         }
                     }) {
                         HStack {
@@ -475,7 +533,7 @@ struct GenerationView: View {
 
                             Spacer()
 
-                            if model != "seedream" {
+                            if !isAvailable {
                                 Image(systemName: "lock.fill")
                                     .foregroundColor(AppColors.textSecondary.opacity(0.6))
                                     .font(.system(size: 16))
@@ -493,12 +551,11 @@ struct GenerationView: View {
                         .overlay(
                             RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
                                 .stroke(
-                                    selectedModel == model ? AppColors.primaryBlue : (model != "seedream" ? AppColors.textSecondary.opacity(0.3) : AppColors.textSecondary.opacity(0.2)),
+                                    selectedModel == model ? AppColors.primaryBlue : (isAvailable ? AppColors.textSecondary.opacity(0.2) : AppColors.textSecondary.opacity(0.3)),
                                     lineWidth: 1
                                 )
                         )
                     }
-                    .disabled(model != "seedream") // Disable premium models for free users
                 }
             }
         }
@@ -668,10 +725,23 @@ struct GenerationView: View {
                     }
                 }
 
-                // Load prompt enhancement setting
+                // Load prompt enhancement setting and user permissions
                 let settings = try await generationService.getPromptEnhancementSettings()
                 promptEnhancementEnabled = settings.promptEnhancementEnabled
                 hasLoadedPromptSetting = true
+                
+                // Load user permissions
+                userPermissions = try await generationService.getUserPermissions()
+                
+                #if DEBUG
+                if let permissions = userPermissions {
+                    print("🔒 User Permissions Loaded:")
+                    print("   - Plan: \(permissions.planName)")
+                    print("   - Max Images: \(permissions.maxImagesPerGeneration)")
+                    print("   - Quality Options: \(permissions.availableQuality)")
+                    print("   - Model Options: \(permissions.availableModels)")
+                }
+                #endif
 
             } catch {
                 #if DEBUG
@@ -716,10 +786,23 @@ struct GenerationView: View {
                 }
             }
 
-            // Load prompt enhancement setting
+            // Load prompt enhancement setting and user permissions
             let settings = try await generationService.getPromptEnhancementSettings()
             promptEnhancementEnabled = settings.promptEnhancementEnabled
             hasLoadedPromptSetting = true
+            
+            // Load user permissions
+            userPermissions = try await generationService.getUserPermissions()
+            
+            #if DEBUG
+            if let permissions = userPermissions {
+                print("🔒 User Permissions Loaded:")
+                print("   - Plan: \(permissions.planName)")
+                print("   - Max Images: \(permissions.maxImagesPerGeneration)")
+                print("   - Quality Options: \(permissions.availableQuality)")
+                print("   - Model Options: \(permissions.availableModels)")
+            }
+            #endif
 
         } catch {
             #if DEBUG
@@ -763,16 +846,6 @@ struct GenerationView: View {
         }
     }
 
-    private func showUpgradeAlert(feature: String, requiredPlan: String) {
-        // TODO: Show upgrade alert
-        #if DEBUG
-        print("🔒 Upgrade required: \(feature) needs \(requiredPlan)")
-        #endif
-
-        // For now, show in error alert system
-        error = GenerationError.upgradeRequired(feature: feature, plan: requiredPlan)
-        showingError = true
-    }
 
     private func updatePromptEnhancementSetting(enabled: Bool) async {
         await MainActor.run {

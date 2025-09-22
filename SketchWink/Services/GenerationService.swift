@@ -317,6 +317,57 @@ class GenerationService: ObservableObject {
         }
     }
     
+    // MARK: - User Permissions
+    func getUserPermissions() async throws -> UserPermissions {
+        let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.tokenBalance)"
+        
+        guard let url = URL(string: endpoint) else {
+            throw GenerationError.invalidURL
+        }
+        
+        guard let token = try KeychainManager.shared.retrieveToken() else {
+            throw GenerationError.noToken
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw GenerationError.invalidResponse
+        }
+        
+        // Debug logging
+        #if DEBUG
+        print("🌐 User Permissions API Response Status: \(httpResponse.statusCode)")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📥 User Permissions API Response: \(responseString)")
+        }
+        #endif
+        
+        guard 200...299 ~= httpResponse.statusCode else {
+            // Try to decode API error message first, fallback to generic error
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw GenerationError.generationFailed(apiError.userMessage)
+            } else {
+                throw GenerationError.httpError(httpResponse.statusCode)
+            }
+        }
+        
+        do {
+            let tokenBalanceResponse = try JSONDecoder().decode(TokenBalanceResponse.self, from: data)
+            return tokenBalanceResponse.permissions
+        } catch {
+            #if DEBUG
+            print("❌ User Permissions Decoding Error: \(error)")
+            #endif
+            throw GenerationError.decodingError
+        }
+    }
+    
     // MARK: - Polling Helper
     func pollGenerationUntilComplete(id: String, maxAttempts: Int = 60) async throws -> Generation {
         for attempt in 1...maxAttempts {
