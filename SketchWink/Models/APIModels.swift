@@ -83,3 +83,61 @@ struct SubscriptionPlan: Identifiable, Codable {
         return String(format: "%.0f%% off", savings)
     }
 }
+
+// MARK: - Family Profiles
+
+/// Family profile model
+struct FamilyProfile: Identifiable, Codable {
+    let id: String
+    let name: String
+    let avatar: String?
+    let isDefault: Bool
+    let canMakePurchases: Bool
+    let canUseCustomContentTypes: Bool
+    let hasPin: Bool  // PIN existence (actual PIN never exposed)
+    let createdAt: String
+    let updatedAt: String
+    
+    /// UI helper for avatar display
+    var displayAvatar: String {
+        return avatar ?? "👤"
+    }
+    
+    /// UI helper for profile color based on name
+    var profileColor: String {
+        let colors = ["#37B6F6", "#882FF6", "#FF6B9D", "#10B981", "#F97316"]
+        let index = abs(name.hashValue) % colors.count
+        return colors[index]
+    }
+}
+
+/// Create profile request
+struct CreateProfileRequest: Codable {
+    let name: String
+    let avatar: String?
+    let pin: String?
+    let canMakePurchases: Bool
+    let canUseCustomContentTypes: Bool
+}
+
+/// Update profile request
+struct UpdateProfileRequest: Codable {
+    let name: String?
+    let avatar: String?
+    let pin: String?
+    let canMakePurchases: Bool?
+    let canUseCustomContentTypes: Bool?
+}
+
+/// Profile selection request
+struct SelectProfileRequest: Codable {
+    let profileId: String
+    let pin: String?  // Required if profile has PIN protection
+}
+
+/// Profile selection response
+struct SelectProfileResponse: Codable {
+    let success: Bool
+    let message: String
+    let selectedProfile: FamilyProfile?
+}
