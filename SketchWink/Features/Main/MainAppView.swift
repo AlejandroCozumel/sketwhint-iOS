@@ -2,149 +2,73 @@ import SwiftUI
 
 struct MainAppView: View {
     @StateObject private var authService = AuthService.shared
-    @State private var showingGalleryView = false
+    @State private var selectedTab = 0
     
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: AppSpacing.sectionSpacing) {
-                    
-                    // Welcome Header
-                    VStack(spacing: AppSpacing.lg) {
-                        // Success Animation Placeholder
-                        ZStack {
-                            Circle()
-                                .fill(AppColors.primaryPurple)
-                                .frame(width: 150, height: 150)
-                                .shadow(
-                                    color: AppColors.primaryPurple.opacity(0.3),
-                                    radius: AppSizing.shadows.large.radius,
-                                    x: AppSizing.shadows.large.x,
-                                    y: AppSizing.shadows.large.y
-                                )
-                            
-                            Text("🎉")
-                                .font(.system(size: 80))
-                        }
-                        
-                        VStack(spacing: AppSpacing.sm) {
-                            Text("Welcome to SketchWink!")
-                                .displayMedium()
-                                .foregroundColor(AppColors.textPrimary)
-                                .multilineTextAlignment(.center)
-                            
-                            if let user = authService.currentUser {
-                                Text("Hello, \(user.name)! 👋")
-                                    .onboardingTitle()
-                                    .foregroundColor(AppColors.primaryBlue)
-                            }
-                            
-                            Text("You're now logged in and ready to create amazing art with AI!")
-                                .onboardingBody()
-                                .foregroundColor(AppColors.textSecondary)
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-                    .contentPadding()
-                    
-                    // Feature Preview Cards
-                    VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        Text("What's Next?")
-                            .headlineLarge()
-                            .foregroundColor(AppColors.textPrimary)
-                        
-                        LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.rowSpacing) {
-                            
-                            NavigationLink(destination: CategorySelectionView()) {
-                                FeatureCardContent(
-                                    title: "Create Art",
-                                    description: "Generate coloring pages, stickers, and more",
-                                    icon: "🎨",
-                                    color: AppColors.coloringPagesColor
-                                )
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            
-                            FeatureCard(
-                                title: "My Gallery",
-                                description: "View and organize your creations",
-                                icon: "🖼️",
-                                color: AppColors.wallpapersColor,
-                                action: {
-                                    showingGalleryView = true
-                                }
-                            )
-                            
-                            FeatureCard(
-                                title: "Family Profiles",
-                                description: "Manage family member profiles",
-                                icon: "👨‍👩‍👧‍👦",
-                                color: AppColors.primaryPink,
-                                action: {
-                                    // TODO: Navigate to profiles
-                                }
-                            )
-                            
-                            FeatureCard(
-                                title: "Settings",
-                                description: "Customize your experience",
-                                icon: "⚙️",
-                                color: AppColors.primaryBlue,
-                                action: {
-                                    // TODO: Navigate to settings
-                                }
-                            )
-                        }
-                    }
-                    .cardStyle()
-                    
-                    // User Info Card (Debug)
-                    #if DEBUG
-                    if let user = authService.currentUser {
-                        VStack(alignment: .leading, spacing: AppSpacing.md) {
-                            Text("Debug: User Info")
-                                .headlineMedium()
-                                .foregroundColor(AppColors.textPrimary)
-                            
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                                InfoRow(label: "ID", value: user.id)
-                                InfoRow(label: "Email", value: user.email)
-                                InfoRow(label: "Name", value: user.name)
-                                InfoRow(label: "Role", value: user.role ?? "user")
-                                InfoRow(label: "Email Verified", value: user.emailVerified ? "Yes" : "No")
-                                InfoRow(label: "Prompt Enhancement", value: (user.promptEnhancementEnabled ?? true) ? "Enabled" : "Disabled")
-                            }
-                        }
-                        .cardStyle()
-                    }
-                    #endif
-                    
-                    // Sign Out Button
-                    VStack(spacing: AppSpacing.sm) {
-                        Button("Sign Out") {
-                            authService.signOut()
-                        }
-                        .buttonStyle(
-                            backgroundColor: AppColors.buttonSecondary,
-                            foregroundColor: AppColors.errorRed
-                        )
-                        
-                        Text("You can always sign back in anytime")
-                            .captionLarge()
-                            .foregroundColor(AppColors.textSecondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .contentPadding()
-                }
-                .pageMargins()
-                .padding(.vertical, AppSpacing.sectionSpacing)
+        TabView(selection: $selectedTab) {
+            // Art Tab
+            NavigationStack {
+                CategorySelectionView()
             }
-            .background(AppColors.backgroundLight)
-            .navigationTitle("SketchWink")
-            .navigationBarTitleDisplayMode(.large)
+            .tabItem {
+                Image(systemName: "paintbrush.fill")
+                Text("Art")
+            }
+            .tag(0)
+            
+            // Gallery Tab
+            NavigationStack {
+                GalleryView()
+            }
+            .tabItem {
+                Image(systemName: "photo.fill")
+                Text("Gallery")
+            }
+            .tag(1)
+            
+            // Profiles Tab
+            NavigationStack {
+                ProfilesView()
+            }
+            .tabItem {
+                Image(systemName: "person.2.fill")
+                Text("Profiles")
+            }
+            .tag(2)
+            
+            // Settings Tab
+            NavigationStack {
+                SettingsView()
+            }
+            .tabItem {
+                Image(systemName: "gearshape.fill")
+                Text("Settings")
+            }
+            .tag(3)
         }
-        .sheet(isPresented: $showingGalleryView) {
-            GalleryView()
+        .tint(AppColors.primaryBlue)
+        .onAppear {
+            // Configure tab bar appearance
+            let appearance = UITabBarAppearance()
+            appearance.configureWithOpaqueBackground()
+            appearance.backgroundColor = UIColor(AppColors.backgroundLight)
+            
+            // Configure normal state
+            appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColors.textSecondary)
+            appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+                .foregroundColor: UIColor(AppColors.textSecondary),
+                .font: UIFont.systemFont(ofSize: 12, weight: .medium)
+            ]
+            
+            // Configure selected state
+            appearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppColors.primaryBlue)
+            appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+                .foregroundColor: UIColor(AppColors.primaryBlue),
+                .font: UIFont.systemFont(ofSize: 12, weight: .semibold)
+            ]
+            
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
         }
     }
 }

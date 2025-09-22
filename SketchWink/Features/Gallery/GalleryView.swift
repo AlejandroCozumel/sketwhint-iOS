@@ -22,42 +22,29 @@ struct GalleryView: View {
     @State private var availableCategories: [CategoryWithOptions] = []
     @State private var isLoadingCategories = false
     
-    @Environment(\.dismiss) private var dismiss
-    
     private let columns = [
         GridItem(.flexible(minimum: 100, maximum: .infinity), spacing: AppSpacing.grid.itemSpacing),
         GridItem(.flexible(minimum: 100, maximum: .infinity), spacing: AppSpacing.grid.itemSpacing)
     ]
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                LazyVStack(spacing: AppSpacing.sectionSpacing) {
-                    
-                    if isLoading && images.isEmpty {
-                        loadingView
-                    } else if images.isEmpty {
-                        emptyStateView
-                    } else {
-                        galleryGridView
-                    }
-                }
-                .pageMargins()
-                .padding(.vertical, AppSpacing.sectionSpacing)
-            }
-            .background(AppColors.backgroundLight)
-            .navigationTitle("My Gallery")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.primaryBlue)
+        ScrollView {
+            LazyVStack(spacing: AppSpacing.sectionSpacing) {
+                
+                if isLoading && images.isEmpty {
+                    loadingView
+                } else if images.isEmpty {
+                    emptyStateView
+                } else {
+                    galleryGridView
                 }
             }
+            .pageMargins()
+            .padding(.vertical, AppSpacing.sectionSpacing)
         }
+        .background(AppColors.backgroundLight)
+        .navigationTitle("My Gallery")
+        .navigationBarTitleDisplayMode(.large)
         .task {
             await loadCategories()
             await loadImages()
@@ -105,8 +92,7 @@ struct GalleryView: View {
                     .multilineTextAlignment(.center)
                 
                 Button("Create Your First Art") {
-                    dismiss()
-                    // This will return to MainAppView where they can tap Create Art
+                    // Note: In tab-based navigation, user can just tap the Art tab
                 }
                 .largeButtonStyle(backgroundColor: AppColors.coloringPagesColor)
                 .childSafeTouchTarget()
@@ -667,75 +653,73 @@ struct ImageDetailView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: AppSpacing.lg) {
-                    
-                    // Full size image with favorite button overlay
-                    AsyncImage(url: URL(string: image.imageUrl)) { imagePhase in
-                        switch imagePhase {
-                        case .success(let swiftUIImage):
-                            swiftUIImage
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .cornerRadius(AppSizing.cornerRadius.lg)
-                                .overlay(
-                                    // Favorite button - TOP RIGHT
-                                    AnimatedFavoriteButton(
-                                        isFavorite: image.isFavorite,
-                                        onToggle: {
-                                            Task {
-                                                await toggleFavorite()
-                                            }
+        ScrollView {
+            VStack(spacing: AppSpacing.lg) {
+                
+                // Full size image with favorite button overlay
+                AsyncImage(url: URL(string: image.imageUrl)) { imagePhase in
+                    switch imagePhase {
+                    case .success(let swiftUIImage):
+                        swiftUIImage
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .cornerRadius(AppSizing.cornerRadius.lg)
+                            .overlay(
+                                // Favorite button - TOP RIGHT
+                                AnimatedFavoriteButton(
+                                    isFavorite: image.isFavorite,
+                                    onToggle: {
+                                        Task {
+                                            await toggleFavorite()
                                         }
-                                    )
-                                    .disabled(isTogglingFavorite)
-                                    .opacity(isTogglingFavorite ? 0.6 : 1.0)
-                                    .padding(AppSpacing.md),
-                                    alignment: .topTrailing
+                                    }
                                 )
-                        case .failure(_), .empty:
-                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                                .fill(AppColors.textSecondary.opacity(0.1))
-                                .frame(height: 300)
-                                .overlay(
-                                    ProgressView()
-                                        .tint(AppColors.primaryBlue)
-                                )
-                        @unknown default:
-                            EmptyView()
-                        }
+                                .disabled(isTogglingFavorite)
+                                .opacity(isTogglingFavorite ? 0.6 : 1.0)
+                                .padding(AppSpacing.md),
+                                alignment: .topTrailing
+                            )
+                    case .failure(_), .empty:
+                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                            .fill(AppColors.textSecondary.opacity(0.1))
+                            .frame(height: 300)
+                            .overlay(
+                                ProgressView()
+                                    .tint(AppColors.primaryBlue)
+                            )
+                    @unknown default:
+                        EmptyView()
                     }
+                }
+                
+                // Image info
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    Text("Details")
+                        .font(AppTypography.headlineMedium)
+                        .foregroundColor(AppColors.textPrimary)
                     
-                    // Image info
-                    VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        Text("Details")
-                            .font(AppTypography.headlineMedium)
-                            .foregroundColor(AppColors.textPrimary)
-                        
-                        VStack(spacing: AppSpacing.sm) {
-                            DetailRow(label: "Title", value: image.generation?.title ?? image.originalUserPrompt ?? "Unknown")
-                            DetailRow(label: "Category", value: image.generation?.category ?? "Unknown")
-                            DetailRow(label: "Style", value: image.generation?.option ?? "Unknown")
-                            DetailRow(label: "Created", value: formatDate(image.createdAt))
-                        }
+                    VStack(spacing: AppSpacing.sm) {
+                        DetailRow(label: "Title", value: image.generation?.title ?? image.originalUserPrompt ?? "Unknown")
+                        DetailRow(label: "Category", value: image.generation?.category ?? "Unknown")
+                        DetailRow(label: "Style", value: image.generation?.option ?? "Unknown")
+                        DetailRow(label: "Created", value: formatDate(image.createdAt))
                     }
-                    .cardStyle()
                 }
-                .pageMargins()
-                .padding(.vertical, AppSpacing.sectionSpacing)
+                .cardStyle()
             }
-            .background(AppColors.backgroundLight)
-            .navigationTitle("Image Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.primaryBlue)
+            .pageMargins()
+            .padding(.vertical, AppSpacing.sectionSpacing)
+        }
+        .background(AppColors.backgroundLight)
+        .navigationTitle("Image Details")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    dismiss()
                 }
+                .font(AppTypography.titleMedium)
+                .foregroundColor(AppColors.primaryBlue)
             }
         }
         .alert("Error", isPresented: $showingError) {
