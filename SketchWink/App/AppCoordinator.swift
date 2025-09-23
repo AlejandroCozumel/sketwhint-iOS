@@ -73,6 +73,7 @@ struct AppCoordinator: View {
         .sheet(isPresented: $showingProfileCreation) {
             CreateProfileView(
                 maxProfiles: 5,
+                isFirstProfile: true,  // AppCoordinator only shows this when no profiles exist
                 onProfileCreated: { newProfile in
                     #if DEBUG
                     print("🎯 DEBUG: Profile created at AppCoordinator level - Name: \(newProfile.name), HasPin: \(newProfile.hasPin)")

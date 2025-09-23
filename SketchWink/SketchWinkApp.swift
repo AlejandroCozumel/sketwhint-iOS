@@ -27,6 +27,7 @@ struct SketchWinkApp: App {
         WindowGroup {
             // Use AppCoordinator for authentication flow
             AppCoordinator()
+                .withAppLifecycleManagement()  // Add lifecycle management for family profiles
                 .onAppear {
                     // Configure app on launch
                     configureApp()

@@ -70,6 +70,7 @@ struct ProfilesView: View {
         .sheet(isPresented: $showingCreateProfile) {
             CreateProfileView(
                 maxProfiles: userPermissions?.maxFamilyProfiles ?? 1,
+                isFirstProfile: profiles.isEmpty,  // Pass if this is the first profile
                 onProfileCreated: { newProfile in
                     profiles.append(newProfile)
                     // After creating profile, force user to select it
@@ -334,13 +335,37 @@ struct ProfilesView: View {
     
     // MARK: - Computed Properties
     private var canCreateProfile: Bool {
-        guard let permissions = userPermissions else { return false }
-        return profiles.count < permissions.maxFamilyProfiles
+        guard let permissions = userPermissions else { 
+            #if DEBUG
+            print("🚨 ProfilesView: userPermissions is nil, denying profile creation")
+            #endif
+            return false 
+        }
+        
+        let canCreate = profiles.count < permissions.maxFamilyProfiles
+        
+        #if DEBUG
+        print("🔍 ProfilesView: canCreateProfile check:")
+        print("   - Current profiles: \(profiles.count)")
+        print("   - Max allowed: \(permissions.maxFamilyProfiles)")
+        print("   - Can create: \(canCreate)")
+        print("   - Plan: \(permissions.planName)")
+        #endif
+        
+        return canCreate
     }
     
     private var isFreePlan: Bool {
         guard let permissions = userPermissions else { return true }
-        return permissions.maxFamilyProfiles <= 1
+        let isFree = permissions.maxFamilyProfiles <= 1
+        
+        #if DEBUG
+        print("🔍 ProfilesView: isFreePlan check:")
+        print("   - Max profiles: \(permissions.maxFamilyProfiles)")
+        print("   - Is free plan: \(isFree)")
+        #endif
+        
+        return isFree
     }
     
     // MARK: - Methods
@@ -379,12 +404,25 @@ struct ProfilesView: View {
     }
     
     private func handleProfileCreationLimit() {
+        #if DEBUG
+        print("🚨 ProfilesView: handleProfileCreationLimit called")
+        print("   - isFreePlan: \(isFreePlan)")
+        print("   - profiles.count: \(profiles.count)")
+        print("   - maxFamilyProfiles: \(userPermissions?.maxFamilyProfiles ?? -1)")
+        #endif
+        
         if isFreePlan {
             // Free users: redirect to purchase modal
+            #if DEBUG
+            print("   - Action: Showing subscription plans for free user")
+            #endif
             highlightedFeature = "Family Profiles"
             showingSubscriptionPlans = true
         } else {
             // Paid users: show alert about maximum limit
+            #if DEBUG
+            print("   - Action: Showing max profiles alert for paid user")
+            #endif
             showingMaxProfilesAlert = true
         }
     }
@@ -509,6 +547,35 @@ struct ProfileCard: View {
     }
 }
 
+// MARK: - Profile Info Row Component
+struct ProfileInfoRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    
+    var body: some View {
+        HStack(spacing: AppSpacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: AppSizing.iconSizes.md))
+                .foregroundColor(AppColors.infoBlue)
+                .frame(width: 24)
+            
+            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                Text(title)
+                    .font(AppTypography.bodyMedium)
+                    .foregroundColor(AppColors.textPrimary)
+                
+                Text(description)
+                    .font(AppTypography.captionMedium)
+                    .foregroundColor(AppColors.textSecondary)
+            }
+            
+            Spacer()
+        }
+        .padding(AppSpacing.sm)
+    }
+}
+
 struct PlanInfoRow: View {
     let icon: String
     let title: String
@@ -548,6 +615,7 @@ struct PlanInfoRow: View {
 
 struct CreateProfileView: View {
     let maxProfiles: Int
+    let isFirstProfile: Bool  // NEW: Indicates if this is the first profile
     let onProfileCreated: (FamilyProfile) -> Void
     @Environment(\.dismiss) private var dismiss
     
@@ -556,7 +624,7 @@ struct CreateProfileView: View {
     @State private var enablePin = false
     @State private var pin = ""
     @State private var confirmPin = ""
-    @State private var canMakePurchases = false
+    @State private var canMakePurchases = false  // Will be set to true for first profile in onAppear
     @State private var canUseCustomContent = true
     @State private var isCreating = false
     @State private var showingError = false
@@ -614,6 +682,12 @@ struct CreateProfileView: View {
         } message: {
             Text(errorMessage)
         }
+        .onAppear {
+            // For first profile, enforce canMakePurchases = true (non-negotiable)
+            if isFirstProfile {
+                canMakePurchases = true
+            }
+        }
     }
     
     // MARK: - Header Section
@@ -655,14 +729,33 @@ struct CreateProfileView: View {
             }
             
             VStack(spacing: AppSpacing.sm) {
-                Text("Create Family Profile")
+                Text(isFirstProfile ? "Create Your First Profile" : "Create Family Profile")
                     .headlineLarge()
                     .foregroundColor(AppColors.textPrimary)
                 
-                Text("Set up a personalized profile with avatar and safety settings")
-                    .bodyMedium()
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
+                if isFirstProfile {
+                    VStack(spacing: AppSpacing.xs) {
+                        Text("This is your main family profile with admin privileges")
+                            .bodyMedium()
+                            .foregroundColor(AppColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("• Can make purchases and manage subscriptions")
+                            .captionLarge()
+                            .foregroundColor(AppColors.primaryBlue)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("• Cannot be deleted (required for account)")
+                            .captionLarge()
+                            .foregroundColor(AppColors.primaryBlue)
+                            .multilineTextAlignment(.center)
+                    }
+                } else {
+                    Text("Set up a personalized profile with avatar and safety settings")
+                        .bodyMedium()
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
             }
         }
         .contentPadding()
@@ -846,13 +939,26 @@ struct CreateProfileView: View {
                 .foregroundColor(AppColors.textPrimary)
             
             VStack(spacing: AppSpacing.md) {
-                PermissionToggle(
-                    icon: "creditcard.fill",
-                    title: "Can Make Purchases",
-                    description: "Allow this profile to make in-app purchases",
-                    isOn: $canMakePurchases,
-                    color: AppColors.warningOrange
-                )
+                if isFirstProfile {
+                    // First profile: purchases always enabled, show locked state
+                    PermissionToggleDisabled(
+                        icon: "creditcard.fill",
+                        title: "Can Make Purchases",
+                        description: "Required for main profile - manages subscriptions and payments",
+                        isOn: true,
+                        color: AppColors.warningOrange,
+                        lockedReason: "Required for main profile"
+                    )
+                } else {
+                    // Additional profiles: allow toggle
+                    PermissionToggle(
+                        icon: "creditcard.fill",
+                        title: "Can Make Purchases",
+                        description: "Allow this profile to make in-app purchases",
+                        isOn: $canMakePurchases,
+                        color: AppColors.warningOrange
+                    )
+                }
                 
                 PermissionToggle(
                     icon: "photo.fill",
@@ -919,6 +1025,23 @@ struct CreateProfileView: View {
     // MARK: - Methods
     private func createProfile() {
         guard canCreateProfile else { return }
+        
+        // Additional safety check: prevent creating more than maxProfiles
+        // This should never happen if the parent UI is working correctly, but add as safety
+        if !isFirstProfile && maxProfiles <= 1 {
+            #if DEBUG
+            print("🚨 CreateProfileView: Attempted to create additional profile on plan with maxProfiles=\(maxProfiles)")
+            #endif
+            errorMessage = "Your current plan only allows 1 family profile. Please upgrade to create additional profiles."
+            showingError = true
+            return
+        }
+        
+        #if DEBUG
+        print("🎯 CreateProfileView: Creating profile")
+        print("   - maxProfiles: \(maxProfiles)")
+        print("   - isFirstProfile: \(isFirstProfile)")
+        #endif
         
         isCreating = true
         
@@ -987,42 +1110,366 @@ struct PermissionToggle: View {
     }
 }
 
+struct PermissionToggleDisabled: View {
+    let icon: String
+    let title: String
+    let description: String
+    let isOn: Bool
+    let color: Color
+    let lockedReason: String
+    
+    var body: some View {
+        HStack(spacing: AppSpacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: AppSizing.iconSizes.md))
+                .foregroundColor(color)
+                .frame(width: 24)
+            
+            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                HStack {
+                    Text(title)
+                        .font(AppTypography.bodyMedium)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(AppColors.textSecondary)
+                }
+                
+                Text(description)
+                    .font(AppTypography.captionMedium)
+                    .foregroundColor(AppColors.textSecondary)
+                
+                Text(lockedReason)
+                    .font(AppTypography.captionMedium)
+                    .foregroundColor(AppColors.primaryBlue)
+                    .italic()
+            }
+            
+            Spacer()
+            
+            // Disabled toggle showing locked state
+            Toggle("", isOn: .constant(isOn))
+                .labelsHidden()
+                .tint(color)
+                .disabled(true)
+                .childSafeTouchTarget()
+        }
+        .padding(AppSpacing.sm)
+        .background(color.opacity(0.05))
+        .cornerRadius(AppSizing.cornerRadius.sm)
+        .opacity(0.8) // Slightly dimmed to show it's locked
+    }
+}
+
 struct EditProfileView: View {
     let profile: FamilyProfile
     let onProfileUpdated: (FamilyProfile) -> Void
     let onProfileDeleted: (FamilyProfile) -> Void
     @Environment(\.dismiss) private var dismiss
     
+    @State private var showingDeleteAlert = false
+    @State private var showingCannotDeleteAlert = false
+    @State private var showingSuccessAlert = false
+    @State private var isDeleting = false
+    @State private var errorMessage = ""
+    @State private var successMessage = ""
+    @State private var showingError = false
+    
     var body: some View {
         NavigationStack {
-            VStack(spacing: AppSpacing.xl) {
-                Text("Edit Profile")
-                    .headlineLarge()
-                    .foregroundColor(AppColors.textPrimary)
-                
-                Text("Coming soon: Profile editing with avatar change, PIN management, and permission settings")
-                    .bodyMedium()
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding()
-                
-                Text("Profile: \(profile.name)")
-                    .titleMedium()
-                    .foregroundColor(AppColors.textPrimary)
-                
-                Button("Close") {
-                    dismiss()
+            ScrollView {
+                VStack(spacing: AppSpacing.sectionSpacing) {
+                    // Profile Header
+                    profileHeaderSection
+                    
+                    // Profile Actions
+                    profileActionsSection
+                    
+                    // Profile Management Info
+                    profileManagementInfoSection
+                    
+                    // Delete Section (conditional)
+                    if !profile.isDefault {
+                        deleteProfileSection
+                    } else {
+                        cannotDeleteSection
+                    }
                 }
-                .largeButtonStyle(backgroundColor: AppColors.primaryBlue)
+                .pageMargins()
+                .padding(.vertical, AppSpacing.sectionSpacing)
             }
-            .pageMargins()
+            .background(AppColors.backgroundLight)
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
+                    Button("Done") {
                         dismiss()
                     }
+                    .foregroundColor(AppColors.primaryBlue)
+                }
+            }
+        }
+        .alert("Hide Profile", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Hide Profile", role: .destructive) {
+                deleteProfile()
+            }
+        } message: {
+            VStack {
+                Text("Hide \(profile.name)'s profile from selection?")
+                Text("All images created by this profile will remain accessible to parents. This profile slot will become available for a new profile.")
+                    .font(.caption)
+            }
+        }
+        .alert("Cannot Delete Profile", isPresented: $showingCannotDeleteAlert) {
+            Button("OK") { }
+        } message: {
+            Text("This is the main family profile and cannot be deleted. It's required to manage your account and subscriptions.")
+        }
+        .alert("Error", isPresented: $showingError) {
+            Button("OK") { }
+        } message: {
+            Text(errorMessage)
+        }
+        .alert("Profile Hidden", isPresented: $showingSuccessAlert) {
+            Button("OK") {
+                dismiss()
+            }
+        } message: {
+            Text(successMessage)
+        }
+    }
+    
+    // MARK: - Profile Header
+    private var profileHeaderSection: some View {
+        VStack(spacing: AppSpacing.lg) {
+            ZStack {
+                Circle()
+                    .fill(Color(hex: profile.profileColor))
+                    .frame(width: 120, height: 120)
+                    .shadow(
+                        color: Color(hex: profile.profileColor).opacity(0.3),
+                        radius: AppSizing.shadows.large.radius,
+                        x: AppSizing.shadows.large.x,
+                        y: AppSizing.shadows.large.y
+                    )
+                
+                Text(profile.displayAvatar)
+                    .font(.system(size: 60))
+                
+                // Default profile badge
+                if profile.isDefault {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                                .background(
+                                    Circle()
+                                        .fill(AppColors.warningOrange)
+                                        .frame(width: 32, height: 32)
+                                )
+                        }
+                        Spacer()
+                    }
+                    .frame(width: 120, height: 120)
+                }
+            }
+            
+            VStack(spacing: AppSpacing.sm) {
+                HStack {
+                    Text(profile.name)
+                        .headlineLarge()
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    if profile.isDefault {
+                        Text("MAIN")
+                            .captionMedium()
+                            .foregroundColor(.white)
+                            .padding(.horizontal, AppSpacing.sm)
+                            .padding(.vertical, AppSpacing.xs)
+                            .background(AppColors.warningOrange)
+                            .cornerRadius(AppSizing.cornerRadius.sm)
+                    }
+                }
+                
+                if profile.isDefault {
+                    Text("Main family profile with admin privileges")
+                        .bodyMedium()
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                } else {
+                    Text("Family member profile")
+                        .bodyMedium()
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+        }
+        .contentPadding()
+    }
+    
+    // MARK: - Profile Actions
+    private var profileActionsSection: some View {
+        VStack(spacing: AppSpacing.md) {
+            Text("Profile Settings")
+                .headlineMedium()
+                .foregroundColor(AppColors.textPrimary)
+            
+            Text("Profile editing features are coming soon. You'll be able to change avatar, update PIN, and modify permissions.")
+                .bodyMedium()
+                .foregroundColor(AppColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding()
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - Profile Management Info
+    private var profileManagementInfoSection: some View {
+        VStack(spacing: AppSpacing.md) {
+            HStack {
+                Image(systemName: "info.circle.fill")
+                    .foregroundColor(AppColors.infoBlue)
+                Text("About Profile Management")
+                    .headlineMedium()
+                    .foregroundColor(AppColors.textPrimary)
+                Spacer()
+            }
+            
+            VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                ProfileInfoRow(
+                    icon: "photo.stack.fill",
+                    title: "Content Protection",
+                    description: "Images created by this profile are never lost when hiding the profile"
+                )
+                
+                ProfileInfoRow(
+                    icon: "eye.fill",
+                    title: "Parent Access",
+                    description: "Parents can always see images from hidden profiles in their gallery"
+                )
+                
+                ProfileInfoRow(
+                    icon: "person.badge.plus.fill",
+                    title: "Profile Slots",
+                    description: "Hiding a profile immediately frees up a slot for creating new profiles"
+                )
+                
+                ProfileInfoRow(
+                    icon: "lock.shield.fill",
+                    title: "Security",
+                    description: "Hidden profiles cannot be selected but content remains accessible"
+                )
+            }
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - Hide Profile Section
+    private var deleteProfileSection: some View {
+        VStack(spacing: AppSpacing.md) {
+            Text("Profile Management")
+                .headlineMedium()
+                .foregroundColor(AppColors.warningOrange)
+            
+            Button {
+                showingDeleteAlert = true
+            } label: {
+                HStack {
+                    Image(systemName: "eye.slash.fill")
+                    Text("Hide Profile")
+                }
+                .font(AppTypography.titleMedium)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(AppColors.warningOrange)
+                .cornerRadius(AppSizing.cornerRadius.lg)
+            }
+            .childSafeTouchTarget()
+            
+            VStack(spacing: AppSpacing.xs) {
+                Text("Hide this profile from selection while preserving all created images.")
+                    .captionMedium()
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                
+                Text("Parents will still be able to see images created by this profile.")
+                    .captionMedium()
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - Cannot Delete Section
+    private var cannotDeleteSection: some View {
+        VStack(spacing: AppSpacing.md) {
+            Text("Profile Protection")
+                .headlineMedium()
+                .foregroundColor(AppColors.textPrimary)
+            
+            Button {
+                showingCannotDeleteAlert = true
+            } label: {
+                HStack {
+                    Image(systemName: "lock.shield.fill")
+                    Text("Cannot Delete")
+                }
+                .font(AppTypography.titleMedium)
+                .foregroundColor(AppColors.textSecondary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(AppColors.buttonDisabled)
+                .cornerRadius(AppSizing.cornerRadius.lg)
+            }
+            .disabled(true)
+            .childSafeTouchTarget()
+            
+            VStack(spacing: AppSpacing.xs) {
+                Text("This is your main family profile and cannot be deleted.")
+                    .captionMedium()
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                
+                Text("It's required to manage subscriptions and account settings.")
+                    .captionMedium()
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - Methods
+    private func deleteProfile() {
+        guard !profile.isDefault else {
+            showingCannotDeleteAlert = true
+            return
+        }
+        
+        isDeleting = true
+        
+        Task {
+            do {
+                try await ProfileService.shared.deleteFamilyProfile(profileId: profile.id)
+                
+                await MainActor.run {
+                    onProfileDeleted(profile)
+                    isDeleting = false
+                    successMessage = "Profile hidden successfully. All images created by \(profile.name) remain accessible to parents."
+                    showingSuccessAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    isDeleting = false
+                    errorMessage = error.localizedDescription
+                    showingError = true
                 }
             }
         }

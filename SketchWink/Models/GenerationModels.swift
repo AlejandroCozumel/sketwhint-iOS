@@ -145,6 +145,33 @@ struct GeneratedImage: Codable, Identifiable {
     let createdAt: String
     let generation: GenerationInfo?  // Only in gallery response
     let collections: [String]?       // Only in gallery response
+    let createdBy: CreatedByProfile?  // NEW: Profile information for family display
+    
+    // UI helper for displaying creator information
+    var creatorDisplayName: String {
+        return createdBy?.profileName ?? "Unknown Profile"
+    }
+    
+    // UI helper for checking if created by current profile
+    var isCreatedByCurrentProfile: Bool {
+        guard let currentProfileId = try? KeychainManager.shared.retrieveSelectedProfile(),
+              let createdById = createdBy?.profileId else {
+            return false
+        }
+        return currentProfileId == createdById
+    }
+}
+
+/// Profile information for content creation tracking
+struct CreatedByProfile: Codable {
+    let profileId: String
+    let profileName: String
+    let profileAvatar: String?
+    
+    /// UI helper for avatar display
+    var displayAvatar: String {
+        return profileAvatar ?? "👤"
+    }
 }
 
 struct GenerationInfo: Codable {

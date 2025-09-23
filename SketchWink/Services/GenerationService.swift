@@ -146,25 +146,13 @@ class GenerationService: ObservableObject {
             throw GenerationError.invalidURL
         }
         
-        guard let token = try KeychainManager.shared.retrieveToken() else {
-            throw GenerationError.noToken
-        }
-        
-        let jsonData = try JSONEncoder().encode(request)
-        
-        #if DEBUG
-        if let requestString = String(data: jsonData, encoding: .utf8) {
-            print("🌐 POST \(endpoint)")
-            print("📤 Generation Request: \(requestString)")
-        }
-        #endif
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
-        urlRequest.httpBody = jsonData
+        // Use APIRequestHelper to automatically include X-Profile-ID header
+        let urlRequest = try APIRequestHelper.shared.createJSONRequest(
+            url: url,
+            method: "POST",
+            body: request,
+            includeProfileHeader: true  // CRITICAL: Include profile for content tagging
+        )
         
         let (data, response) = try await URLSession.shared.data(for: urlRequest)
         
@@ -256,14 +244,11 @@ class GenerationService: ObservableObject {
             throw GenerationError.invalidURL
         }
         
-        guard let token = try KeychainManager.shared.retrieveToken() else {
-            throw GenerationError.noToken
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Use APIRequestHelper to automatically include X-Profile-ID header for content filtering
+        let request = try APIRequestHelper.shared.createGETRequest(
+            url: url,
+            includeProfileHeader: true  // CRITICAL: Include profile for access control
+        )
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
@@ -297,14 +282,12 @@ class GenerationService: ObservableObject {
             throw GenerationError.invalidURL
         }
         
-        guard let token = try KeychainManager.shared.retrieveToken() else {
-            throw GenerationError.noToken
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "PATCH"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Use APIRequestHelper to include profile context for favorite management
+        let request = try APIRequestHelper.shared.createRequest(
+            url: url,
+            method: "PATCH",
+            includeProfileHeader: true  // Include profile for context
+        )
         
         let (_, response) = try await URLSession.shared.data(for: request)
         
