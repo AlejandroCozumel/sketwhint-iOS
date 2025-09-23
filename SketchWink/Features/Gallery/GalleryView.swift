@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GalleryView: View {
     @StateObject private var generationService = GenerationService.shared
+    @StateObject private var profileService = ProfileService.shared
     @State private var images: [GeneratedImage] = []
     @State private var isLoading = true
     @State private var error: Error?
@@ -17,6 +18,7 @@ struct GalleryView: View {
     @State private var selectedCategory: String? = nil
     @State private var searchText = ""
     @State private var isSearchActive = false
+    @State private var selectedProfileFilter: String? = nil  // NEW: Profile filter
     
     // Categories from backend
     @State private var availableCategories: [CategoryWithOptions] = []
@@ -48,6 +50,17 @@ struct GalleryView: View {
         .task {
             await loadCategories()
             await loadImages()
+        }
+        .onAppear {
+            #if DEBUG
+            print("🔍 GalleryView: Profile filter visibility check")
+            print("   - Available profiles count: \(profileService.availableProfiles.count)")
+            print("   - Current profile: \(profileService.currentProfile?.name ?? "nil")")
+            print("   - Is default profile: \(profileService.currentProfile?.isDefault ?? false)")
+            print("   - Profile filters visible: \(profileService.availableProfiles.count > 1 && profileService.currentProfile?.isDefault == true)")
+            print("   - Creator names will be shown: \(profileService.currentProfile?.isDefault == true)")
+            print("   - Current profile ID: \(profileService.currentProfile?.id ?? "nil")")
+            #endif
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
@@ -120,6 +133,8 @@ struct GalleryView: View {
                     ForEach(images.indices, id: \.self) { index in
                         GalleryImageCard(
                             image: $images[index],
+                            showCreatorName: profileService.currentProfile?.isDefault == true,
+                            currentProfileId: profileService.currentProfile?.id,
                             action: {
                                 selectedImage = images[index]
                             },
@@ -259,6 +274,46 @@ struct GalleryView: View {
                     .fill(AppColors.borderLight)
                     .frame(width: 1, height: 24)
                     .padding(.horizontal, AppSpacing.xs)
+                
+                // Profile Filters (only show if multiple profiles exist AND current user is default/main profile)
+                if profileService.availableProfiles.count > 1 && 
+                   profileService.currentProfile?.isDefault == true {
+                    // Separator
+                    Rectangle()
+                        .fill(AppColors.borderLight)
+                        .frame(width: 1, height: 24)
+                        .padding(.horizontal, AppSpacing.xs)
+                    
+                    // "All Profiles" chip
+                    ProfileFilterChip(
+                        title: "All Profiles",
+                        icon: "person.2.fill",
+                        isSelected: selectedProfileFilter == nil,
+                        action: {
+                            selectedProfileFilter = nil
+                            applyFilters()
+                        }
+                    )
+                    
+                    // Individual Profile Chips
+                    ForEach(profileService.availableProfiles, id: \.id) { profile in
+                        ProfileFilterChip(
+                            title: profile.name,
+                            icon: profile.avatar ?? "👤",
+                            isSelected: selectedProfileFilter == profile.id,
+                            action: {
+                                selectedProfileFilter = selectedProfileFilter == profile.id ? nil : profile.id
+                                applyFilters()
+                            }
+                        )
+                    }
+                    
+                    // Separator
+                    Rectangle()
+                        .fill(AppColors.borderLight)
+                        .frame(width: 1, height: 24)
+                        .padding(.horizontal, AppSpacing.xs)
+                }
                 
                 // Dynamic Category Chips
                 ForEach(availableCategories, id: \.id) { categoryWithOptions in
@@ -498,12 +553,21 @@ struct GalleryView: View {
             limit: 15, 
             favorites: favorites,
             category: selectedCategory,
-            search: search
+            search: search,
+            filterByProfile: selectedProfileFilter
         )
     }
     
     // MARK: - Filter Application
     private func applyFilters() {
+        #if DEBUG
+        print("🔍 GalleryView: Applying filters")
+        print("   - Favorites only: \(showFavoritesOnly)")
+        print("   - Category: \(selectedCategory ?? "All")")
+        print("   - Profile filter: \(selectedProfileFilter ?? "All")")
+        print("   - Search: \(searchText.isEmpty ? "None" : searchText)")
+        #endif
+        
         Task {
             await loadImages()
         }
@@ -578,6 +642,8 @@ struct GalleryView: View {
 // MARK: - Supporting Views
 struct GalleryImageCard: View {
     @Binding var image: GeneratedImage
+    let showCreatorName: Bool
+    let currentProfileId: String?
     let action: () -> Void
     let onFavoriteToggle: (GeneratedImage) async -> Void
     
@@ -593,6 +659,46 @@ struct GalleryImageCard: View {
                             .frame(width: geometry.size.width, height: 160)
                             .clipped()
                             .cornerRadius(AppSizing.cornerRadius.md)
+                        .overlay(
+                            // Creator name indicator - BOTTOM LEFT (only for main user)
+                            Group {
+                                if showCreatorName, 
+                                   let createdBy = image.createdBy,
+                                   createdBy.profileId != currentProfileId {
+                                    HStack {
+                                        VStack {
+                                            Spacer()
+                                            HStack {
+                                                Text(createdBy.profileName)
+                                                    .font(AppTypography.captionSmall)
+                                                    .fontWeight(.semibold)
+                                                    .foregroundColor(.white)
+                                                    .lineLimit(1)
+                                                    .truncationMode(.tail)
+                                                    .padding(.horizontal, 8)
+                                                    .padding(.vertical, 3)
+                                                    .background(
+                                                        LinearGradient(
+                                                            colors: [AppColors.primaryPurple, AppColors.primaryBlue],
+                                                            startPoint: .leading,
+                                                            endPoint: .trailing
+                                                        ),
+                                                        in: Capsule()
+                                                    )
+                                                    .overlay(
+                                                        Capsule()
+                                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                                    )
+                                                    .shadow(color: AppColors.primaryPurple.opacity(0.3), radius: 2, x: 0, y: 1)
+                                                
+                                                Spacer()
+                                            }
+                                        }
+                                    }
+                                    .padding(AppSpacing.xs)
+                                }
+                            }
+                        )
                         .overlay(
                             // Favorite toggle button - TOP RIGHT
                             AnimatedFavoriteButton(
@@ -702,6 +808,13 @@ struct ImageDetailView: View {
                         DetailRow(label: "Title", value: image.generation?.title ?? image.originalUserPrompt ?? "Unknown")
                         DetailRow(label: "Category", value: image.generation?.category ?? "Unknown")
                         DetailRow(label: "Style", value: image.generation?.option ?? "Unknown")
+                        
+                        // Show creator info for main users (only if created by someone else)
+                        if let createdBy = image.createdBy,
+                           createdBy.profileId != ProfileService.shared.currentProfile?.id {
+                            DetailRow(label: "Created by", value: createdBy.profileName)
+                        }
+                        
                         DetailRow(label: "Created", value: formatDate(image.createdAt))
                     }
                 }
@@ -1092,6 +1205,58 @@ struct SkeletonImageCard: View {
 }
 
 // MARK: - Models are defined in GenerationModels.swift
+
+// MARK: - Profile Filter Chip
+struct ProfileFilterChip: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppSpacing.xs) {
+                // Check if icon is an emoji or system icon
+                if icon.count == 1 {
+                    // It's an emoji avatar
+                    Text(icon)
+                        .font(.system(size: 14))
+                } else {
+                    // It's a system icon
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .medium))
+                }
+                
+                Text(title)
+                    .font(AppTypography.captionLarge)
+                    .fontWeight(.medium)
+            }
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.vertical, AppSpacing.sm)
+            .background(
+                isSelected ? AppColors.primaryPurple : Color.clear,
+                in: Capsule()
+            )
+            .foregroundColor(isSelected ? .white : AppColors.textPrimary)
+            .overlay(
+                Capsule()
+                    .stroke(
+                        isSelected ? Color.clear : AppColors.primaryPurple.opacity(0.3),
+                        lineWidth: 1.5
+                    )
+            )
+            .scaleEffect(isSelected ? 1.05 : 1.0)
+            .shadow(
+                color: isSelected ? AppColors.primaryPurple.opacity(0.3) : Color.clear,
+                radius: isSelected ? 4 : 0,
+                x: 0,
+                y: 2
+            )
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
+        }
+        .childSafeTouchTarget()
+    }
+}
 
 // MARK: - Preview
 #if DEBUG

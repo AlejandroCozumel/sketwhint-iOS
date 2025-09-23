@@ -26,10 +26,12 @@ struct AppCoordinator: View {
                 NavigationView {
                     LoginView()
                 }
-            } else if !profileService.hasSelectedProfile {
-                // User authenticated but no profile selected - FORCE profile selection
+            } else if !profileService.hasSelectedProfile || profileService.currentProfile == nil {
+                // User authenticated but no profile selected OR profile couldn't be restored - FORCE profile selection
                 #if DEBUG
-                let _ = print("🔒 DEBUG: No profile selected, showing ProfileSelectionRequiredView")
+                let _ = print("🔒 DEBUG: No profile selected or profile couldn't be restored, showing ProfileSelectionRequiredView")
+                let _ = print("🔒 DEBUG: hasSelectedProfile: \(profileService.hasSelectedProfile)")
+                let _ = print("🔒 DEBUG: currentProfile: \(profileService.currentProfile?.name ?? "nil")")
                 let _ = print("🔒 DEBUG: Available profiles count: \(profileService.availableProfiles.count)")
                 #endif
                 ProfileSelectionRequiredView(
@@ -123,9 +125,9 @@ struct AppCoordinator: View {
     private func checkAuthenticationStatus() async {
         await authService.checkAuthenticationStatus()
         
-        // If authenticated, check profile selection status
+        // If authenticated, properly load and validate stored profile
         if authService.isAuthenticated {
-            await profileService.checkSelectedProfile()
+            await loadStoredProfile()
         }
         
         // Add a small delay for smooth transition
@@ -133,6 +135,32 @@ struct AppCoordinator: View {
         
         await MainActor.run {
             isCheckingAuth = false
+        }
+    }
+    
+    /// Load and validate stored profile on app startup
+    private func loadStoredProfile() async {
+        do {
+            // First, load all available profiles from API
+            let profiles = try await profileService.loadFamilyProfiles()
+            
+            // Then validate and restore stored profile
+            await profileService.validateStoredProfile(profiles)
+            
+            #if DEBUG
+            if let currentProfile = profileService.currentProfile {
+                print("✅ Profile restored on startup: \(currentProfile.name)")
+            } else {
+                print("📝 No profile to restore on startup")
+            }
+            #endif
+        } catch {
+            #if DEBUG
+            print("❌ Error loading stored profile on startup: \(error)")
+            #endif
+            
+            // On error, fallback to checkSelectedProfile behavior
+            await profileService.checkSelectedProfile()
         }
     }
     

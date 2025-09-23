@@ -214,7 +214,7 @@ class GenerationService: ObservableObject {
     }
     
     // MARK: - Gallery/Images
-    func getUserImages(page: Int = 1, limit: Int = 20, favorites: Bool? = nil, category: String? = nil, search: String? = nil) async throws -> ImagesResponse {
+    func getUserImages(page: Int = 1, limit: Int = 20, favorites: Bool? = nil, category: String? = nil, search: String? = nil, filterByProfile: String? = nil) async throws -> ImagesResponse {
         let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.images)"
         
         var components = URLComponents(string: endpoint)!
@@ -238,11 +238,20 @@ class GenerationService: ObservableObject {
             queryItems.append(URLQueryItem(name: "search", value: search))
         }
         
+        if let filterByProfile = filterByProfile {
+            queryItems.append(URLQueryItem(name: "filterByProfile", value: filterByProfile))
+        }
+        
         components.queryItems = queryItems
         
         guard let url = components.url else {
             throw GenerationError.invalidURL
         }
+        
+        #if DEBUG
+        print("🌐 GenerationService: Loading user images")
+        print("📤 URL: \(url.absoluteString)")
+        #endif
         
         // Use APIRequestHelper to automatically include X-Profile-ID header for content filtering
         let request = try APIRequestHelper.shared.createGETRequest(

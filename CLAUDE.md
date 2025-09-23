@@ -949,3 +949,355 @@ This SSE implementation transforms the generation experience from a static waiti
 - [ ] Family-friendly color palette (AppColors only)
 
 **🚨 REMEMBER: Always use the existing constants - never create custom colors, spacing, or typography!**
+
+---
+
+## ✅ **FAMILY PROFILE SYSTEM - FULLY IMPLEMENTED**
+
+**Status:** 100% Complete with Persistent Selection and PIN Protection  
+**Last Updated:** January 23, 2025
+
+### 👨‍👩‍👧‍👦 **Complete Family Profile Management**
+
+The iOS app now includes a comprehensive family profile system that allows families to create multiple profiles with individual settings, PIN protection, and parental controls.
+
+#### **🎯 Core Profile Features:**
+
+1. **👤 Profile Creation & Management**
+   - **Multi-Profile Support**: Up to 5 family profiles per subscription
+   - **Avatar System**: Emoji-based avatars with color customization
+   - **PIN Protection**: Optional 4-digit PIN for profile switching
+   - **Permission Controls**: Individual purchase permissions per profile
+   - **Default Profile**: Main admin profile with full family oversight
+
+2. **🔒 Profile Security & Access Control**
+   - **PIN Entry**: Secure 4-digit PIN verification with auto-focus
+   - **Auto-Lock**: Profiles lock after inactivity
+   - **Parental Override**: Main profile can access all content
+   - **Child Safety**: Age-appropriate content filtering per profile
+
+3. **🎨 Enhanced Profile Card UI**
+   - **Integrated Edit Button**: Overlay edit button on profile avatar
+   - **Visual Status Indicators**: Active profile checkmark, PIN lock icon
+   - **Smooth Animations**: Card selection and transition animations
+   - **Child-Friendly Design**: Large touch targets and clear visual hierarchy
+
+#### **💾 Profile Persistence System**
+
+**Automatic Profile Restoration:**
+```swift
+// App startup flow:
+1. Check authentication status
+2. Load all family profiles from API
+3. Validate stored profile ID against available profiles
+4. Restore current profile or show selection if invalid
+5. Update UI with active profile state
+```
+
+**Keychain Storage Integration:**
+```swift
+// Profile storage methods
+KeychainManager.shared.storeSelectedProfile(profileId)
+KeychainManager.shared.retrieveSelectedProfile()
+KeychainManager.shared.deleteSelectedProfile()
+```
+
+#### **🔄 Profile Switching Workflow**
+
+**Smart Profile Selection:**
+1. **Same Profile**: Dismiss selection (no action needed)
+2. **No PIN**: Instant profile switch with API call
+3. **PIN Required**: Show PIN entry modal with verification
+4. **Success**: Update local state and sync with backend
+5. **Persistence**: Store new selection in keychain for app restarts
+
+#### **📱 UI Components Implemented**
+
+1. **ProfilesView** - Main profile management screen
+2. **ProfileCard** - Individual profile display with integrated controls
+3. **PINEntryView** - Secure PIN input with auto-focus and validation
+4. **ProfileSelectionView** - Profile picker with search and filtering
+5. **CreateProfileView** - New profile creation with avatar selection
+6. **EditProfileView** - Profile settings and permission management
+
+#### **🎯 Family-Friendly Features**
+
+- **Large Touch Targets**: All interactive elements meet 56pt recommended size
+- **Clear Visual Feedback**: Immediate response to profile selections
+- **Simple Navigation**: One-tap profile switching for children
+- **Error Prevention**: Clear indications of locked/restricted profiles
+- **Accessibility Support**: Full VoiceOver compatibility
+
+---
+
+## ✅ **GALLERY PROFILE FILTERING - FULLY IMPLEMENTED**
+
+**Status:** 100% Complete with Creator Attribution and Smart Access Control  
+**Last Updated:** January 23, 2025
+
+### 🖼️ **Advanced Gallery Content Management**
+
+The gallery system now includes sophisticated profile-based filtering that allows main users (parents) to browse content created by different family members while maintaining simple interfaces for children.
+
+#### **🔍 Profile Filter System**
+
+**Smart Filter Visibility:**
+```swift
+// Only show profile filters if:
+// 1. Multiple profiles exist (> 1 profile)
+// 2. Current user is main/default profile (isDefault: true)
+if profileService.availableProfiles.count > 1 && 
+   profileService.currentProfile?.isDefault == true {
+    // Show profile filtering UI
+}
+```
+
+**Filter Options Available:**
+- **"All Profiles"**: View content from all family members
+- **Individual Profile Filters**: "Dad", "Emma", "Mom" etc.
+- **Combined Filtering**: Profile + Category + Favorites + Search
+
+#### **🏷️ Creator Attribution System**
+
+**Visual Creator Indicators:**
+- **Position**: Bottom-left corner of gallery images
+- **Design**: Compact gradient pill badge (purple-blue)
+- **Smart Display**: Only shows for content created by OTHER users
+- **Typography**: `AppTypography.captionSmall` with semibold weight
+- **Truncation**: Long names automatically truncated with "..."
+
+**Creator Badge Specifications:**
+```swift
+Text(createdBy.profileName)
+    .font(AppTypography.captionSmall)
+    .fontWeight(.semibold)
+    .foregroundColor(.white)
+    .padding(.horizontal, 8)
+    .padding(.vertical, 3)
+    .background(
+        LinearGradient(
+            colors: [AppColors.primaryPurple, AppColors.primaryBlue],
+            startPoint: .leading,
+            endPoint: .trailing
+        ),
+        in: Capsule()
+    )
+```
+
+#### **🎭 User Experience by Profile Type**
+
+**👨 Main User (Dad - isDefault: true):**
+- ✅ Sees profile filter chips: "All Profiles", "Dad", "Emma"
+- ✅ Can browse all family content with creator attribution
+- ✅ Creator badges show: "Emma" on Emma's art (not on his own)
+- ✅ Full family gallery oversight and management
+
+**👧 Child User (Emma - isDefault: false):**
+- ❌ No profile filter chips visible
+- ❌ No creator badges shown (clean interface)
+- ✅ Only sees own content (backend permission enforcement)
+- ✅ Simple, focused gallery experience
+
+#### **📊 Enhanced Image Detail View**
+
+**Creator Information Display:**
+```swift
+// Detail view creator info (only if created by different user)
+if let createdBy = image.createdBy,
+   createdBy.profileId != ProfileService.shared.currentProfile?.id {
+    DetailRow(label: "Created by", value: createdBy.profileName)
+}
+```
+
+**Complete Detail Information:**
+- Title, Category, Style
+- **Creator**: Shows profile name if different user
+- Creation date and time
+- Favorite status management
+
+#### **🔧 API Integration**
+
+**Profile Filtering Parameter:**
+```swift
+// API call with profile filtering
+return try await generationService.getUserImages(
+    page: page,
+    limit: 15,
+    favorites: favorites,
+    category: selectedCategory,
+    search: search,
+    filterByProfile: selectedProfileFilter  // NEW: Profile filter
+)
+```
+
+**Backend Query Parameter:**
+- **Parameter**: `?filterByProfile=profileId`
+- **Validation**: Backend validates profile belongs to current user
+- **Permissions**: Maintains existing access control while adding filtering
+
+---
+
+## ✅ **ENHANCED PROFILE CARD UI - FULLY IMPLEMENTED**
+
+**Status:** 100% Complete with Integrated Edit Controls  
+**Last Updated:** January 23, 2025
+
+### 🎨 **Modern Profile Card Design**
+
+The profile cards have been completely redesigned with integrated controls and improved visual hierarchy for better family user experience.
+
+#### **🔄 UI Enhancement Details**
+
+**Before Enhancement:**
+- Separate edit button below each profile card
+- Disconnected visual design
+- Extra vertical space usage
+- Unclear button hierarchy
+
+**After Enhancement:**
+- **Integrated overlay edit button** on avatar top-right corner
+- **Glassmorphism design** with `.ultraThinMaterial` background
+- **Space-efficient layout** with no separate buttons
+- **Clear visual hierarchy** with primary/secondary actions
+
+#### **⚙️ Edit Button Specifications**
+
+**Visual Design:**
+```swift
+Button(action: onEditTap) {
+    Image(systemName: "gearshape.fill")
+        .font(.system(size: 16))
+        .foregroundColor(AppColors.primaryBlue)
+        .frame(width: 28, height: 28)
+        .background(.ultraThinMaterial, in: Circle())
+        .overlay(
+            Circle()
+                .stroke(AppColors.primaryBlue.opacity(0.3), lineWidth: 1)
+        )
+        .shadow(color: AppColors.primaryBlue.opacity(0.2), radius: 2, x: 0, y: 1)
+}
+```
+
+**Position & Layout:**
+- **Location**: Top-right corner overlay on profile avatar
+- **Size**: 28x28pt circular button
+- **Touch Target**: Meets child-safe requirements
+- **Visual Depth**: Subtle shadow and border for definition
+
+#### **🎯 Profile Card Layout System**
+
+**Multi-Layer Overlay Design:**
+```
+[Profile Avatar Circle - 80x80pt]
+├── Top-Left: ✅ Active Profile Indicator (if current)
+├── Top-Right: ⚙️ Edit Button (always visible)
+├── Bottom-Right: 🔒 PIN Lock Icon (if protected)
+└── Center: 👤 Avatar Emoji + Loading State
+```
+
+**Visual State Management:**
+- **Active Profile**: Green border, success background tint, checkmark overlay
+- **PIN Protected**: Lock icon overlay, visual indication of security
+- **Loading State**: Overlay progress indicator with darkened background
+- **Edit Access**: Always-visible edit button for profile management
+
+#### **✨ Interaction Improvements**
+
+**Touch Target Optimization:**
+- **Main Card**: Large tap area for profile switching
+- **Edit Button**: Separate 28pt circular touch target
+- **Child-Safe**: All elements meet 44pt minimum requirement
+- **Clear Separation**: No accidental edit activations during profile switching
+
+**Animation & Feedback:**
+- **Card Selection**: Smooth selection animation
+- **Button Press**: Haptic feedback and visual response
+- **State Transitions**: Seamless loading and success states
+- **Error Handling**: Clear visual feedback for failed operations
+
+---
+
+## 🔧 **IMPLEMENTATION NOTES FOR CLAUDE**
+
+### **🎯 Profile System Integration Points**
+
+**ProfileService Singleton:**
+```swift
+@StateObject private var profileService = ProfileService.shared
+// Provides: currentProfile, availableProfiles, hasSelectedProfile
+```
+
+**Keychain Profile Storage:**
+```swift
+// Store selected profile persistently
+try KeychainManager.shared.storeSelectedProfile(profileId)
+
+// Retrieve on app startup
+let storedProfileId = try KeychainManager.shared.retrieveSelectedProfile()
+```
+
+**API Profile Header:**
+```swift
+// X-Profile-ID header automatically included in all API requests
+// Determines content permissions and access control
+```
+
+### **🎨 Gallery Creator Attribution**
+
+**Smart Badge Display Logic:**
+```swift
+// Only show creator name if:
+// 1. Main user viewing (showCreatorName == true)
+// 2. Image has creator info (createdBy != nil)  
+// 3. Creator is different user (createdBy.profileId != currentProfileId)
+```
+
+**Badge Design Requirements:**
+- **Color**: Use AppColors constants (primaryPurple, primaryBlue)
+- **Typography**: AppTypography.captionSmall with semibold weight
+- **Spacing**: 8px horizontal, 3px vertical padding
+- **Shadow**: Subtle purple shadow for definition
+
+### **⚙️ Profile Card Edit Integration**
+
+**Overlay Button Pattern:**
+```swift
+// Edit button as avatar overlay (not separate UI element)
+VStack { // Top alignment
+    HStack { // Right alignment
+        Spacer()
+        Button(action: onEditTap) { /* edit button */ }
+    }
+    Spacer()
+}
+.frame(width: 80, height: 80) // Match avatar size
+```
+
+**State Management:**
+- **Loading**: Show progress overlay on avatar
+- **Active**: Green border and checkmark overlay
+- **PIN Protected**: Lock icon in bottom-right
+- **Edit Access**: Gear icon in top-right (always visible)
+
+### **🔍 Debug Logging Examples**
+
+**Profile Filtering Visibility:**
+```
+🔍 GalleryView: Profile filter visibility check
+   - Available profiles count: 2
+   - Current profile: Dad
+   - Is default profile: true
+   - Profile filters visible: true
+   - Creator names will be shown: true
+```
+
+**Profile Selection Flow:**
+```
+🎯 ProfilesView: ProfileCard tapped for Emma
+   - Profile ID: f5346949-682f-49b7-b567-8fcf273f2194
+   - Has PIN: true
+   - Is current profile: false
+   - Showing PIN entry for Emma
+```
+
+This comprehensive profile system provides Netflix-style family management with robust security, persistent selections, and child-friendly interfaces while maintaining full parental oversight capabilities.

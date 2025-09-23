@@ -13,6 +13,9 @@ struct ProfileSwitcherView: View {
     
     var body: some View {
         Button {
+            #if DEBUG
+            print("🟡 ProfileSwitcher: Button tapped!")
+            #endif
             showProfileSwitcher()
         } label: {
             HStack(spacing: AppSpacing.sm) {
@@ -68,38 +71,38 @@ struct ProfileSwitcherView: View {
         )
         .childSafeTouchTarget()
         .sheet(isPresented: $showingProfileSelection) {
-            if let profile = profileToSelect {
-                ProfileSelectionView(
-                    profile: profile,
-                    onProfileSelected: { selectedProfile in
-                        if selectedProfile.hasPin {
-                            showingProfileSelection = false
-                            showingPINEntry = true
-                        } else {
-                            Task {
-                                await switchToProfile(selectedProfile, pin: nil)
-                            }
+            // Always show the profile list for selection
+            ProfileSwitcherListView(
+                availableProfiles: profileService.availableProfiles,
+                currentProfile: profileService.currentProfile,
+                onProfileSelected: { selectedProfile in
+                    profileToSelect = selectedProfile
+                    
+                    if selectedProfile.hasPin {
+                        showingProfileSelection = false
+                        showingPINEntry = true
+                    } else {
+                        Task {
+                            await switchToProfile(selectedProfile, pin: nil)
                         }
                     }
-                )
-            } else {
-                // Show all available profiles for selection
-                ProfileSwitcherListView(
-                    availableProfiles: profileService.availableProfiles,
-                    currentProfile: profileService.currentProfile,
-                    onProfileSelected: { selectedProfile in
-                        profileToSelect = selectedProfile
-                        
-                        if selectedProfile.hasPin {
-                            showingProfileSelection = false
-                            showingPINEntry = true
-                        } else {
-                            Task {
-                                await switchToProfile(selectedProfile, pin: nil)
-                            }
-                        }
-                    }
-                )
+                }
+            )
+            .onAppear {
+                #if DEBUG
+                print("📋 ProfileSwitcherListView appeared with \(profileService.availableProfiles.count) profiles")
+                #endif
+                
+                // Safety check: if profiles are empty when sheet appears, reload them
+                if profileService.availableProfiles.isEmpty {
+                    #if DEBUG
+                    print("⚠️ ProfileSwitcherListView: Profiles are empty, reloading...")
+                    #endif
+                    
+                    // Close the sheet and reload profiles
+                    showingProfileSelection = false
+                    loadProfilesAndShowSwitcher()
+                }
             }
         }
         .sheet(isPresented: $showingPINEntry) {
@@ -160,10 +163,23 @@ struct ProfileSwitcherView: View {
     private func showProfileSwitcher() {
         guard !isLoading else { return }
         
-        // If no profiles loaded, load them first
+        #if DEBUG
+        print("🔍 ProfileSwitcher: showProfileSwitcher called")
+        print("   - Available profiles count: \(profileService.availableProfiles.count)")
+        print("   - Current profile: \(profileService.currentProfile?.name ?? "nil")")
+        #endif
+        
+        // Always ensure we have fresh profiles data
+        // This handles cases where app restarted and profiles might be stale
         if profileService.availableProfiles.isEmpty {
+            #if DEBUG
+            print("   - Loading profiles because array is empty")
+            #endif
             loadProfilesAndShowSwitcher()
         } else {
+            #if DEBUG
+            print("   - Using existing profiles, showing switcher")
+            #endif
             showingProfileSelection = true
         }
     }
@@ -171,21 +187,39 @@ struct ProfileSwitcherView: View {
     private func loadProfilesAndShowSwitcher() {
         isLoading = true
         
+        #if DEBUG
+        print("📡 ProfileSwitcher: Loading profiles from API...")
+        #endif
+        
         Task {
             do {
                 let profiles = try await profileService.loadFamilyProfiles()
                 
+                #if DEBUG
+                print("📡 ProfileSwitcher: Loaded \(profiles.count) profiles from API")
+                print("   - Profiles: \(profiles.map { "\($0.name) (\($0.id))" }.joined(separator: ", "))")
+                #endif
+                
                 await MainActor.run {
                     isLoading = false
                     if !profiles.isEmpty {
+                        #if DEBUG
+                        print("📡 ProfileSwitcher: Showing profile selection with \(profiles.count) profiles")
+                        #endif
                         showingProfileSelection = true
                     } else {
                         // No profiles available - should not happen in normal flow
+                        #if DEBUG
+                        print("❌ ProfileSwitcher: No profiles loaded, showing error")
+                        #endif
                         error = ProfileError.apiError("No profiles available")
                         showingError = true
                     }
                 }
             } catch {
+                #if DEBUG
+                print("❌ ProfileSwitcher: Failed to load profiles: \(error)")
+                #endif
                 await MainActor.run {
                     isLoading = false
                     self.error = error
@@ -241,13 +275,13 @@ struct ProfileSwitcherListView: View {
                     // Header
                     headerSection
                     
-                    // Current Profile (if any)
-                    if let currentProfile = currentProfile {
-                        currentProfileSection(currentProfile)
+                    // Handle empty profiles case
+                    if availableProfiles.isEmpty {
+                        emptyProfilesSection
+                    } else {
+                        // All Profiles (with current profile highlighted)
+                        availableProfilesSection
                     }
-                    
-                    // Available Profiles
-                    availableProfilesSection
                 }
                 .pageMargins()
                 .padding(.vertical, AppSpacing.sectionSpacing)
@@ -264,6 +298,22 @@ struct ProfileSwitcherListView: View {
                 }
             }
         }
+    }
+    
+    // MARK: - Empty Profiles Section
+    private var emptyProfilesSection: some View {
+        VStack(spacing: AppSpacing.lg) {
+            ProgressView()
+                .scaleEffect(1.5)
+                .tint(AppColors.primaryBlue)
+            
+            Text("Loading profiles...")
+                .bodyMedium()
+                .foregroundColor(AppColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(AppSpacing.xl)
+        .cardStyle()
     }
     
     // MARK: - Header Section
@@ -287,48 +337,37 @@ struct ProfileSwitcherListView: View {
         .contentPadding()
     }
     
-    // MARK: - Current Profile Section
-    private func currentProfileSection(_ profile: FamilyProfile) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Current Profile")
-                .headlineMedium()
-                .foregroundColor(AppColors.textPrimary)
-            
-            ProfileRowView(
-                profile: profile,
-                isSelected: true,
-                onTap: { /* Already selected */ }
-            )
-        }
-        .cardStyle()
-    }
-    
-    // MARK: - Available Profiles Section
+    // MARK: - All Profiles Section
     private var availableProfilesSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Available Profiles")
+            Text("Family Profiles")
                 .headlineMedium()
                 .foregroundColor(AppColors.textPrimary)
             
             VStack(spacing: AppSpacing.sm) {
                 ForEach(availableProfiles) { profile in
-                    if profile.id != currentProfile?.id {
-                        ProfileRowView(
-                            profile: profile,
-                            isSelected: false,
-                            onTap: {
+                    ProfileRowView(
+                        profile: profile,
+                        isSelected: profile.id == currentProfile?.id,
+                        onTap: {
+                            if profile.id == currentProfile?.id {
+                                // Already selected profile - just dismiss
+                                dismiss()
+                            } else {
+                                // Different profile - proceed with selection
                                 onProfileSelected(profile)
                                 dismiss()
                             }
-                        )
-                    }
+                        }
+                    )
                 }
             }
             
-            if availableProfiles.filter({ $0.id != currentProfile?.id }).isEmpty {
-                Text("No other profiles available")
+            if availableProfiles.count == 1 {
+                Text("Create additional profiles in Profile Settings")
                     .bodyMedium()
                     .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                     .padding(AppSpacing.lg)
             }
@@ -416,9 +455,19 @@ struct ProfileRowView: View {
                         Spacer()
                         
                         if isSelected {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(AppColors.successGreen)
+                            VStack(spacing: AppSpacing.xs) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(AppColors.successGreen)
+                                
+                                Text("Active")
+                                    .captionMedium()
+                                    .foregroundColor(AppColors.successGreen)
+                            }
+                        } else {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 16))
+                                .foregroundColor(AppColors.textSecondary)
                         }
                     }
                     

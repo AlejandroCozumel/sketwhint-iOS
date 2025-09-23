@@ -13,8 +13,15 @@ struct ProfilesView: View {
     @State private var highlightedFeature: String?
     @State private var showingMaxProfilesAlert = false
     @State private var showingProfileSelection = false
-    @State private var profileToSelect: FamilyProfile?
-    @State private var showingPINEntry = false
+    @State private var profileToSelect: FamilyProfile? {
+        didSet {
+            #if DEBUG
+            print("🔄 ProfilesView: profileToSelect changed from \(oldValue?.name ?? "nil") to \(profileToSelect?.name ?? "nil")")
+            #endif
+        }
+    }
+    @State private var currentProfile: FamilyProfile?
+    @State private var isSwitchingProfile = false
     
     var body: some View {
         NavigationStack {
@@ -35,27 +42,12 @@ struct ProfilesView: View {
             .background(AppColors.backgroundLight)
             .navigationTitle("Family Profiles")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if !profiles.isEmpty {
-                        Button {
-                            if canCreateProfile {
-                                showingCreateProfile = true
-                            } else {
-                                handleProfileCreationLimit()
-                            }
-                        } label: {
-                            Image(systemName: canCreateProfile ? "plus.circle.fill" : (isFreePlan ? "lock.circle.fill" : "exclamationmark.circle.fill"))
-                                .font(.system(size: 24))
-                                .foregroundColor(canCreateProfile ? AppColors.primaryBlue : AppColors.warningOrange)
-                        }
-                        .childSafeTouchTarget()
-                    }
-                }
-            }
         }
         .task {
             await loadData()
+        }
+        .onAppear {
+            loadCurrentProfile()
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
@@ -106,7 +98,7 @@ struct ProfilesView: View {
                         if selectedProfile.hasPin {
                             // Switch to PIN entry
                             showingProfileSelection = false
-                            showingPINEntry = true
+                            profileToSelect = selectedProfile
                         } else {
                             Task {
                                 await selectProfile(selectedProfile, pin: nil)
@@ -116,21 +108,21 @@ struct ProfilesView: View {
                 )
             }
         }
-        .sheet(isPresented: $showingPINEntry) {
-            if let profile = profileToSelect {
-                PINEntryView(
-                    profile: profile,
-                    onPINVerified: { verifiedProfile, pin in
-                        Task {
-                            await selectProfile(verifiedProfile, pin: pin)
-                        }
-                    },
-                    onCancel: {
-                        showingPINEntry = false
-                        profileToSelect = nil
+        .sheet(item: $profileToSelect) { profile in
+            #if DEBUG
+            let _ = print("📱 ProfilesView: PINEntryView sheet appearing for \(profile.name)")
+            #endif
+            PINEntryView(
+                profile: profile,
+                onPINVerified: { verifiedProfile, pin in
+                    Task {
+                        await switchToProfile(verifiedProfile, pin: pin)
                     }
-                )
-            }
+                },
+                onCancel: {
+                    profileToSelect = nil
+                }
+            )
         }
     }
     
@@ -270,7 +262,33 @@ struct ProfilesView: View {
             ForEach(profiles) { profile in
                 ProfileCard(
                     profile: profile,
+                    isCurrentProfile: currentProfile?.id == profile.id,
+                    isLoading: isSwitchingProfile,
                     onTap: {
+                        // Switch to profile
+                        #if DEBUG
+                        print("🎯 ProfilesView: ProfileCard tapped for \(profile.name)")
+                        print("   - Profile ID: \(profile.id)")
+                        print("   - Has PIN: \(profile.hasPin)")
+                        print("   - Is current profile: \(currentProfile?.id == profile.id)")
+                        #endif
+                        
+                        if profile.hasPin {
+                            #if DEBUG
+                            print("   - Showing PIN entry for \(profile.name)")
+                            #endif
+                            profileToSelect = profile
+                        } else {
+                            #if DEBUG
+                            print("   - Switching directly to \(profile.name) (no PIN)")
+                            #endif
+                            Task {
+                                await switchToProfile(profile, pin: nil)
+                            }
+                        }
+                    },
+                    onEditTap: {
+                        // Edit profile
                         selectedProfile = profile
                         showingEditProfile = true
                     }
@@ -428,25 +446,51 @@ struct ProfilesView: View {
     }
     
     private func selectProfile(_ profile: FamilyProfile, pin: String?) async {
+        // Reuse the unified switching logic so UI state stays consistent
+        await switchToProfile(profile, pin: pin)
+        await MainActor.run {
+            showingProfileSelection = false
+        }
+    }
+    
+    private func switchToProfile(_ profile: FamilyProfile, pin: String?) async {
+        await MainActor.run {
+            isSwitchingProfile = true
+        }
+        
         do {
             // Use ProfileService's selectProfile method (calls API and stores locally)
             try await ProfileService.shared.selectProfile(profile, pin: pin)
             
-            // Close modals and navigate to main app
             await MainActor.run {
-                showingProfileSelection = false
-                showingPINEntry = false
+                currentProfile = profile
+                isSwitchingProfile = false
                 profileToSelect = nil
                 
-                // TODO: Navigate to main app view or notify parent
-                // This might require a callback to parent view or navigation coordinator
+                #if DEBUG
+                print("✅ ProfilesView: Successfully switched to profile: \(profile.name)")
+                #endif
             }
         } catch {
             await MainActor.run {
+                isSwitchingProfile = false
                 self.error = error
                 showingError = true
+                
+                #if DEBUG
+                print("❌ ProfilesView: Failed to switch profile: \(error)")
+                #endif
             }
         }
+    }
+    
+    private func loadCurrentProfile() {
+        // Load current profile from ProfileService
+        currentProfile = ProfileService.shared.currentProfile
+        
+        #if DEBUG
+        print("🔍 ProfilesView: Current profile loaded: \(currentProfile?.name ?? "None")")
+        #endif
     }
 }
 
@@ -479,71 +523,149 @@ struct ProfileBenefitItem: View {
 
 struct ProfileCard: View {
     let profile: FamilyProfile
+    let isCurrentProfile: Bool
+    let isLoading: Bool
     let onTap: () -> Void
+    let onEditTap: () -> Void
     
     var body: some View {
+        // Main profile card
         Button(action: onTap) {
             VStack(spacing: AppSpacing.md) {
                 // Avatar Circle
                 ZStack {
-                    Circle()
-                        .fill(Color(hex: profile.profileColor))
-                        .frame(width: 80, height: 80)
-                    
-                    Text(profile.displayAvatar)
-                        .font(.system(size: 40))
-                    
-                    // PIN indicator
-                    if profile.hasPin {
+                        Circle()
+                            .fill(Color(hex: profile.profileColor))
+                            .frame(width: 80, height: 80)
+                        
+                        Text(profile.displayAvatar)
+                            .font(.system(size: 40))
+                        
+                        // Loading indicator
+                        if isLoading {
+                            Circle()
+                                .fill(.black.opacity(0.3))
+                                .frame(width: 80, height: 80)
+                            
+                            ProgressView()
+                                .scaleEffect(1.2)
+                                .tint(.white)
+                        }
+                        
+                        // Current profile indicator
+                        if isCurrentProfile {
+                            VStack {
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.white)
+                                        .background(
+                                            Circle()
+                                                .fill(AppColors.successGreen)
+                                                .frame(width: 28, height: 28)
+                                        )
+                                    Spacer()
+                                }
+                                Spacer()
+                            }
+                            .frame(width: 80, height: 80)
+                        }
+                        
+                        // PIN indicator
+                        if profile.hasPin && !isCurrentProfile {
+                            VStack {
+                                Spacer()
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "lock.circle.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.white)
+                                        .background(
+                                            Circle()
+                                                .fill(.black.opacity(0.3))
+                                                .frame(width: 24, height: 24)
+                                        )
+                                }
+                            }
+                            .frame(width: 80, height: 80)
+                        }
+                        
+                        // Edit button overlay - TOP RIGHT
                         VStack {
-                            Spacer()
                             HStack {
                                 Spacer()
-                                Image(systemName: "lock.circle.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.white)
-                                    .background(
-                                        Circle()
-                                            .fill(.black.opacity(0.3))
-                                            .frame(width: 24, height: 24)
-                                    )
+                                Button(action: onEditTap) {
+                                    Image(systemName: "gearshape.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(AppColors.primaryBlue)
+                                        .frame(width: 28, height: 28)
+                                        .background(.ultraThinMaterial, in: Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(AppColors.primaryBlue.opacity(0.3), lineWidth: 1)
+                                        )
+                                        .shadow(color: AppColors.primaryBlue.opacity(0.2), radius: 2, x: 0, y: 1)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
+                            Spacer()
                         }
                         .frame(width: 80, height: 80)
                     }
-                }
-                
-                VStack(spacing: AppSpacing.xs) {
-                    Text(profile.name)
-                        .font(AppTypography.titleMedium)
-                        .foregroundColor(AppColors.textPrimary)
-                        .multilineTextAlignment(.center)
                     
-                    if profile.isDefault {
-                        Text("Admin")
-                            .font(AppTypography.captionSmall)
-                            .foregroundColor(AppColors.textSecondary)
+                    VStack(spacing: AppSpacing.xs) {
+                        HStack {
+                            Text(profile.name)
+                                .font(AppTypography.titleMedium)
+                                .foregroundColor(AppColors.textPrimary)
+                                .multilineTextAlignment(.center)
+                            
+                            if profile.isDefault {
+                                Text("MAIN")
+                                    .font(AppTypography.captionSmall)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, AppSpacing.xs)
+                                    .padding(.vertical, 2)
+                                    .background(AppColors.warningOrange)
+                                    .cornerRadius(AppSizing.cornerRadius.xs)
+                            }
+                        }
+                        
+                        if isCurrentProfile {
+                            Text("Active Profile")
+                                .font(AppTypography.captionMedium)
+                                .foregroundColor(AppColors.successGreen)
+                        } else {
+                            Text("Tap to switch")
+                                .font(AppTypography.captionMedium)
+                                .foregroundColor(AppColors.textSecondary)
+                        }
                     }
                 }
+                .padding(AppSpacing.md)
+                .frame(maxWidth: .infinity)
+                .frame(height: 160)
+                .background(
+                    isCurrentProfile ? AppColors.successGreen.opacity(0.1) : AppColors.backgroundLight
+                )
+                .cornerRadius(AppSizing.cornerRadius.lg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                        .stroke(
+                            isCurrentProfile ? AppColors.successGreen : AppColors.borderLight,
+                            lineWidth: isCurrentProfile ? 2 : 1
+                        )
+                )
+                .shadow(
+                    color: isCurrentProfile ? AppColors.successGreen.opacity(0.2) : Color.black.opacity(0.05),
+                    radius: isCurrentProfile ? 8 : 4,
+                    x: 0,
+                    y: isCurrentProfile ? 4 : 2
+                )
             }
-            .padding(AppSpacing.md)
-            .frame(maxWidth: .infinity)
-            .frame(height: 160)
-            .background(AppColors.backgroundLight)
-            .cornerRadius(AppSizing.cornerRadius.lg)
-            .overlay(
-                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                    .stroke(AppColors.borderLight, lineWidth: 1)
-            )
-            .shadow(
-                color: Color.black.opacity(0.05),
-                radius: 4,
-                x: 0,
-                y: 2
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .childSafeTouchTarget()
+            .buttonStyle(PlainButtonStyle())
+            .disabled(isLoading)
+            .childSafeTouchTarget()
     }
 }
 

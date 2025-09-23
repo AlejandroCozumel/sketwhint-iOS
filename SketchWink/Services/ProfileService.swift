@@ -19,6 +19,12 @@ class ProfileService: ObservableObject {
         do {
             let storedProfileId = try KeychainManager.shared.retrieveSelectedProfile()
             
+            #if DEBUG
+            print("🔍 ProfileService: validateStoredProfile called")
+            print("   - Stored profile ID: \(storedProfileId ?? "nil")")
+            print("   - Available profiles: \(profiles.map { "\($0.name) (\($0.id))" }.joined(separator: ", "))")
+            #endif
+            
             if let storedProfileId = storedProfileId {
                 if let foundProfile = profiles.first(where: { $0.id == storedProfileId }) {
                     await MainActor.run {
@@ -27,7 +33,7 @@ class ProfileService: ObservableObject {
                     }
                     
                     #if DEBUG
-                    print("✅ Validated stored profile: \(foundProfile.name)")
+                    print("✅ ProfileService: Validated and restored stored profile: \(foundProfile.name) (ID: \(foundProfile.id))")
                     #endif
                 } else {
                     // Stored profile no longer exists, clear it
@@ -39,14 +45,28 @@ class ProfileService: ObservableObject {
                     }
                     
                     #if DEBUG
-                    print("⚠️ Stored profile not found in server, cleared selection")
+                    print("⚠️ ProfileService: Stored profile ID '\(storedProfileId)' not found in server profiles, cleared selection")
                     #endif
                 }
+            } else {
+                await MainActor.run {
+                    self.hasSelectedProfile = false
+                    self.currentProfile = nil
+                }
+                
+                #if DEBUG
+                print("📝 ProfileService: No stored profile ID found, profile selection required")
+                #endif
             }
         } catch {
             #if DEBUG
-            print("❌ Error validating stored profile: \(error)")
+            print("❌ ProfileService: Error validating stored profile: \(error)")
             #endif
+            
+            await MainActor.run {
+                self.hasSelectedProfile = false
+                self.currentProfile = nil
+            }
         }
     }
     
@@ -300,7 +320,12 @@ class ProfileService: ObservableObject {
         }
         
         #if DEBUG
-        print("✅ Profile selected via API and stored locally: \(profile.name) (ID: \(profile.id))")
+        print("✅ ProfileService: Profile selected via API and stored locally")
+        print("   - Profile name: \(profile.name)")
+        print("   - Profile ID: \(profile.id)")
+        print("   - Stored in keychain: ✅")
+        print("   - Updated currentProfile: ✅") 
+        print("   - Updated hasSelectedProfile: ✅")
         #endif
     }
     
