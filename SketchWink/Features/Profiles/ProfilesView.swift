@@ -9,6 +9,12 @@ struct ProfilesView: View {
     @State private var showingEditProfile = false
     @State private var selectedProfile: FamilyProfile?
     @State private var userPermissions: UserPermissions?
+    @State private var showingSubscriptionPlans = false
+    @State private var highlightedFeature: String?
+    @State private var showingMaxProfilesAlert = false
+    @State private var showingProfileSelection = false
+    @State private var profileToSelect: FamilyProfile?
+    @State private var showingPINEntry = false
     
     var body: some View {
         NavigationStack {
@@ -31,13 +37,17 @@ struct ProfilesView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if !profiles.isEmpty && canCreateProfile {
+                    if !profiles.isEmpty {
                         Button {
-                            showingCreateProfile = true
+                            if canCreateProfile {
+                                showingCreateProfile = true
+                            } else {
+                                handleProfileCreationLimit()
+                            }
                         } label: {
-                            Image(systemName: "plus.circle.fill")
+                            Image(systemName: canCreateProfile ? "plus.circle.fill" : (isFreePlan ? "lock.circle.fill" : "exclamationmark.circle.fill"))
                                 .font(.system(size: 24))
-                                .foregroundColor(AppColors.primaryBlue)
+                                .foregroundColor(canCreateProfile ? AppColors.primaryBlue : AppColors.warningOrange)
                         }
                         .childSafeTouchTarget()
                     }
@@ -52,11 +62,19 @@ struct ProfilesView: View {
         } message: {
             Text(error?.localizedDescription ?? "An error occurred")
         }
+        .alert("Maximum Profiles Reached", isPresented: $showingMaxProfilesAlert) {
+            Button("OK") { }
+        } message: {
+            Text("You've reached the maximum of \(userPermissions?.maxFamilyProfiles ?? 5) family profiles for your plan.")
+        }
         .sheet(isPresented: $showingCreateProfile) {
             CreateProfileView(
                 maxProfiles: userPermissions?.maxFamilyProfiles ?? 1,
                 onProfileCreated: { newProfile in
                     profiles.append(newProfile)
+                    // After creating profile, force user to select it
+                    profileToSelect = newProfile
+                    showingProfileSelection = true
                 }
             )
         }
@@ -72,6 +90,46 @@ struct ProfilesView: View {
                     profiles.removeAll { $0.id == deletedProfile.id }
                 }
             )
+        }
+        .sheet(isPresented: $showingSubscriptionPlans) {
+            SubscriptionPlansView(
+                highlightedFeature: highlightedFeature,
+                currentPlan: userPermissions?.planName.lowercased()
+            )
+        }
+        .sheet(isPresented: $showingProfileSelection) {
+            if let profile = profileToSelect {
+                ProfileSelectionView(
+                    profile: profile,
+                    onProfileSelected: { selectedProfile in
+                        if selectedProfile.hasPin {
+                            // Switch to PIN entry
+                            showingProfileSelection = false
+                            showingPINEntry = true
+                        } else {
+                            Task {
+                                await selectProfile(selectedProfile, pin: nil)
+                            }
+                        }
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showingPINEntry) {
+            if let profile = profileToSelect {
+                PINEntryView(
+                    profile: profile,
+                    onPINVerified: { verifiedProfile, pin in
+                        Task {
+                            await selectProfile(verifiedProfile, pin: pin)
+                        }
+                    },
+                    onCancel: {
+                        showingPINEntry = false
+                        profileToSelect = nil
+                    }
+                )
+            }
         }
     }
     
@@ -141,7 +199,11 @@ struct ProfilesView: View {
             
             // Create First Profile Button
             Button("Create Your First Profile") {
-                showingCreateProfile = true
+                if canCreateProfile {
+                    showingCreateProfile = true
+                } else {
+                    handleProfileCreationLimit()
+                }
             }
             .largeButtonStyle(backgroundColor: AppColors.primaryPink)
             .childSafeTouchTarget()
@@ -178,23 +240,25 @@ struct ProfilesView: View {
             
             Spacer()
             
-            if canCreateProfile {
-                Button {
+            Button {
+                if canCreateProfile {
                     showingCreateProfile = true
-                } label: {
-                    HStack(spacing: AppSpacing.xs) {
-                        Image(systemName: "plus.circle.fill")
-                        Text("Add Profile")
-                    }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, AppSpacing.md)
-                    .padding(.vertical, AppSpacing.sm)
-                    .background(AppColors.primaryBlue)
-                    .cornerRadius(AppSizing.cornerRadius.lg)
+                } else {
+                    handleProfileCreationLimit()
                 }
-                .childSafeTouchTarget()
+            } label: {
+                HStack(spacing: AppSpacing.xs) {
+                    Image(systemName: canCreateProfile ? "plus.circle.fill" : (isFreePlan ? "lock.circle.fill" : "exclamationmark.circle.fill"))
+                    Text(canCreateProfile ? "Add Profile" : (isFreePlan ? "Upgrade to Add" : "Limit Reached"))
+                }
+                .font(AppTypography.titleMedium)
+                .foregroundColor(.white)
+                .padding(.horizontal, AppSpacing.md)
+                .padding(.vertical, AppSpacing.sm)
+                .background(canCreateProfile ? AppColors.primaryBlue : AppColors.warningOrange)
+                .cornerRadius(AppSizing.cornerRadius.lg)
             }
+            .childSafeTouchTarget()
         }
         .cardStyle()
     }
@@ -239,9 +303,24 @@ struct ProfilesView: View {
                                 Image(systemName: "info.circle")
                                     .foregroundColor(AppColors.warningOrange)
                                 
-                                Text("Upgrade your plan to add more family profiles")
-                                    .captionMedium()
-                                    .foregroundColor(AppColors.textSecondary)
+                                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                    if isFreePlan {
+                                        Text("Upgrade your plan to add more family profiles")
+                                            .captionMedium()
+                                            .foregroundColor(AppColors.textSecondary)
+                                        
+                                        Button("View Plans") {
+                                            highlightedFeature = "Family Profiles"
+                                            showingSubscriptionPlans = true
+                                        }
+                                        .font(AppTypography.captionLarge)
+                                        .foregroundColor(AppColors.primaryBlue)
+                                    } else {
+                                        Text("You've reached the maximum of \(permissions.maxFamilyProfiles) family profiles")
+                                            .captionMedium()
+                                            .foregroundColor(AppColors.textSecondary)
+                                    }
+                                }
                                 
                                 Spacer()
                             }
@@ -257,6 +336,11 @@ struct ProfilesView: View {
     private var canCreateProfile: Bool {
         guard let permissions = userPermissions else { return false }
         return profiles.count < permissions.maxFamilyProfiles
+    }
+    
+    private var isFreePlan: Bool {
+        guard let permissions = userPermissions else { return true }
+        return permissions.maxFamilyProfiles <= 1
     }
     
     // MARK: - Methods
@@ -285,29 +369,46 @@ struct ProfilesView: View {
     }
     
     private func loadProfiles() async throws -> [FamilyProfile] {
-        // TODO: Implement actual API call
-        // For now, return empty array (no profiles created yet)
-        return []
+        // Use ProfileService to load family profiles from backend
+        return try await ProfileService.shared.loadFamilyProfiles()
     }
     
     private func loadPermissions() async throws -> UserPermissions {
-        // TODO: Implement actual API call or reuse from GenerationService
-        // For now, return mock permissions
-        return UserPermissions(
-            hasQualitySelector: false,
-            hasModelSelector: false,
-            hasCommercialLicense: false,
-            hasImageUpload: false,
-            maxFamilyProfiles: 3,
-            maxImagesPerGeneration: 1,
-            availableModels: ["seedream"],
-            availableQuality: ["standard"],
-            accountType: "subscription",
-            planName: "Basic",
-            isTrialing: false,
-            trialEndsAt: nil,
-            limitations: nil
-        )
+        // Use GenerationService to get user permissions from /user/token-balance endpoint
+        return try await GenerationService.shared.getUserPermissions()
+    }
+    
+    private func handleProfileCreationLimit() {
+        if isFreePlan {
+            // Free users: redirect to purchase modal
+            highlightedFeature = "Family Profiles"
+            showingSubscriptionPlans = true
+        } else {
+            // Paid users: show alert about maximum limit
+            showingMaxProfilesAlert = true
+        }
+    }
+    
+    private func selectProfile(_ profile: FamilyProfile, pin: String?) async {
+        do {
+            // Use ProfileService's selectProfile method (calls API and stores locally)
+            try await ProfileService.shared.selectProfile(profile, pin: pin)
+            
+            // Close modals and navigate to main app
+            await MainActor.run {
+                showingProfileSelection = false
+                showingPINEntry = false
+                profileToSelect = nil
+                
+                // TODO: Navigate to main app view or notify parent
+                // This might require a callback to parent view or navigation coordinator
+            }
+        } catch {
+            await MainActor.run {
+                self.error = error
+                showingError = true
+            }
+        }
     }
 }
 
@@ -821,23 +922,30 @@ struct CreateProfileView: View {
         
         isCreating = true
         
-        // Simulate profile creation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            let newProfile = FamilyProfile(
-                id: UUID().uuidString,
-                name: profileName.trimmingCharacters(in: .whitespacesAndNewlines),
-                avatar: selectedAvatar,
-                isDefault: false,
-                canMakePurchases: canMakePurchases,
-                canUseCustomContentTypes: canUseCustomContent,
-                hasPin: enablePin,
-                createdAt: ISO8601DateFormatter().string(from: Date()),
-                updatedAt: ISO8601DateFormatter().string(from: Date())
-            )
-            
-            onProfileCreated(newProfile)
-            isCreating = false
-            dismiss()
+        Task {
+            do {
+                let request = CreateProfileRequest(
+                    name: profileName.trimmingCharacters(in: .whitespacesAndNewlines),
+                    avatar: selectedAvatar,
+                    pin: enablePin ? pin : nil,
+                    canMakePurchases: canMakePurchases,
+                    canUseCustomContentTypes: canUseCustomContent
+                )
+                
+                let newProfile = try await ProfileService.shared.createFamilyProfile(request)
+                
+                await MainActor.run {
+                    onProfileCreated(newProfile)
+                    isCreating = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isCreating = false
+                    errorMessage = error.localizedDescription
+                    showingError = true
+                }
+            }
         }
     }
 }
@@ -915,6 +1023,312 @@ struct EditProfileView: View {
                     Button("Cancel") {
                         dismiss()
                     }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Profile Selection View
+
+struct ProfileSelectionView: View {
+    let profile: FamilyProfile
+    let onProfileSelected: (FamilyProfile) -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: AppSpacing.xl) {
+                // Header
+                VStack(spacing: AppSpacing.lg) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: profile.profileColor))
+                            .frame(width: 120, height: 120)
+                            .shadow(
+                                color: Color(hex: profile.profileColor).opacity(0.3),
+                                radius: AppSizing.shadows.large.radius,
+                                x: AppSizing.shadows.large.x,
+                                y: AppSizing.shadows.large.y
+                            )
+                        
+                        Text(profile.displayAvatar)
+                            .font(.system(size: 60))
+                    }
+                    
+                    VStack(spacing: AppSpacing.sm) {
+                        Text("Switch to \(profile.name)?")
+                            .headlineLarge()
+                            .foregroundColor(AppColors.textPrimary)
+                            .multilineTextAlignment(.center)
+                        
+                        if profile.hasPin {
+                            Text("This profile is protected with a PIN")
+                                .bodyMedium()
+                                .foregroundColor(AppColors.textSecondary)
+                                .multilineTextAlignment(.center)
+                        } else {
+                            Text("Ready to start creating!")
+                                .bodyMedium()
+                                .foregroundColor(AppColors.textSecondary)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                }
+                .contentPadding()
+                
+                Spacer()
+                
+                // Action Buttons
+                VStack(spacing: AppSpacing.md) {
+                    Button {
+                        if profile.hasPin {
+                            dismiss()
+                            // This will trigger the PIN entry view
+                            onProfileSelected(profile)
+                        } else {
+                            onProfileSelected(profile)
+                            dismiss()
+                        }
+                    } label: {
+                        HStack {
+                            if profile.hasPin {
+                                Image(systemName: "lock.fill")
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                            }
+                            Text(profile.hasPin ? "Enter PIN" : "Switch Profile")
+                        }
+                        .font(AppTypography.titleMedium)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(AppColors.primaryBlue)
+                        .cornerRadius(AppSizing.cornerRadius.lg)
+                    }
+                    .childSafeTouchTarget()
+                    
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .font(AppTypography.titleMedium)
+                    .foregroundColor(AppColors.textSecondary)
+                    .childSafeTouchTarget()
+                }
+                .contentPadding()
+            }
+            .background(AppColors.backgroundLight)
+            .navigationTitle("Switch Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarHidden(true)
+        }
+    }
+}
+
+// MARK: - PIN Entry View
+
+struct PINEntryView: View {
+    let profile: FamilyProfile
+    let onPINVerified: (FamilyProfile, String) -> Void
+    let onCancel: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var enteredPIN = ""
+    @State private var isVerifying = false
+    @State private var showingError = false
+    @State private var errorMessage = ""
+    @State private var attempts = 0
+    
+    private let maxAttempts = 3
+    
+    var body: some View {
+        VStack(spacing: AppSpacing.xl) {
+                // Header
+                VStack(spacing: AppSpacing.lg) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: profile.profileColor))
+                            .frame(width: 100, height: 100)
+                            .shadow(
+                                color: Color(hex: profile.profileColor).opacity(0.3),
+                                radius: AppSizing.shadows.medium.radius,
+                                x: AppSizing.shadows.medium.x,
+                                y: AppSizing.shadows.medium.y
+                            )
+                        
+                        Text(profile.displayAvatar)
+                            .font(.system(size: 50))
+                        
+                        // Lock overlay
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Image(systemName: "lock.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.white)
+                                    .background(
+                                        Circle()
+                                            .fill(.black.opacity(0.4))
+                                            .frame(width: 32, height: 32)
+                                    )
+                            }
+                        }
+                        .frame(width: 100, height: 100)
+                    }
+                    
+                    VStack(spacing: AppSpacing.sm) {
+                        Text("Enter PIN for \(profile.name)")
+                            .headlineLarge()
+                            .foregroundColor(AppColors.textPrimary)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("Enter your 4-digit PIN to access this profile")
+                            .bodyMedium()
+                            .foregroundColor(AppColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .contentPadding()
+                
+                // PIN Input
+                VStack(spacing: AppSpacing.lg) {
+                    HStack(spacing: AppSpacing.md) {
+                        ForEach(0..<4, id: \.self) { index in
+                            Circle()
+                                .fill(index < enteredPIN.count ? AppColors.primaryBlue : AppColors.borderLight)
+                                .frame(width: 20, height: 20)
+                        }
+                    }
+                    
+                    SecureField("", text: $enteredPIN)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .font(AppTypography.headlineLarge)
+                        .multilineTextAlignment(.center)
+                        .keyboardType(.numberPad)
+                        .padding(AppSpacing.lg)
+                        .background(AppColors.backgroundLight)
+                        .cornerRadius(AppSizing.cornerRadius.lg)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                                .stroke(
+                                    enteredPIN.count == 4 ? AppColors.primaryBlue : AppColors.borderMedium,
+                                    lineWidth: 2
+                                )
+                        )
+                        .onChange(of: enteredPIN) { oldValue, newValue in
+                            // Limit to 4 digits
+                            if newValue.count > 4 {
+                                enteredPIN = String(newValue.prefix(4))
+                            }
+                            
+                            // Auto-verify when 4 digits entered
+                            if enteredPIN.count == 4 {
+                                verifyPIN()
+                            }
+                        }
+                    
+                    if attempts > 0 {
+                        Text("Incorrect PIN. \(maxAttempts - attempts) attempts remaining.")
+                            .captionLarge()
+                            .foregroundColor(AppColors.errorRed)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .contentPadding()
+                
+                Spacer()
+                
+                // Action Buttons
+                VStack(spacing: AppSpacing.md) {
+                    Button {
+                        verifyPIN()
+                    } label: {
+                        HStack {
+                            if isVerifying {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "lock.open.fill")
+                            }
+                            Text(isVerifying ? "Verifying..." : "Unlock Profile")
+                        }
+                        .font(AppTypography.titleMedium)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(enteredPIN.count == 4 && !isVerifying ? AppColors.primaryBlue : AppColors.buttonDisabled)
+                        .cornerRadius(AppSizing.cornerRadius.lg)
+                    }
+                    .disabled(enteredPIN.count != 4 || isVerifying)
+                    .childSafeTouchTarget()
+                    
+                    Button("Cancel") {
+                        onCancel()
+                        dismiss()
+                    }
+                    .font(AppTypography.titleMedium)
+                    .foregroundColor(AppColors.textSecondary)
+                    .childSafeTouchTarget()
+                }
+                .contentPadding()
+        }
+        .background(AppColors.backgroundLight)
+        .alert("PIN Error", isPresented: $showingError) {
+            Button("OK") {
+                enteredPIN = ""
+            }
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    private func verifyPIN() {
+        guard enteredPIN.count == 4 else { return }
+        
+        isVerifying = true
+        
+        Task {
+            do {
+                let isValid = try await ProfileService.shared.verifyProfilePIN(
+                    profileId: profile.id,
+                    pin: enteredPIN
+                )
+                
+                await MainActor.run {
+                    if isValid {
+                        // PIN correct
+                        onPINVerified(profile, enteredPIN)
+                        dismiss()
+                    } else {
+                        // This shouldn't happen since API throws on invalid PIN
+                        errorMessage = "PIN verification failed"
+                        showingError = true
+                        enteredPIN = ""
+                    }
+                    isVerifying = false
+                }
+            } catch {
+                await MainActor.run {
+                    attempts += 1
+                    
+                    if attempts >= maxAttempts {
+                        errorMessage = "Too many incorrect attempts. Please try again later."
+                        showingError = true
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            onCancel()
+                            dismiss()
+                        }
+                    } else {
+                        // Show backend error message
+                        errorMessage = error.localizedDescription
+                        showingError = true
+                        enteredPIN = ""
+                    }
+                    
+                    isVerifying = false
                 }
             }
         }

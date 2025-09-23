@@ -86,6 +86,65 @@ struct SubscriptionPlan: Identifiable, Codable {
 
 // MARK: - Family Profiles
 
+/// Response wrapper for available profiles from /profiles/available
+struct FamilyProfilesResponse: Codable {
+    let profiles: [AvailableProfile]
+}
+
+/// Simplified profile model for /profiles/available endpoint (user selection)
+struct AvailableProfile: Identifiable, Codable {
+    let id: String
+    let name: String
+    let avatar: String?
+    let hasPin: Bool  // Boolean indicator only (no actual PIN)
+    let canMakePurchases: Bool
+    let isDefault: Bool
+    
+    /// Convert to FamilyProfile for compatibility with existing UI
+    func toFamilyProfile() -> FamilyProfile {
+        return FamilyProfile(
+            id: id,
+            name: name,
+            avatar: avatar,
+            isDefault: isDefault,
+            canMakePurchases: canMakePurchases,
+            canUseCustomContentTypes: false, // Default value since not provided
+            hasPin: hasPin,
+            createdAt: "", // Not provided in available profiles
+            updatedAt: ""  // Not provided in available profiles
+        )
+    }
+}
+
+/// Full profile model for admin operations (/family-profiles endpoints)
+struct AdminProfile: Identifiable, Codable {
+    let id: String
+    let userId: String
+    let name: String
+    let avatar: String?
+    let pin: String?  // Actual PIN value (admin view)
+    let canMakePurchases: Bool
+    let canUseCustomContentTypes: Bool
+    let isDefault: Bool
+    let createdAt: String
+    let updatedAt: String
+    
+    /// Convert to FamilyProfile for UI compatibility
+    func toFamilyProfile() -> FamilyProfile {
+        return FamilyProfile(
+            id: id,
+            name: name,
+            avatar: avatar,
+            isDefault: isDefault,
+            canMakePurchases: canMakePurchases,
+            canUseCustomContentTypes: canUseCustomContentTypes,
+            hasPin: pin != nil, // Convert PIN to boolean indicator
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+    }
+}
+
 /// Family profile model
 struct FamilyProfile: Identifiable, Codable {
     let id: String
@@ -118,6 +177,12 @@ struct CreateProfileRequest: Codable {
     let pin: String?
     let canMakePurchases: Bool
     let canUseCustomContentTypes: Bool
+    // isDefault is automatically set by backend for first profile
+}
+
+/// Create profile response wrapper
+struct CreateProfileResponse: Codable {
+    let profile: AdminProfile
 }
 
 /// Update profile request

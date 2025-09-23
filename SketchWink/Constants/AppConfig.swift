@@ -59,7 +59,6 @@ struct AppConfig {
             // Subscription & Billing
             static let subscriptionPlans = "/subscription-plans"
             static let tokenBalance = "/user/token-balance"
-            static let featureAccess = "/user/feature-access"
             
             // Analytics
             static let analytics = "/analytics"

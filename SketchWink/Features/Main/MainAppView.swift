@@ -1,12 +1,11 @@
 import SwiftUI
 
 struct MainAppView: View {
-    @StateObject private var authService = AuthService.shared
     @State private var selectedTab = 0
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Art Tab
+            // Art tab with CategorySelectionView
             NavigationStack {
                 CategorySelectionView()
             }
@@ -16,7 +15,6 @@ struct MainAppView: View {
             }
             .tag(0)
             
-            // Gallery Tab
             NavigationStack {
                 GalleryView()
             }
@@ -26,7 +24,6 @@ struct MainAppView: View {
             }
             .tag(1)
             
-            // Profiles Tab
             NavigationStack {
                 ProfilesView()
             }
@@ -36,7 +33,6 @@ struct MainAppView: View {
             }
             .tag(2)
             
-            // Settings Tab
             NavigationStack {
                 SettingsView()
             }

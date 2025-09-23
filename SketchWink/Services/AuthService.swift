@@ -112,6 +112,7 @@ enum AuthError: LocalizedError {
     case networkError(String)
     case invalidResponse
     case tokenStorageError
+    case profileStorageError
     case noToken
     case decodingError
     
@@ -125,6 +126,8 @@ enum AuthError: LocalizedError {
             return "Invalid response from server. Please try again."
         case .tokenStorageError:
             return "Failed to store authentication token securely."
+        case .profileStorageError:
+            return "Failed to store profile selection. Please try again."
         case .noToken:
             return "No authentication token found. Please sign in again."
         case .decodingError:
@@ -140,6 +143,7 @@ class KeychainManager {
     
     private let service = AppConfig.Security.keychainService
     private let tokenKey = AppConfig.Security.tokenKey
+    private let profileKey = AppConfig.Security.profileKey
     
     func storeToken(_ token: String) throws {
         let data = token.data(using: .utf8)!
@@ -187,6 +191,58 @@ class KeychainManager {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: tokenKey
+        ]
+        
+        SecItemDelete(query as CFDictionary)
+    }
+    
+    // MARK: - Profile Storage
+    func storeSelectedProfile(_ profileId: String) throws {
+        let data = profileId.data(using: .utf8)!
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: profileKey,
+            kSecValueData as String: data
+        ]
+        
+        // Delete existing profile
+        SecItemDelete(query as CFDictionary)
+        
+        let status = SecItemAdd(query as CFDictionary, nil)
+        
+        guard status == errSecSuccess else {
+            throw AuthError.profileStorageError
+        }
+    }
+    
+    func retrieveSelectedProfile() throws -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: profileKey,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        
+        guard status == errSecSuccess,
+              let data = result as? Data,
+              let profileId = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        
+        return profileId
+    }
+    
+    func deleteSelectedProfile() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: profileKey
         ]
         
         SecItemDelete(query as CFDictionary)
@@ -411,6 +467,10 @@ class AuthService: ObservableObject {
     // MARK: - Sign Out
     func signOut() {
         KeychainManager.shared.deleteToken()
+        KeychainManager.shared.deleteSelectedProfile()
+        
+        // Clear profile service state
+        ProfileService.shared.clearSelectedProfile()
         
         DispatchQueue.main.async {
             self.currentUser = nil
