@@ -1,5 +1,32 @@
 import SwiftUI
 
+// MARK: - Input Method Enum
+enum InputMethod: String, CaseIterable {
+    case text = "text"
+    case image = "image"
+    
+    var displayName: String {
+        switch self {
+        case .text: return "Enter Prompt"
+        case .image: return "Upload Photo"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .text: return "pencil.and.outline"
+        case .image: return "camera.fill"
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .text: return "Describe what you want to create"
+        case .image: return "Convert your photo into a coloring page"
+        }
+    }
+}
+
 struct GenerationView: View {
     @StateObject private var generationService = GenerationService.shared
     @State private var selectedCategory: CategoryWithOptions?
@@ -23,7 +50,15 @@ struct GenerationView: View {
     @State private var highlightedFeature: String?
     @State private var successMessage: String?
     @State private var showingSuccess = false
-
+    
+    // Image Upload State
+    @State private var selectedInputImage: UIImage?
+    @State private var inputMethod: InputMethod = .text
+    @State private var showingPhotoSourceSelection = false
+    @State private var showingImagePicker = false
+    @State private var showingCamera = false
+    @State private var showingImagePreview = false
+    
     let preselectedCategory: CategoryWithOptions?
     let onDismiss: () -> Void
 
@@ -147,6 +182,27 @@ struct GenerationView: View {
                 currentPlan: userPermissions?.planName.lowercased()
             )
         }
+        .sheet(isPresented: $showingPhotoSourceSelection) {
+            PhotoSourceSelectionView(
+                showingImagePicker: $showingImagePicker,
+                showingCamera: $showingCamera,
+                selectedImage: $selectedInputImage
+            )
+        }
+        .sheet(isPresented: $showingImagePreview) {
+            if let selectedImage = selectedInputImage,
+               let selectedCategory = selectedCategory,
+               let selectedOption = selectedOption {
+                ImagePreviewView(
+                    selectedImage: selectedImage,
+                    selectedCategory: selectedCategory,
+                    selectedOption: selectedOption,
+                    onConfirm: { confirmedImage in
+                        selectedInputImage = confirmedImage
+                    }
+                )
+            }
+        }
     }
 
     // MARK: - Loading View
@@ -176,8 +232,15 @@ struct GenerationView: View {
             // Style Selection
             styleSelectionView(options: category.options)
 
-            // Prompt Input
-            promptInputView
+            // Input Method Selection
+            self.inputMethodSelectionView
+
+            // Prompt Input (conditionally shown based on input method)
+            if self.inputMethod == .text {
+                promptInputView
+            } else if self.inputMethod == .image {
+                self.imageInputView
+            }
 
             // Prompt Enhancement Toggle
             promptEnhancementToggleView
@@ -626,7 +689,7 @@ struct GenerationView: View {
             .childSafeTouchTarget()
 
             if !canGenerate {
-                Text("Please select a style and enter a prompt")
+                Text(generateButtonValidationText)
                     .font(AppTypography.captionMedium)
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -666,7 +729,27 @@ struct GenerationView: View {
 
     // MARK: - Computed Properties
     private var canGenerate: Bool {
-        selectedOption != nil && !userPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard selectedOption != nil else { return false }
+        
+        switch self.inputMethod {
+        case .text:
+            return !userPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .image:
+            return selectedInputImage != nil
+        }
+    }
+    
+    private var generateButtonValidationText: String {
+        if selectedOption == nil {
+            return "Please select a style"
+        }
+        
+        switch self.inputMethod {
+        case .text:
+            return "Please enter a prompt"
+        case .image:
+            return "Please select a photo"
+        }
     }
 
     private var categoryColor: Color {
@@ -880,16 +963,48 @@ struct GenerationView: View {
         guard let selectedOption = selectedOption,
               let selectedCategory = selectedCategory else { return }
 
-        let request = CreateGenerationRequest(
-            categoryId: selectedCategory.category.id,
-            optionId: selectedOption.id,
-            prompt: userPrompt.trimmingCharacters(in: .whitespacesAndNewlines),
-            quality: selectedQuality,
-            dimensions: selectedDimensions,
-            maxImages: selectedMaxImages,
-            model: selectedModel,
-            familyProfileId: nil  // TODO: Add family profile support later
-        )
+        // Validate input first
+        guard validateImageInput() else { return }
+
+        // Create request based on input method
+        let request: CreateGenerationRequest
+        
+        if self.inputMethod == .image, let inputImage = selectedInputImage {
+            // Image-based generation
+            request = CreateGenerationRequest(
+                categoryId: selectedCategory.category.id,
+                optionId: selectedOption.id,
+                prompt: userPrompt.trimmingCharacters(in: .whitespacesAndNewlines),
+                inputImage: inputImage,  // This will be processed and converted to base64
+                quality: selectedQuality,
+                dimensions: selectedDimensions,
+                maxImages: selectedMaxImages,
+                model: selectedModel,
+                familyProfileId: nil  // TODO: Add family profile support later
+            )
+            
+            #if DEBUG
+            print("📷 GenerationView: Creating image-based generation")
+            print("📐 GenerationView: Image size: \(inputImage.size)")
+            #endif
+        } else {
+            // Text-based generation
+            request = CreateGenerationRequest(
+                categoryId: selectedCategory.category.id,
+                optionId: selectedOption.id,
+                prompt: userPrompt.trimmingCharacters(in: .whitespacesAndNewlines),
+                quality: selectedQuality,
+                dimensions: selectedDimensions,
+                maxImages: selectedMaxImages,
+                model: selectedModel,
+                familyProfileId: nil  // TODO: Add family profile support later
+            )
+            
+            #if DEBUG
+            print("✏️ GenerationView: Creating text-based generation")
+            print("📝 GenerationView: Prompt: \(userPrompt)")
+            #endif
+        }
 
         do {
             #if DEBUG
@@ -935,6 +1050,213 @@ struct GenerationView: View {
         #if DEBUG
         print("🔗 GenerationView: SSE connection established: \(GenerationProgressSSEService.shared.isConnected)")
         #endif
+    }
+    
+    // MARK: - Input Method Selection
+    private var inputMethodSelectionView: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            Text("How would you like to create?")
+                .font(AppTypography.headlineMedium)
+                .foregroundColor(AppColors.textPrimary)
+            
+            HStack(spacing: AppSpacing.md) {
+                ForEach(InputMethod.allCases, id: \.rawValue) { method in
+                    Button(action: {
+                        handleInputMethodSelection(method)
+                    }) {
+                        VStack(spacing: AppSpacing.sm) {
+                            Image(systemName: method.icon)
+                                .font(.system(size: 24))
+                                .foregroundColor(self.inputMethod == method ? .white : AppColors.primaryBlue)
+                            
+                            VStack(spacing: 4) {
+                                Text(method.displayName)
+                                    .titleMedium()
+                                    .foregroundColor(self.inputMethod == method ? .white : AppColors.textPrimary)
+                                
+                                Text(method.description)
+                                    .captionLarge()
+                                    .foregroundColor(self.inputMethod == method ? .white.opacity(0.9) : AppColors.textSecondary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                            }
+                        }
+                        .padding(.vertical, AppSpacing.md)
+                        .padding(.horizontal, AppSpacing.sm)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(self.inputMethod == method ? AppColors.primaryBlue : AppColors.backgroundLight)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(
+                                            self.inputMethod == method ? AppColors.primaryBlue : AppColors.borderLight,
+                                            lineWidth: self.inputMethod == method ? 2 : 1
+                                        )
+                                )
+                        )
+                    }
+                    .childSafeTouchTarget()
+                }
+            }
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - Image Input View
+    private var imageInputView: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            Text("Photo for Coloring Page")
+                .font(AppTypography.headlineMedium)
+                .foregroundColor(AppColors.textPrimary)
+            
+            if let selectedImage = selectedInputImage {
+                // Show selected image
+                VStack(spacing: AppSpacing.md) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(AppColors.surfaceLight)
+                            .aspectRatio(1, contentMode: .fit)
+                            .frame(maxHeight: 200)
+                        
+                        Image(uiImage: selectedImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .frame(maxHeight: 200)
+                    }
+                    
+                    HStack {
+                        Button("Change Photo") {
+                            showingPhotoSourceSelection = true
+                        }
+                        .buttonStyle(
+                            backgroundColor: AppColors.backgroundLight,
+                            foregroundColor: AppColors.primaryBlue
+                        )
+                        .childSafeTouchTarget()
+                        
+                        Spacer()
+                        
+                        Button("Remove") {
+                            selectedInputImage = nil
+                        }
+                        .buttonStyle(
+                            backgroundColor: AppColors.backgroundLight,
+                            foregroundColor: AppColors.textSecondary
+                        )
+                        .childSafeTouchTarget()
+                    }
+                }
+            } else {
+                // Show upload button
+                Button(action: {
+                    handleImageUploadTap()
+                }) {
+                    VStack(spacing: AppSpacing.md) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 48))
+                            .foregroundColor(AppColors.primaryBlue)
+                        
+                        VStack(spacing: AppSpacing.xs) {
+                            Text("Add Photo")
+                                .titleMedium()
+                                .foregroundColor(AppColors.textPrimary)
+                            
+                            Text("Tap to select a photo from camera or gallery")
+                                .captionLarge()
+                                .foregroundColor(AppColors.textSecondary)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .padding(.vertical, AppSpacing.xl)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(AppColors.primaryBlue.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
+                    )
+                }
+                .childSafeTouchTarget()
+            }
+            
+            // Add description text field for image context
+            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                TextField("Optional: Describe what's in the photo", text: $userPrompt, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(AppTypography.bodyLarge)
+                    .foregroundColor(AppColors.textPrimary)
+                    .padding(AppSpacing.md)
+                    .background(AppColors.backgroundLight)
+                    .cornerRadius(AppSizing.cornerRadius.md)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                            .stroke(AppColors.primaryBlue.opacity(0.3), lineWidth: 1)
+                    )
+                    .lineLimit(2...4)
+
+                Text("Help AI understand your photo better (optional)")
+                    .font(AppTypography.captionMedium)
+                    .foregroundColor(AppColors.textSecondary)
+            }
+        }
+        .cardStyle()
+    }
+    
+    // MARK: - Input Method Handling
+    private func handleInputMethodSelection(_ method: InputMethod) {
+        self.inputMethod = method
+        
+        // Clear the other input method's data
+        if method == .text {
+            selectedInputImage = nil
+        } else {
+            userPrompt = ""
+        }
+        
+        // Auto-show photo selection for image method
+        if method == .image && selectedInputImage == nil {
+            handleImageUploadTap()
+        }
+    }
+    
+    private func handleImageUploadTap() {
+        // Check subscription permissions first
+        guard let permissions = userPermissions else { return }
+        
+        if !permissions.hasImageUpload {
+            // Show upgrade prompt for free users
+            highlightedFeature = "image_upload"
+            showingSubscriptionPlans = true
+            return
+        }
+        
+        showingPhotoSourceSelection = true
+    }
+    
+    // MARK: - Image Processing
+    private func processImageForGeneration(_ image: UIImage) -> Result<UIImage, ImageProcessingError> {
+        return image.safeProcessForUpload(maxSize: 1024, quality: 0.7, maxFileSize: 2_097_152)
+    }
+    
+    private func validateImageInput() -> Bool {
+        guard self.inputMethod == .image else { return true }
+        
+        guard let image = selectedInputImage else {
+            error = ImageProcessingError.invalidFormat
+            showingError = true
+            return false
+        }
+        
+        let validation = image.validateForUpload(maxSize: 1024, maxFileSize: 2_097_152, quality: 0.7)
+        if !validation.isValid {
+            if let reason = validation.reason {
+                error = NSError(domain: "ImageValidation", code: 0, userInfo: [NSLocalizedDescriptionKey: reason])
+                showingError = true
+            }
+            return false
+        }
+        
+        return true
     }
 }
 
@@ -1045,6 +1367,26 @@ struct StyleOptionCard: View {
             )
         }
         .childSafeTouchTarget()
+    }
+}
+
+// MARK: - Image Processing Error Extension
+extension ImageProcessingError {
+    var userFriendlyMessage: String {
+        switch self {
+        case .conversionFailed:
+            return "Unable to process your photo. Please try a different image."
+        case .compressionFailed:
+            return "Unable to compress your photo. Please try a different image."
+        case .invalidFormat:
+            return "Please select a valid photo from your gallery or take a new one."
+        case .fileTooLarge(let currentSize, let maxSize):
+            let currentMB = Double(currentSize) / 1_048_576
+            let maxMB = Double(maxSize) / 1_048_576
+            return "Your photo is too large (\(String(format: "%.1f", currentMB))MB). Please use an image smaller than \(String(format: "%.1f", maxMB))MB."
+        case .dimensionsTooLarge(let currentDimensions, let maxSize):
+            return "Your photo is too large (\(Int(currentDimensions.width))×\(Int(currentDimensions.height))). Please use an image smaller than \(Int(maxSize))×\(Int(maxSize)) pixels."
+        }
     }
 }
 

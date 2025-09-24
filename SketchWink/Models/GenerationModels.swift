@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 // MARK: - Generation Category Models
 struct GenerationCategory: Codable, Identifiable {
@@ -104,6 +105,47 @@ struct CreateGenerationRequest: Codable {
     let maxImages: Int?      // 1-4 images per generation
     let model: String?       // "seedream", "flux"
     let familyProfileId: String?  // Family profile ID (optional)
+    let inputImage: String?  // Base64 encoded image for image-to-coloring conversion
+    
+    // MARK: - Convenience Initializers
+    
+    /// Initialize for text-based generation (no image upload)
+    init(categoryId: String, optionId: String, prompt: String, quality: String? = nil, dimensions: String? = nil, maxImages: Int? = nil, model: String? = nil, familyProfileId: String? = nil) {
+        self.categoryId = categoryId
+        self.optionId = optionId
+        self.prompt = prompt
+        self.quality = quality
+        self.dimensions = dimensions
+        self.maxImages = maxImages
+        self.model = model
+        self.familyProfileId = familyProfileId
+        self.inputImage = nil
+    }
+    
+    /// Initialize for image-based generation (photo to coloring page)
+    init(categoryId: String, optionId: String, prompt: String, inputImage: UIImage, quality: String? = nil, dimensions: String? = nil, maxImages: Int? = nil, model: String? = nil, familyProfileId: String? = nil) {
+        self.categoryId = categoryId
+        self.optionId = optionId
+        self.prompt = prompt
+        self.quality = quality
+        self.dimensions = dimensions
+        self.maxImages = maxImages
+        self.model = model
+        self.familyProfileId = familyProfileId
+        
+        // Process and convert image to base64
+        let processedImage = inputImage.processForUpload(maxSize: 1024, quality: 0.7)
+        self.inputImage = processedImage.toBase64String(quality: 0.7)
+        
+        #if DEBUG
+        print("📷 CreateGenerationRequest: Image processed for upload")
+        print("📐 CreateGenerationRequest: Original size: \(inputImage.size)")
+        print("📐 CreateGenerationRequest: Processed size: \(processedImage.size)")
+        if let inputImage = self.inputImage {
+            print("📊 CreateGenerationRequest: Base64 length: \(inputImage.count) characters")
+        }
+        #endif
+    }
 }
 
 struct Generation: Codable, Identifiable {
