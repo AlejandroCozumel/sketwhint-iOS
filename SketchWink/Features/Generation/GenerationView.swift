@@ -203,6 +203,11 @@ struct GenerationView: View {
                 )
             }
         }
+        .onChange(of: selectedInputImage) { oldValue, newValue in
+            if newValue != nil && selectedCategory != nil && selectedOption != nil {
+                showingImagePreview = true
+            }
+        }
     }
 
     // MARK: - Loading View

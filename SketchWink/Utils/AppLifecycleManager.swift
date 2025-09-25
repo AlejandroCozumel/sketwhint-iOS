@@ -70,15 +70,14 @@ class AppLifecycleManager: ObservableObject {
     
     private func handleAppDidEnterBackground() {
         #if DEBUG
-        print("📱 App did enter background - CLEARING PROFILE SELECTION")
+        print("📱 App did enter background")
         #endif
         
         DispatchQueue.main.async {
             self.isAppInBackground = true
         }
         
-        // Clear profile selection for security when app goes to background
-        clearProfileSelectionForSecurity()
+        // Profile selection is preserved - users control when they switch profiles
     }
     
     private func handleAppWillEnterForeground() {
@@ -90,8 +89,7 @@ class AppLifecycleManager: ObservableObject {
             self.isAppInBackground = false
         }
         
-        // Profile will need to be reselected
-        // ProfileService will detect this and show profile selection
+        // Profile selection is preserved - user continues with their selected profile
     }
     
     private func handleAppDidBecomeActive() {
@@ -104,11 +102,10 @@ class AppLifecycleManager: ObservableObject {
     
     private func handleAppWillTerminate() {
         #if DEBUG
-        print("📱 App will terminate - CLEARING PROFILE SELECTION")
+        print("📱 App will terminate")
         #endif
         
-        // Clear profile selection on app termination
-        clearProfileSelectionForSecurity()
+        // Profile selection is preserved across app launches - users control switching
     }
     
     // MARK: - Security Methods

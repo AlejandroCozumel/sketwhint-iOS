@@ -81,7 +81,6 @@ struct PhotoSourceSelectionView: View {
                         requestCameraPermission { granted in
                             if granted {
                                 showingCamera = true
-                                dismiss()
                             }
                         }
                     }) {
@@ -121,7 +120,6 @@ struct PhotoSourceSelectionView: View {
                         requestPhotoLibraryPermission { granted in
                             if granted {
                                 showingImagePicker = true
-                                dismiss()
                             }
                         }
                     }) {
@@ -185,6 +183,11 @@ struct PhotoSourceSelectionView: View {
                 selectedImage: $selectedImage,
                 sourceType: .camera
             )
+        }
+        .onChange(of: selectedImage) { oldValue, newValue in
+            if newValue != nil {
+                dismiss()
+            }
         }
     }
 }
