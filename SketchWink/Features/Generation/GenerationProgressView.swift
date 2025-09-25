@@ -10,6 +10,8 @@ struct GenerationProgressView: View {
     @State private var currentGeneration: Generation
     @State private var progressAnimation = 0.0
     @State private var isAnimating = false
+    @State private var closeButtonCountdown = 60
+    @State private var closeButtonTimer: Timer?
     @Environment(\.dismiss) private var dismiss
     
     init(generation: Generation, onComplete: @escaping (Generation) -> Void, onError: @escaping (String) -> Void) {
@@ -48,6 +50,10 @@ struct GenerationProgressView: View {
         }
         .onAppear {
             startAnimations()
+            startCloseButtonCountdown()
+        }
+        .onDisappear {
+            stopCloseButtonCountdown()
         }
     }
     
@@ -117,26 +123,35 @@ struct GenerationProgressView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(3)
             
-            // Show user prompt
-            if !currentGeneration.userPrompt.isEmpty {
-                VStack(spacing: AppSpacing.xs) {
-                    Text("Creating:")
-                        .font(AppTypography.captionLarge)
-                        .foregroundColor(AppColors.textSecondary)
-                    
-                    Text("\"\(currentGeneration.userPrompt)\"")
+            // Show generation context
+            VStack(spacing: AppSpacing.xs) {
+                Text("Creating:")
+                    .font(AppTypography.captionLarge)
+                    .foregroundColor(AppColors.textSecondary)
+                
+                if let userPrompt = currentGeneration.userPrompt, !userPrompt.isEmpty {
+                    // Text-based generation: show user prompt
+                    Text("\"\(userPrompt)\"")
                         .font(AppTypography.bodyMedium)
                         .foregroundColor(AppColors.primaryBlue)
                         .italic()
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
+                } else {
+                    // Image-based generation: show creative message
+                    Text("✨ Transforming your photo into something magical!")
+                        .font(AppTypography.bodyMedium)
+                        .foregroundColor(AppColors.primaryPurple)
+                        .italic()
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
                 }
-                .padding(AppSpacing.md)
-                .background(
-                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                        .fill(AppColors.primaryBlue.opacity(0.1))
-                )
             }
+            .padding(AppSpacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                    .fill(AppColors.primaryBlue.opacity(0.1))
+            )
         }
     }
     
@@ -167,13 +182,23 @@ struct GenerationProgressView: View {
         }
     }
     
-    // MARK: - Cancel Button
+    // MARK: - Close Button with Countdown
     private var cancelButtonView: some View {
-        Button("Cancel") {
+        Button(closeButtonTitle) {
             dismiss()
         }
-        .largeButtonStyle(backgroundColor: AppColors.buttonSecondary)
+        .largeButtonStyle(backgroundColor: closeButtonCountdown > 0 ? AppColors.buttonDisabled : AppColors.errorRed)
+        .disabled(closeButtonCountdown > 0)
+        .opacity(closeButtonCountdown > 0 ? 0.6 : 1.0)
         .childSafeTouchTarget()
+    }
+    
+    private var closeButtonTitle: String {
+        if closeButtonCountdown > 0 {
+            return "Close (\(closeButtonCountdown)s)"
+        } else {
+            return "Close"
+        }
     }
     
     // MARK: - Computed Properties
@@ -189,6 +214,28 @@ struct GenerationProgressView: View {
     private func startAnimations() {
         isAnimating = true
         progressAnimation = 360
+    }
+    
+    private func startCloseButtonCountdown() {
+        // Reset countdown to 60 seconds
+        closeButtonCountdown = 60
+        
+        // Cancel any existing timer
+        stopCloseButtonCountdown()
+        
+        // Start countdown timer
+        closeButtonTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            if closeButtonCountdown > 0 {
+                closeButtonCountdown -= 1
+            } else {
+                stopCloseButtonCountdown()
+            }
+        }
+    }
+    
+    private func stopCloseButtonCountdown() {
+        closeButtonTimer?.invalidate()
+        closeButtonTimer = nil
     }
     
     private func startSSEConnection() async {

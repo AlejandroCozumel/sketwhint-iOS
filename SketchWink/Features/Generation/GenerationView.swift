@@ -158,6 +158,9 @@ struct GenerationView: View {
                         generationState = .failed(errorMessage)
                         error = GenerationError.generationFailed(errorMessage)
                         showingError = true
+                        // Reset form on error
+                        userPrompt = ""
+                        selectedInputImage = nil
                     }
                 )
             }
@@ -169,9 +172,12 @@ struct GenerationView: View {
                     onDismiss: {
                         generationState = .idle
                         userPrompt = ""
+                        selectedInputImage = nil
                     },
                     onGenerateAnother: {
                         generationState = .idle
+                        userPrompt = ""
+                        selectedInputImage = nil
                     }
                 )
             }
@@ -204,10 +210,12 @@ struct GenerationView: View {
             }
         }
         .onChange(of: selectedInputImage) { oldValue, newValue in
-            if newValue != nil && selectedCategory != nil && selectedOption != nil {
-                showingImagePreview = true
+            if newValue != nil {
+                // Close photo source selection when image is selected
+                showingPhotoSourceSelection = false
             }
         }
+        // Note: Removed redundant image preview modal - photo now shows directly in form
     }
 
     // MARK: - Loading View
@@ -243,12 +251,12 @@ struct GenerationView: View {
             // Prompt Input (conditionally shown based on input method)
             if self.inputMethod == .text {
                 promptInputView
+                
+                // Prompt Enhancement Toggle (only show for text input)
+                promptEnhancementToggleView
             } else if self.inputMethod == .image {
                 self.imageInputView
             }
-
-            // Prompt Enhancement Toggle
-            promptEnhancementToggleView
 
             // Generation Options
             maxImagesSelectionView
@@ -689,14 +697,15 @@ struct GenerationView: View {
                     await generateColoring()
                 }
             }
-            .largeButtonStyle(backgroundColor: categoryColor)
+            .largeButtonStyle(backgroundColor: canGenerate ? categoryColor : AppColors.buttonDisabled)
             .disabled(!canGenerate)
+            .opacity(canGenerate ? 1.0 : 0.6)
             .childSafeTouchTarget()
 
             if !canGenerate {
                 Text(generateButtonValidationText)
                     .font(AppTypography.captionMedium)
-                    .foregroundColor(AppColors.textSecondary)
+                    .foregroundColor(AppColors.errorRed)
                     .multilineTextAlignment(.center)
             }
         }
@@ -1116,43 +1125,65 @@ struct GenerationView: View {
                 .foregroundColor(AppColors.textPrimary)
             
             if let selectedImage = selectedInputImage {
-                // Show selected image
-                VStack(spacing: AppSpacing.md) {
+                // Show selected image - EXACT same size as dashed box only
+                Button(action: {
+                    showingPhotoSourceSelection = true
+                }) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(AppColors.surfaceLight)
-                            .aspectRatio(1, contentMode: .fit)
-                            .frame(maxHeight: 200)
-                        
                         Image(uiImage: selectedImage)
                             .resizable()
-                            .aspectRatio(contentMode: .fit)
+                            .aspectRatio(contentMode: .fill)
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                            .clipped()
                             .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .frame(maxHeight: 200)
-                    }
-                    
-                    HStack {
-                        Button("Change Photo") {
-                            showingPhotoSourceSelection = true
-                        }
-                        .buttonStyle(
-                            backgroundColor: AppColors.backgroundLight,
-                            foregroundColor: AppColors.primaryBlue
-                        )
-                        .childSafeTouchTarget()
                         
-                        Spacer()
-                        
-                        Button("Remove") {
-                            selectedInputImage = nil
+                        // Absolute positioned buttons inside the photo
+                        VStack {
+                            HStack {
+                                Spacer()
+                                
+                                // Remove button (top-right) - Double size
+                                Button(action: {
+                                    selectedInputImage = nil
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 40))
+                                        .foregroundColor(.white)
+                                        .background(Color.black.opacity(0.6), in: Circle())
+                                }
+                                .childSafeTouchTarget()
+                            }
+                            
+                            Spacer()
+                            Spacer()
+                            
+                            HStack {
+                                // Change photo button (bottom-left) - Lower position
+                                Button(action: {
+                                    showingPhotoSourceSelection = true
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "camera.fill")
+                                            .font(.system(size: 12))
+                                        Text("Change")
+                                            .font(AppTypography.captionLarge)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.black.opacity(0.6), in: Capsule())
+                                }
+                                .childSafeTouchTarget()
+                                
+                                Spacer()
+                            }
                         }
-                        .buttonStyle(
-                            backgroundColor: AppColors.backgroundLight,
-                            foregroundColor: AppColors.textSecondary
-                        )
-                        .childSafeTouchTarget()
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
+                        .padding(.horizontal, 8)
                     }
                 }
+                .buttonStyle(PlainButtonStyle())
             } else {
                 // Show upload button
                 Button(action: {
@@ -1174,8 +1205,7 @@ struct GenerationView: View {
                                 .multilineTextAlignment(.center)
                         }
                     }
-                    .padding(.vertical, AppSpacing.xl)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 140)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(AppColors.primaryBlue.opacity(0.3), style: StrokeStyle(lineWidth: 2, dash: [8, 4]))
@@ -1252,7 +1282,9 @@ struct GenerationView: View {
             return false
         }
         
-        let validation = image.validateForUpload(maxSize: 1024, maxFileSize: 2_097_152, quality: 0.7)
+        // Process image first (resize + compress), THEN validate
+        let processedImage = image.processForUpload(maxSize: 1024, quality: 0.7)
+        let validation = processedImage.validateForUpload(maxSize: 1024, maxFileSize: 2_097_152, quality: 0.7)
         if !validation.isValid {
             if let reason = validation.reason {
                 error = NSError(domain: "ImageValidation", code: 0, userInfo: [NSLocalizedDescriptionKey: reason])
@@ -1260,6 +1292,9 @@ struct GenerationView: View {
             }
             return false
         }
+        
+        // Replace original image with processed image to prevent double processing
+        selectedInputImage = processedImage
         
         return true
     }

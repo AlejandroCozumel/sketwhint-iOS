@@ -63,8 +63,10 @@ extension UIImage {
         
         print("🔄 UIImage+Extensions: Resizing from \(size) to \(newSize)")
         
-        // Create resized image
-        let renderer = UIGraphicsImageRenderer(size: newSize)
+        // Create resized image with scale 1.0 to prevent size multiplication
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0  // Force scale to 1.0
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
         let resizedImage = renderer.image { _ in
             self.draw(in: CGRect(origin: .zero, size: newSize))
         }

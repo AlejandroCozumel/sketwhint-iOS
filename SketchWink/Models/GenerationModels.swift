@@ -158,7 +158,7 @@ struct Generation: Codable, Identifiable {
     let optionId: String
     let title: String
     let description: String
-    let userPrompt: String
+    let userPrompt: String?  // Optional - not required for image uploads
     let tokensUsed: Int
     let quality: String
     let dimensions: String

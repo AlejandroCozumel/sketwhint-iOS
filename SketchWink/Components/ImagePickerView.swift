@@ -186,7 +186,10 @@ struct PhotoSourceSelectionView: View {
         }
         .onChange(of: selectedImage) { oldValue, newValue in
             if newValue != nil {
-                dismiss()
+                // Reset picker states and dismiss parent sheet entirely
+                showingImagePicker = false
+                showingCamera = false
+                dismiss() // This dismisses the PhotoSourceSelectionView completely
             }
         }
     }
