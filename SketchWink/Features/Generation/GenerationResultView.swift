@@ -1,5 +1,4 @@
 import SwiftUI
-import Photos
 
 struct GenerationResultView: View {
     let generation: Generation
@@ -10,15 +9,17 @@ struct GenerationResultView: View {
     @State private var isShowingShareSheet = false
     @State private var isShowingColoringView = false
     @State private var shareableImage: UIImage?
-    @State private var showingSaveAlert = false
-    @State private var saveAlertMessage = ""
-    @State private var isProcessing = false
     @Environment(\.dismiss) private var dismiss
     
     private var currentImage: GeneratedImage? {
         generation.images?.indices.contains(selectedImageIndex) == true
             ? generation.images?[selectedImageIndex]
             : generation.images?.first
+    }
+    
+    // MARK: - Dynamic Content Configuration
+    private var categoryConfig: CategoryDisplayConfig {
+        CategoryDisplayConfig.forCategory(generation.categoryId)
     }
     
     var body: some View {
@@ -49,7 +50,7 @@ struct GenerationResultView: View {
                 .padding(.vertical, AppSpacing.sectionSpacing)
             }
             .background(AppColors.backgroundLight)
-            .navigationTitle("Your Coloring Page")
+            .navigationTitle(categoryConfig.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -61,11 +62,6 @@ struct GenerationResultView: View {
                     .foregroundColor(AppColors.primaryBlue)
                 }
             }
-        }
-        .alert("Save Result", isPresented: $showingSaveAlert) {
-            Button("OK") { }
-        } message: {
-            Text(saveAlertMessage)
         }
         .sheet(isPresented: $isShowingShareSheet) {
             if let shareableImage = shareableImage {
@@ -93,25 +89,25 @@ struct GenerationResultView: View {
             // Success animation
             ZStack {
                 Circle()
-                    .fill(AppColors.coloringPagesColor)
+                    .fill(categoryConfig.primaryColor)
                     .frame(width: 100, height: 100)
                     .shadow(
-                        color: AppColors.coloringPagesColor.opacity(0.3),
+                        color: categoryConfig.primaryColor.opacity(0.3),
                         radius: 20,
                         x: 0,
                         y: 10
                     )
                 
-                Text("🎉")
+                Text(categoryConfig.successEmoji)
                     .font(.system(size: 50))
             }
             
             VStack(spacing: AppSpacing.sm) {
-                Text("Coloring Page Created!")
+                Text(categoryConfig.successTitle)
                     .font(AppTypography.headlineLarge)
                     .foregroundColor(AppColors.textPrimary)
                 
-                Text("Your AI-generated coloring page is ready to enjoy!")
+                Text(categoryConfig.successDescription)
                     .font(AppTypography.bodyLarge)
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -176,48 +172,19 @@ struct GenerationResultView: View {
             }
             .frame(maxHeight: 400)
             
-            // Image actions
-            HStack(spacing: AppSpacing.md) {
-                // Save to Photos
-                Button {
-                    Task {
-                        await saveToPhotos(imageUrl: image.imageUrl)
-                    }
-                } label: {
-                    HStack(spacing: AppSpacing.xs) {
-                        Text("📸")
-                        Text("Save")
-                            .font(AppTypography.titleMedium)
-                    }
+            // Image actions - Only Share button (full width)
+            Button {
+                isShowingShareSheet = true
+            } label: {
+                HStack(spacing: AppSpacing.xs) {
+                    Text("📤")
+                    Text("Share")
+                        .font(AppTypography.titleMedium)
                 }
-                .largeButtonStyle(backgroundColor: AppColors.primaryBlue)
-                .disabled(isProcessing)
-                
-                // Share
-                Button {
-                    isShowingShareSheet = true
-                } label: {
-                    HStack(spacing: AppSpacing.xs) {
-                        Text("📤")
-                        Text("Share")
-                            .font(AppTypography.titleMedium)
-                    }
-                }
-                .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
-                .disabled(shareableImage == nil)
-                
-                // Start Coloring
-                Button {
-                    isShowingColoringView = true
-                } label: {
-                    HStack(spacing: AppSpacing.xs) {
-                        Text("🎨")
-                        Text("Color")
-                            .font(AppTypography.titleMedium)
-                    }
-                }
-                .largeButtonStyle(backgroundColor: AppColors.coloringPagesColor)
             }
+            .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
+            .disabled(shareableImage == nil)
+            .childSafeTouchTarget()
         }
         .cardStyle()
     }
@@ -245,7 +212,7 @@ struct GenerationResultView: View {
                                     .overlay(
                                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
                                             .stroke(
-                                                selectedImageIndex == index ? AppColors.coloringPagesColor : Color.clear,
+                                                selectedImageIndex == index ? categoryConfig.primaryColor : Color.clear,
                                                 lineWidth: 3
                                             )
                                     )
@@ -325,12 +292,12 @@ struct GenerationResultView: View {
                 onGenerateAnother()
             } label: {
                 HStack(spacing: AppSpacing.sm) {
-                    Text("🎨")
-                    Text("Create Another Coloring Page")
+                    Text(categoryConfig.generateAnotherEmoji)
+                    Text(categoryConfig.generateAnotherTitle)
                         .font(AppTypography.titleMedium)
                 }
             }
-            .largeButtonStyle(backgroundColor: AppColors.coloringPagesColor)
+            .largeButtonStyle(backgroundColor: categoryConfig.primaryColor)
             .childSafeTouchTarget()
             
             // View Gallery
@@ -351,46 +318,6 @@ struct GenerationResultView: View {
     }
     
     // MARK: - Helper Methods
-    private func saveToPhotos(imageUrl: String) async {
-        isProcessing = true
-        
-        do {
-            guard let url = URL(string: imageUrl) else {
-                throw SaveError.invalidURL
-            }
-            
-            let (data, _) = try await URLSession.shared.data(from: url)
-            guard let uiImage = UIImage(data: data) else {
-                throw SaveError.invalidImageData
-            }
-            
-            // Request photo library permission
-            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-            
-            guard status == .authorized else {
-                throw SaveError.permissionDenied
-            }
-            
-            // Save to photo library
-            try await PHPhotoLibrary.shared().performChanges {
-                PHAssetChangeRequest.creationRequestForAsset(from: uiImage)
-            }
-            
-            await MainActor.run {
-                saveAlertMessage = "Coloring page saved to Photos! 📸"
-                showingSaveAlert = true
-            }
-            
-        } catch {
-            await MainActor.run {
-                saveAlertMessage = "Failed to save: \(error.localizedDescription)"
-                showingSaveAlert = true
-            }
-        }
-        
-        isProcessing = false
-    }
-    
     private func formatDate(_ dateString: String) -> String {
         let formatter = ISO8601DateFormatter()
         guard let date = formatter.date(from: dateString) else {
@@ -401,6 +328,91 @@ struct GenerationResultView: View {
         displayFormatter.dateStyle = .medium
         displayFormatter.timeStyle = .short
         return displayFormatter.string(from: date)
+    }
+}
+
+// MARK: - Category Display Configuration
+struct CategoryDisplayConfig {
+    let navigationTitle: String
+    let successEmoji: String
+    let successTitle: String
+    let successDescription: String
+    let primaryColor: Color
+    let showColoringButton: Bool
+    let actionButtonEmoji: String
+    let actionButtonTitle: String
+    let generateAnotherEmoji: String
+    let generateAnotherTitle: String
+    
+    static func forCategory(_ categoryId: String) -> CategoryDisplayConfig {
+        switch categoryId {
+        case "coloring_pages":
+            return CategoryDisplayConfig(
+                navigationTitle: "Your Coloring Page",
+                successEmoji: "🎉",
+                successTitle: "Coloring Page Created!",
+                successDescription: "Your AI-generated coloring page is ready to enjoy!",
+                primaryColor: AppColors.coloringPagesColor,
+                showColoringButton: true,
+                actionButtonEmoji: "🎨",
+                actionButtonTitle: "Color",
+                generateAnotherEmoji: "🎨",
+                generateAnotherTitle: "Create Another Coloring Page"
+            )
+        case "stickers":
+            return CategoryDisplayConfig(
+                navigationTitle: "Your Sticker",
+                successEmoji: "✨",
+                successTitle: "Sticker Created!",
+                successDescription: "Your AI-generated sticker is ready to use!",
+                primaryColor: AppColors.stickersColor,
+                showColoringButton: false,
+                actionButtonEmoji: "🎯",
+                actionButtonTitle: "Use",
+                generateAnotherEmoji: "✨",
+                generateAnotherTitle: "Create Another Sticker"
+            )
+        case "wallpapers":
+            return CategoryDisplayConfig(
+                navigationTitle: "Your Wallpaper",
+                successEmoji: "🌟",
+                successTitle: "Wallpaper Created!",
+                successDescription: "Your AI-generated wallpaper is ready to set!",
+                primaryColor: AppColors.wallpapersColor,
+                showColoringButton: false,
+                actionButtonEmoji: "📱",
+                actionButtonTitle: "Set",
+                generateAnotherEmoji: "🌟",
+                generateAnotherTitle: "Create Another Wallpaper"
+            )
+        case "mandalas":
+            return CategoryDisplayConfig(
+                navigationTitle: "Your Mandala",
+                successEmoji: "🕉️",
+                successTitle: "Mandala Created!",
+                successDescription: "Your AI-generated mandala is ready for mindful coloring!",
+                primaryColor: AppColors.mandalasColor,
+                showColoringButton: true,
+                actionButtonEmoji: "🧘",
+                actionButtonTitle: "Color",
+                generateAnotherEmoji: "🕉️",
+                generateAnotherTitle: "Create Another Mandala"
+            )
+        default:
+            // Fallback to coloring pages
+            return CategoryDisplayConfig(
+                navigationTitle: "Your Creation",
+                successEmoji: "🎉",
+                successTitle: "Content Created!",
+                successDescription: "Your AI-generated content is ready!",
+                primaryColor: AppColors.primaryBlue,
+                showColoringButton: false,
+                actionButtonEmoji: "✨",
+                actionButtonTitle: "View",
+                generateAnotherEmoji: "🎨",
+                generateAnotherTitle: "Create Another"
+            )
+        }
     }
 }
 
@@ -457,22 +469,4 @@ struct ActivityViewController: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
-
-// MARK: - Save Errors
-enum SaveError: LocalizedError {
-    case invalidURL
-    case invalidImageData
-    case permissionDenied
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidURL:
-            return "Invalid image URL"
-        case .invalidImageData:
-            return "Invalid image data"
-        case .permissionDenied:
-            return "Photo library permission denied"
-        }
-    }
 }

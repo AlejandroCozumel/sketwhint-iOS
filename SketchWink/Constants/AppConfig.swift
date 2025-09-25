@@ -45,6 +45,7 @@ struct AppConfig {
             // Images & Downloads
             static let images = "/images"
             static let imageDownload = "/images/%@/download" // %@ = imageId
+            static let deleteImage = "/generated-images/%@" // %@ = imageId (DELETE)
             static let toggleFavorite = "/generated-images/%@/favorite" // %@ = imageId
             static let bulkFavorite = "/images/bulk-favorite"
             

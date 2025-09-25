@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 
 struct GalleryView: View {
     @StateObject private var generationService = GenerationService.shared
@@ -68,7 +69,12 @@ struct GalleryView: View {
             Text(error?.localizedDescription ?? "An unknown error occurred")
         }
         .sheet(item: $selectedImage) { image in
-            ImageDetailView(image: image)
+            ImageDetailView(
+                image: image,
+                onImageDeleted: { deletedImageId in
+                    removeImageFromLocalState(deletedImageId)
+                }
+            )
         }
     }
     
@@ -637,6 +643,24 @@ struct GalleryView: View {
             }
         }
     }
+    
+    // MARK: - Local State Management
+    private func removeImageFromLocalState(_ imageId: String) {
+        // Remove the deleted image from local state immediately
+        images.removeAll { $0.id == imageId }
+        
+        // Also update the total count
+        if totalImages > 0 {
+            totalImages -= 1
+        }
+        
+        #if DEBUG
+        print("🗑️ GalleryView: Removed image from local state")
+        print("   - Image ID: \(imageId)")
+        print("   - Remaining images: \(images.count)")
+        print("   - Total count: \(totalImages)")
+        #endif
+    }
 }
 
 // MARK: - Supporting Views
@@ -750,12 +774,18 @@ struct ImageDetailView: View {
     @State private var image: GeneratedImage
     @StateObject private var generationService = GenerationService.shared
     @State private var isTogglingFavorite = false
+    @State private var isDeleting = false
     @State private var error: Error?
     @State private var showingError = false
+    @State private var showingDownloadView = false
+    @State private var showingDeleteConfirmation = false
     @Environment(\.dismiss) private var dismiss
     
-    init(image: GeneratedImage) {
+    let onImageDeleted: ((String) -> Void)?  // Callback with deleted image ID
+    
+    init(image: GeneratedImage, onImageDeleted: ((String) -> Void)? = nil) {
         self._image = State(initialValue: image)
+        self.onImageDeleted = onImageDeleted
     }
     
     var body: some View {
@@ -819,6 +849,44 @@ struct ImageDetailView: View {
                     }
                 }
                 .cardStyle()
+                
+                // Action buttons row
+                HStack(spacing: AppSpacing.md) {
+                    // Download button (left side)
+                    Button {
+                        showingDownloadView = true
+                    } label: {
+                        HStack(spacing: AppSpacing.sm) {
+                            Text("📥")
+                            Text("Download")
+                                .font(AppTypography.titleMedium)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
+                    .childSafeTouchTarget()
+                    
+                    // Delete button (right side)
+                    Button {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        HStack(spacing: AppSpacing.sm) {
+                            if isDeleting {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .tint(.white)
+                            } else {
+                                Text("🗑️")
+                            }
+                            Text(isDeleting ? "Deleting..." : "Delete")
+                                .font(AppTypography.titleMedium)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .largeButtonStyle(backgroundColor: AppColors.errorRed)
+                    .disabled(isDeleting)
+                    .childSafeTouchTarget()
+                }
             }
             .pageMargins()
             .padding(.vertical, AppSpacing.sectionSpacing)
@@ -840,6 +908,19 @@ struct ImageDetailView: View {
         } message: {
             Text(error?.localizedDescription ?? "Failed to update favorite status")
         }
+        .sheet(isPresented: $showingDownloadView) {
+            ImageDownloadView(image: image)
+        }
+        .alert("Delete Image", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await deleteImage()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this image? This action cannot be undone.")
+        }
     }
     
     // MARK: - Favorite Management
@@ -860,6 +941,29 @@ struct ImageDetailView: View {
                 self.error = error
                 showingError = true
                 isTogglingFavorite = false
+            }
+        }
+    }
+    
+    // MARK: - Delete Image
+    private func deleteImage() async {
+        isDeleting = true
+        
+        do {
+            // Call API to delete image
+            try await generationService.deleteImage(imageId: image.id)
+            
+            // If successful, notify parent and dismiss
+            await MainActor.run {
+                isDeleting = false
+                onImageDeleted?(image.id)  // Notify gallery to remove the image
+                dismiss()
+            }
+        } catch {
+            await MainActor.run {
+                self.error = error
+                showingError = true
+                isDeleting = false
             }
         }
     }

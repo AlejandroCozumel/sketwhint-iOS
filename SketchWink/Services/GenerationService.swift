@@ -309,6 +309,48 @@ class GenerationService: ObservableObject {
         }
     }
     
+    // MARK: - Delete Image
+    func deleteImage(imageId: String) async throws {
+        let endpoint = "\(baseURL)\(String(format: AppConfig.API.Endpoints.deleteImage, imageId))"
+        
+        guard let url = URL(string: endpoint) else {
+            throw GenerationError.invalidURL
+        }
+        
+        // Use APIRequestHelper to include profile context for delete operations
+        let request = try APIRequestHelper.shared.createRequest(
+            url: url,
+            method: "DELETE",
+            includeProfileHeader: true  // Include profile for context
+        )
+        
+        #if DEBUG
+        print("🗑️ GenerationService: Deleting image")
+        print("   - Image ID: \(imageId)")
+        print("   - URL: \(url)")
+        #endif
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw GenerationError.invalidResponse
+        }
+        
+        #if DEBUG
+        print("🗑️ GenerationService: Delete response")
+        print("   - Status Code: \(httpResponse.statusCode)")
+        #endif
+        
+        guard 200...299 ~= httpResponse.statusCode else {
+            // Try to decode API error message first, fallback to generic error
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw GenerationError.generationFailed(apiError.userMessage)
+            } else {
+                throw GenerationError.httpError(httpResponse.statusCode)
+            }
+        }
+    }
+    
     // MARK: - User Permissions
     func getUserPermissions() async throws -> UserPermissions {
         let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.tokenBalance)"
