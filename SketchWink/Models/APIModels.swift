@@ -14,7 +14,15 @@ struct APIError: Codable {
     }
 }
 
-// MARK: - User Permissions
+// MARK: - User Permissions & Token Balance
+
+/// Subscription limitations and upgrade messaging
+struct SubscriptionLimitations: Codable {
+    let message: String
+    let modelRestriction: String
+    let qualityRestriction: String
+    let upgradeMessage: String
+}
 
 /// User permissions and subscription information
 struct UserPermissions: Codable {
@@ -29,16 +37,125 @@ struct UserPermissions: Codable {
     let accountType: String
     let planName: String
     let isTrialing: Bool
-    let trialEndsAt: String?
-    let limitations: String?
+    let trialEndsAt: String?  // Can be null in API
+    let limitations: SubscriptionLimitations?  // Can be null in API
+    
+    /// Get limitations with default values if API returns null
+    var effectiveLimitations: SubscriptionLimitations {
+        return limitations ?? SubscriptionLimitations(
+            message: "No restrictions",
+            modelRestriction: "All models available",
+            qualityRestriction: "All qualities available",
+            upgradeMessage: "You have full access to all features"
+        )
+    }
 }
 
-/// Token balance response with permissions
+/// Complete token balance response with permissions
 struct TokenBalanceResponse: Codable {
     let subscriptionTokens: Int
     let purchasedTokens: Int
     let totalTokens: Int
+    let lastSubscriptionRefresh: String?  // Can be null in API
+    let maxRollover: Int                   // Always present as number
+    private let _currentPlan: CurrentPlanWrapper // Internal flexible field
     let permissions: UserPermissions
+    
+    /// Get current plan as string regardless of API format
+    var currentPlan: String {
+        return _currentPlan.value
+    }
+    
+    // Custom decoder to handle currentPlan flexibility
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        subscriptionTokens = try container.decode(Int.self, forKey: .subscriptionTokens)
+        purchasedTokens = try container.decode(Int.self, forKey: .purchasedTokens)
+        totalTokens = try container.decode(Int.self, forKey: .totalTokens)
+        lastSubscriptionRefresh = try container.decodeIfPresent(String.self, forKey: .lastSubscriptionRefresh)
+        maxRollover = try container.decode(Int.self, forKey: .maxRollover)
+        permissions = try container.decode(UserPermissions.self, forKey: .permissions)
+        
+        // Handle currentPlan as either string or object
+        _currentPlan = try container.decode(CurrentPlanWrapper.self, forKey: .currentPlan)
+    }
+    
+    // Custom encoder to maintain Encodable conformance
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(subscriptionTokens, forKey: .subscriptionTokens)
+        try container.encode(purchasedTokens, forKey: .purchasedTokens)
+        try container.encode(totalTokens, forKey: .totalTokens)
+        try container.encodeIfPresent(lastSubscriptionRefresh, forKey: .lastSubscriptionRefresh)
+        try container.encode(maxRollover, forKey: .maxRollover)
+        try container.encode(permissions, forKey: .permissions)
+        
+        // Encode currentPlan as simple string
+        try container.encode(currentPlan, forKey: .currentPlan)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case subscriptionTokens, purchasedTokens, totalTokens, lastSubscriptionRefresh, maxRollover, currentPlan, permissions
+    }
+}
+
+/// Wrapper to handle currentPlan as string or complex object
+private struct CurrentPlanWrapper: Codable {
+    let value: String
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        
+        if let stringValue = try? container.decode(String.self) {
+            // currentPlan is a simple string
+            value = stringValue
+        } else if let planObject = try? container.decode(PlanObject.self) {
+            // currentPlan is a complex object - use the name field
+            value = planObject.name
+        } else {
+            // Fallback for any other format
+            value = "Unknown Plan"
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
+    }
+}
+
+/// Simple struct to decode just the fields we need from currentPlan object
+private struct PlanObject: Codable {
+    let id: String?
+    let name: String
+    let description: String?
+    
+    // We can ignore all other fields by not declaring them
+}
+
+extension TokenBalanceResponse {
+    /// UI helpers
+    var hasTokens: Bool {
+        return totalTokens > 0
+    }
+    
+    var canGenerate: Bool {
+        return totalTokens > 0
+    }
+    
+    var displayTotalTokens: String {
+        return "\(totalTokens)"
+    }
+    
+    var planDisplayName: String {
+        return permissions.planName
+    }
+    
+    var accountTypeDisplay: String {
+        return permissions.accountType.capitalized
+    }
 }
 
 // MARK: - Subscription Plans
@@ -205,4 +322,12 @@ struct SelectProfileResponse: Codable {
     let success: Bool
     let message: String
     let selectedProfile: FamilyProfile?
+}
+
+// MARK: - Content Creation Models
+
+/// Information about who created a piece of content
+struct CreatedBy: Codable {
+    let profileId: String?
+    let profileName: String?
 }

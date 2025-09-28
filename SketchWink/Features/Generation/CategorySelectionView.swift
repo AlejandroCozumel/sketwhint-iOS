@@ -73,6 +73,9 @@ struct CategorySelectionView: View {
     // MARK: - Header
     private var headerView: some View {
         VStack(spacing: AppSpacing.lg) {
+            // Token Balance Display
+            TokenBalanceView(showDetails: true, compact: false)
+            
             Text("🎨")
                 .font(.system(size: AppSizing.iconSizes.xxl))
             
@@ -82,7 +85,7 @@ struct CategorySelectionView: View {
                     .foregroundColor(AppColors.textPrimary)
                     .multilineTextAlignment(.center)
                 
-                Text("Choose from coloring pages, stickers, wallpapers, and more!")
+                Text("Choose from coloring pages, stickers, wallpapers, and mandalas! Story books are in the Books tab.")
                     .bodyMedium()
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -120,7 +123,21 @@ struct CategorySelectionView: View {
         isLoading = true
         
         do {
-            categories = try await generationService.getCategoriesWithOptions()
+            let allCategories = try await generationService.getCategoriesWithOptions()
+            
+            // Filter out story books - they are now handled by the dedicated Books tab
+            categories = allCategories.filter { categoryWithOptions in
+                categoryWithOptions.category.id != "story_books"
+            }
+            
+            #if DEBUG
+            print("🎨 CategorySelection: Loaded \(categories.count) visual art categories (story books excluded)")
+            let filteredOut = allCategories.count - categories.count
+            if filteredOut > 0 {
+                print("📚 CategorySelection: Filtered out \(filteredOut) story book categories")
+            }
+            #endif
+            
         } catch {
             self.error = error
             showingError = true

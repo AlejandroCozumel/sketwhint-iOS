@@ -101,6 +101,11 @@ class ProfileService: ObservableObject {
         #endif
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 {
+                AuthService.handleUnauthorizedResponse()
+            }
+            
             // Try to decode API error message first, fallback to generic error
             if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
                 throw ProfileError.apiError(apiError.userMessage)
@@ -172,6 +177,11 @@ class ProfileService: ObservableObject {
         #endif
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
+            
             if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
                 throw ProfileError.apiError(apiError.userMessage)
             } else {
@@ -368,6 +378,11 @@ class ProfileService: ObservableObject {
         }
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
+            
             if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
                 throw ProfileError.apiError(apiError.userMessage)
             } else {
@@ -462,6 +477,11 @@ class ProfileService: ObservableObject {
         }
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
+            
             if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
                 throw ProfileError.apiError(apiError.userMessage)
             } else {
@@ -513,6 +533,11 @@ class ProfileService: ObservableObject {
         }
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
+            
             if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
                 throw ProfileError.apiError(apiError.userMessage)
             } else {

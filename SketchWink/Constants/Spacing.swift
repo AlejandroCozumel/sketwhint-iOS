@@ -321,6 +321,12 @@ struct GridLayouts {
         GridItem(.flexible(), spacing: AppSpacing.grid.itemSpacing)
     ]
     
+    /// Two-column grid for folder cards
+    static let folderGrid = [
+        GridItem(.flexible(), spacing: AppSpacing.grid.itemSpacing),
+        GridItem(.flexible(), spacing: AppSpacing.grid.itemSpacing)
+    ]
+    
     /// Adaptive grid that changes based on screen size
     static func adaptiveGrid(minItemWidth: CGFloat = 150) -> [GridItem] {
         return [GridItem(.adaptive(minimum: minItemWidth), spacing: AppSpacing.grid.itemSpacing)]

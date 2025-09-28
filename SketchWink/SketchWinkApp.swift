@@ -28,6 +28,7 @@ struct SketchWinkApp: App {
             // Use AppCoordinator for authentication flow
             AppCoordinator()
                 .withAppLifecycleManagement()  // Add lifecycle management for family profiles
+                .preferredColorScheme(.light)  // Force light mode - dark mode not currently supported
                 .onAppear {
                     // Configure app on launch
                     configureApp()

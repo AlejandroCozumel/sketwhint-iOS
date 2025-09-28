@@ -54,6 +54,12 @@ struct AppConfig {
             static let collectionImages = "/collections/%@/images" // %@ = collectionId
             static let bulkAddToCollection = "/collections/%@/bulk-add" // %@ = collectionId
             
+            // Folders
+            static let folders = "/folders"
+            static let folderImages = "/folders/%@/images" // %@ = folderId
+            static let moveImagesToFolder = "/folders/%@/move-images" // %@ = folderId
+            static let removeImagesFromFolder = "/folders/%@/remove-images" // %@ = folderId
+            
             // User Settings
             static let promptEnhancementSettings = "/user/settings/prompt-enhancement"
             

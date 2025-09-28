@@ -21,6 +21,11 @@ struct GalleryView: View {
     @State private var isSearchActive = false
     @State private var selectedProfileFilter: String? = nil  // NEW: Profile filter
     
+    // Selection Mode States
+    @State private var selectedImages: Set<String> = []
+    @State private var isSelectionMode = false
+    @State private var showingFolderPicker = false
+    
     // Categories from backend
     @State private var availableCategories: [CategoryWithOptions] = []
     @State private var isLoadingCategories = false
@@ -30,24 +35,102 @@ struct GalleryView: View {
         GridItem(.flexible(minimum: 100, maximum: .infinity), spacing: AppSpacing.grid.itemSpacing)
     ]
     
+    // MARK: - Computed Properties for Empty States
+    private var hasActiveFilters: Bool {
+        showFavoritesOnly || selectedCategory != nil || !searchText.isEmpty || selectedProfileFilter != nil
+    }
+    
+    private var emptyStateIcon: String {
+        if showFavoritesOnly {
+            return "💖"
+        } else if selectedCategory != nil {
+            return "🎨"
+        } else if selectedProfileFilter != nil {
+            return "👤"
+        } else if !searchText.isEmpty {
+            return "🔍"
+        } else {
+            return "🎨"
+        }
+    }
+    
+    private var emptyStateTitle: String {
+        if showFavoritesOnly {
+            return "No Favorite Images"
+        } else if selectedCategory != nil {
+            return "No \(selectedCategory!) Images"
+        } else if selectedProfileFilter != nil {
+            return "No Images from This Profile"
+        } else if !searchText.isEmpty {
+            return "No Results Found"
+        } else {
+            return "No Creations Yet"
+        }
+    }
+    
+    private var emptyStateMessage: String {
+        if showFavoritesOnly {
+            return "Tap the heart icon on any image to add it to your favorites."
+        } else if selectedCategory != nil {
+            return "Create some \(selectedCategory!.lowercased()) to see them here."
+        } else if selectedProfileFilter != nil {
+            return "This family member hasn't created any images yet."
+        } else if !searchText.isEmpty {
+            return "Try different search terms or clear filters to see more results."
+        } else {
+            return "Start creating amazing coloring pages, stickers, and more! Your generated art will appear here."
+        }
+    }
+    
+    private var emptyStateButtonTitle: String {
+        if hasActiveFilters {
+            return "Clear Filters"
+        } else {
+            return "Create Your First Art"
+        }
+    }
+    
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: AppSpacing.sectionSpacing) {
-                
-                if isLoading && images.isEmpty {
-                    loadingView
-                } else if images.isEmpty {
-                    emptyStateView
-                } else {
-                    galleryGridView
+        VStack(spacing: 0) {
+            // Main content area
+            ScrollView {
+                LazyVStack(spacing: AppSpacing.sectionSpacing) {
+                    
+                    if isLoading && images.isEmpty {
+                        loadingView
+                    } else if images.isEmpty {
+                        emptyStateView
+                    } else {
+                        galleryGridView
+                    }
                 }
+                .pageMargins()
+                .padding(.vertical, AppSpacing.sectionSpacing)
+                .padding(.bottom, isSelectionMode && !selectedImages.isEmpty ? 80 : 0) // Add bottom padding when toolbar is visible
             }
-            .pageMargins()
-            .padding(.vertical, AppSpacing.sectionSpacing)
+            
+            // Sticky bottom toolbar for selection actions
+            if isSelectionMode && !selectedImages.isEmpty {
+                selectionModeBottomToolbar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.3), value: isSelectionMode)
+            }
         }
         .background(AppColors.backgroundLight)
         .navigationTitle("My Gallery")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if !images.isEmpty {
+                    Button(action: toggleSelectionMode) {
+                        Text(isSelectionMode ? "Cancel" : "Select")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.primaryBlue)
+                    }
+                    .childSafeTouchTarget()
+                }
+            }
+        }
         .task {
             await loadCategories()
             await loadImages()
@@ -69,10 +152,22 @@ struct GalleryView: View {
             Text(error?.localizedDescription ?? "An unknown error occurred")
         }
         .sheet(item: $selectedImage) { image in
-            ImageDetailView(
-                image: image,
-                onImageDeleted: { deletedImageId in
-                    removeImageFromLocalState(deletedImageId)
+            NavigationView {
+                ImageDetailView(
+                    image: image,
+                    onImageDeleted: { deletedImageId in
+                        removeImageFromLocalState(deletedImageId)
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showingFolderPicker) {
+            FolderPickerView(
+                selectedImages: Array(selectedImages),
+                onFolderSelected: { folder in
+                    Task {
+                        await moveSelectedImagesToFolder(folder)
+                    }
                 }
             )
         }
@@ -97,21 +192,25 @@ struct GalleryView: View {
     // MARK: - Empty State
     private var emptyStateView: some View {
         VStack(spacing: AppSpacing.xl) {
-            Text("🎨")
+            Text(emptyStateIcon)
                 .font(.system(size: 80))
             
             VStack(spacing: AppSpacing.md) {
-                Text("No Creations Yet")
+                Text(emptyStateTitle)
                     .font(AppTypography.headlineLarge)
                     .foregroundColor(AppColors.textPrimary)
                 
-                Text("Start creating amazing coloring pages, stickers, and more! Your generated art will appear here.")
+                Text(emptyStateMessage)
                     .font(AppTypography.bodyMedium)
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
                 
-                Button("Create Your First Art") {
-                    // Note: In tab-based navigation, user can just tap the Art tab
+                Button(emptyStateButtonTitle) {
+                    // Clear filters if any are active
+                    if hasActiveFilters {
+                        clearAllFilters()
+                    }
+                    // Note: For no creations, user can tap the Art tab
                 }
                 .largeButtonStyle(backgroundColor: AppColors.coloringPagesColor)
                 .childSafeTouchTarget()
@@ -129,6 +228,11 @@ struct GalleryView: View {
             // Header with stats
             galleryHeaderView
             
+            // Selection Mode Info
+            if isSelectionMode {
+                selectionModeHeader
+            }
+            
             // Filters UI
             filtersView
             
@@ -141,11 +245,33 @@ struct GalleryView: View {
                             image: $images[index],
                             showCreatorName: profileService.currentProfile?.isDefault == true,
                             currentProfileId: profileService.currentProfile?.id,
+                            isSelected: selectedImages.contains(images[index].id),
+                            isSelectionMode: isSelectionMode,
                             action: {
-                                selectedImage = images[index]
+                                if isSelectionMode {
+                                    toggleImageSelection(images[index].id)
+                                } else {
+                                    selectedImage = images[index]
+                                }
                             },
                             onFavoriteToggle: { imageToToggle in
                                 await toggleImageFavorite(imageToToggle, at: index)
+                            },
+                            onLongPress: {
+                                #if DEBUG
+                                print("🔥 LONG PRESS TRIGGERED on image: \(images[index].id)")
+                                print("🔥 Current selection mode: \(isSelectionMode)")
+                                #endif
+                                
+                                if !isSelectionMode {
+                                    isSelectionMode = true
+                                    selectedImages.insert(images[index].id)
+                                    
+                                    #if DEBUG
+                                    print("🔥 Entered selection mode, selected image: \(images[index].id)")
+                                    print("🔥 Total selected images: \(selectedImages.count)")
+                                    #endif
+                                }
                             }
                         )
                         .id("image-\(images[index].id)")
@@ -172,6 +298,86 @@ struct GalleryView: View {
                 }
             }
         }
+    }
+    
+    // MARK: - Selection Mode Views
+    private var selectionModeHeader: some View {
+        HStack {
+            Text("\(selectedImages.count) selected")
+                .font(AppTypography.captionLarge)
+                .foregroundColor(AppColors.primaryBlue)
+            
+            Spacer()
+            
+            Button(selectedImages.count == images.count ? "Deselect All" : "Select All") {
+                if selectedImages.count == images.count {
+                    selectedImages.removeAll()
+                } else {
+                    selectedImages = Set(images.map { $0.id })
+                }
+            }
+            .font(AppTypography.captionLarge)
+            .foregroundColor(AppColors.primaryBlue)
+        }
+        .padding(.horizontal, AppSpacing.md)
+        .cardStyle()
+    }
+    
+    // MARK: - Sticky Bottom Toolbar
+    private var selectionModeBottomToolbar: some View {
+        VStack(spacing: 0) {
+            // Selection info bar
+            HStack {
+                Text("\(selectedImages.count) image\(selectedImages.count == 1 ? "" : "s") selected")
+                    .font(AppTypography.captionLarge)
+                    .foregroundColor(AppColors.textSecondary)
+                
+                Spacer()
+                
+                Button(selectedImages.count == images.count ? "Deselect All" : "Select All") {
+                    if selectedImages.count == images.count {
+                        selectedImages.removeAll()
+                    } else {
+                        selectedImages = Set(images.map { $0.id })
+                    }
+                }
+                .font(AppTypography.captionLarge)
+                .foregroundColor(AppColors.primaryBlue)
+            }
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.vertical, AppSpacing.sm)
+            .background(AppColors.surfaceLight)
+            
+            // Action buttons
+            HStack(spacing: AppSpacing.md) {
+                // Move to Folder button (primary action)
+                Button(action: { showingFolderPicker = true }) {
+                    HStack(spacing: AppSpacing.xs) {
+                        Image(systemName: "folder")
+                            .font(.system(size: 18, weight: .semibold))
+                        
+                        Text("Move to Folder")
+                            .font(AppTypography.titleMedium)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppSpacing.lg) // Slightly larger for single button
+                    .background(AppColors.primaryPurple)
+                    .clipShape(Capsule())
+                }
+                .childSafeTouchTarget()
+            }
+            .padding(AppSpacing.md)
+            .background(AppColors.backgroundLight)
+        }
+        .background(.ultraThinMaterial)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(AppColors.borderLight),
+            alignment: .top
+        )
     }
     
     // MARK: - Gallery Header
@@ -498,6 +704,83 @@ struct GalleryView: View {
         }
     }
     
+    // MARK: - Selection Mode Methods
+    private func toggleSelectionMode() {
+        #if DEBUG
+        print("🔥 TOOLBAR: Toggle Selection Mode button tapped!")
+        print("🔥 Selection mode BEFORE toggle: \(isSelectionMode)")
+        #endif
+        
+        isSelectionMode.toggle()
+        
+        #if DEBUG
+        print("🔥 Selection mode AFTER toggle: \(isSelectionMode)")
+        #endif
+        
+        if !isSelectionMode {
+            selectedImages.removeAll()
+            #if DEBUG
+            print("🔥 Cleared all selected images, exiting selection mode")
+            #endif
+        }
+    }
+    
+    private func clearAllFilters() {
+        showFavoritesOnly = false
+        selectedCategory = nil
+        searchText = ""
+        selectedProfileFilter = nil
+        
+        // Reload images without filters
+        Task {
+            await loadImages()
+        }
+    }
+    
+    private func toggleImageSelection(_ imageId: String) {
+        if selectedImages.contains(imageId) {
+            selectedImages.remove(imageId)
+        } else {
+            selectedImages.insert(imageId)
+        }
+    }
+    
+    private func moveSelectedImagesToFolder(_ folder: UserFolder) async {
+        guard !selectedImages.isEmpty else { return }
+        
+        do {
+            // Import FolderService
+            let folderService = FolderService.shared
+            
+            _ = try await folderService.moveImagesToFolder(
+                folderId: folder.id,
+                imageIds: Array(selectedImages)
+            )
+            
+            await MainActor.run {
+                // Remove moved images from gallery (they're now organized)
+                images.removeAll { selectedImages.contains($0.id) }
+                
+                // Update total count
+                totalImages -= selectedImages.count
+                
+                // Clear selection and exit selection mode
+                selectedImages.removeAll()
+                isSelectionMode = false
+                
+                #if DEBUG
+                print("✅ GalleryView: Moved \(selectedImages.count) images to folder '\(folder.name)'")
+                #endif
+            }
+            
+        } catch {
+            await MainActor.run {
+                self.error = error
+                showingError = true
+            }
+        }
+    }
+    
     // MARK: - Methods
     private func loadImages() async {
         isLoading = true
@@ -668,8 +951,104 @@ struct GalleryImageCard: View {
     @Binding var image: GeneratedImage
     let showCreatorName: Bool
     let currentProfileId: String?
+    let isSelected: Bool
+    let isSelectionMode: Bool
     let action: () -> Void
     let onFavoriteToggle: (GeneratedImage) async -> Void
+    let onLongPress: () -> Void
+    
+    // MARK: - Overlay Components
+    private var creatorNameOverlay: some View {
+        Group {
+            if let createdBy = image.createdBy,
+               showCreatorName,
+               shouldShowCreatorBadge(for: createdBy) {
+                HStack {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Text(createdBy.profileName)
+                                .font(AppTypography.captionSmall)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(
+                                    LinearGradient(
+                                        colors: [AppColors.primaryPurple, AppColors.primaryBlue],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ),
+                                    in: Capsule()
+                                )
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                )
+                                .shadow(color: AppColors.primaryPurple.opacity(0.3), radius: 2, x: 0, y: 1)
+                            
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(AppSpacing.xs)
+            }
+        }
+    }
+    
+    private var favoriteButtonOverlay: some View {
+        HStack {
+            Spacer()
+            VStack {
+                AnimatedFavoriteButton(
+                    isFavorite: image.isFavorite,
+                    onToggle: {
+                        Task {
+                            await onFavoriteToggle(image)
+                        }
+                    }
+                )
+                .padding(AppSpacing.xs)
+                Spacer()
+            }
+        }
+    }
+    
+    private var selectionModeOverlay: some View {
+        Group {
+            if isSelectionMode {
+                VStack {
+                    HStack {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundColor(isSelected ? AppColors.successGreen : .white)
+                            .background(
+                                Circle()
+                                    .fill(isSelected ? .white : Color.black.opacity(0.3))
+                                    .frame(width: 28, height: 28)
+                            )
+                            .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                        
+                        Spacer()
+                    }
+                    
+                    Spacer()
+                }
+                .padding(AppSpacing.xs)
+            }
+        }
+    }
+    
+    private var selectionDimOverlay: some View {
+        Group {
+            if isSelectionMode && !isSelected {
+                Color.black.opacity(0.2)
+                    .cornerRadius(AppSizing.cornerRadius.md)
+            }
+        }
+    }
     
     var body: some View {
         Button(action: action) {
@@ -683,59 +1062,10 @@ struct GalleryImageCard: View {
                             .frame(width: geometry.size.width, height: 160)
                             .clipped()
                             .cornerRadius(AppSizing.cornerRadius.md)
-                        .overlay(
-                            // Creator name indicator - BOTTOM LEFT (only for main user)
-                            Group {
-                                if showCreatorName, 
-                                   let createdBy = image.createdBy,
-                                   createdBy.profileId != currentProfileId {
-                                    HStack {
-                                        VStack {
-                                            Spacer()
-                                            HStack {
-                                                Text(createdBy.profileName)
-                                                    .font(AppTypography.captionSmall)
-                                                    .fontWeight(.semibold)
-                                                    .foregroundColor(.white)
-                                                    .lineLimit(1)
-                                                    .truncationMode(.tail)
-                                                    .padding(.horizontal, 8)
-                                                    .padding(.vertical, 3)
-                                                    .background(
-                                                        LinearGradient(
-                                                            colors: [AppColors.primaryPurple, AppColors.primaryBlue],
-                                                            startPoint: .leading,
-                                                            endPoint: .trailing
-                                                        ),
-                                                        in: Capsule()
-                                                    )
-                                                    .overlay(
-                                                        Capsule()
-                                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                                                    )
-                                                    .shadow(color: AppColors.primaryPurple.opacity(0.3), radius: 2, x: 0, y: 1)
-                                                
-                                                Spacer()
-                                            }
-                                        }
-                                    }
-                                    .padding(AppSpacing.xs)
-                                }
-                            }
-                        )
-                        .overlay(
-                            // Favorite toggle button - TOP RIGHT
-                            AnimatedFavoriteButton(
-                                isFavorite: image.isFavorite,
-                                onToggle: {
-                                    Task {
-                                        await onFavoriteToggle(image)
-                                    }
-                                }
-                            )
-                            .padding(AppSpacing.xs),
-                            alignment: .topTrailing
-                        )
+                            .overlay(creatorNameOverlay)
+                            .overlay(favoriteButtonOverlay)
+                            .overlay(selectionModeOverlay)
+                            .overlay(selectionDimOverlay)
                     case .failure(_):
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
                             .fill(AppColors.textSecondary.opacity(0.1))
@@ -765,7 +1095,24 @@ struct GalleryImageCard: View {
         }
         .frame(height: 160) // Set fixed height for GeometryReader
         .frame(maxWidth: .infinity) // Ensure button respects grid cell width
+        .onLongPressGesture {
+            #if DEBUG
+            print("🔥 GalleryImageCard: Long press gesture detected!")
+            #endif
+            onLongPress()
+        }
         .childSafeTouchTarget()
+    }
+    
+    // MARK: - Helper Methods
+    private func shouldShowCreatorBadge(for createdBy: CreatedByProfile) -> Bool {
+        // Don't show badge for unknown/legacy profiles (null profileId)
+        guard let creatorProfileId = createdBy.profileId else {
+            return false
+        }
+        
+        // Show badge if profile ID is different from current user
+        return creatorProfileId != currentProfileId
     }
 }
 
@@ -841,7 +1188,8 @@ struct ImageDetailView: View {
                         
                         // Show creator info for main users (only if created by someone else)
                         if let createdBy = image.createdBy,
-                           createdBy.profileId != ProfileService.shared.currentProfile?.id {
+                           let creatorProfileId = createdBy.profileId,
+                           creatorProfileId != ProfileService.shared.currentProfile?.id {
                             DetailRow(label: "Created by", value: createdBy.profileName)
                         }
                         

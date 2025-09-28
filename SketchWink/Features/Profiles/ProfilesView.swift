@@ -13,6 +13,7 @@ struct ProfilesView: View {
     @State private var highlightedFeature: String?
     @State private var showingMaxProfilesAlert = false
     @State private var showingProfileSelection = false
+    @State private var showingAdminOnlyAlert = false
     @State private var profileToSelect: FamilyProfile? {
         didSet {
             #if DEBUG

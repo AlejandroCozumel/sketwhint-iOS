@@ -206,13 +206,18 @@ struct GeneratedImage: Codable, Identifiable {
 
 /// Profile information for content creation tracking
 struct CreatedByProfile: Codable {
-    let profileId: String
-    let profileName: String
+    let profileId: String?      // Make optional to handle null values
+    let profileName: String     // Keep non-optional since it's always provided
     let profileAvatar: String?
     
     /// UI helper for avatar display
     var displayAvatar: String {
         return profileAvatar ?? "👤"
+    }
+    
+    /// Check if this is a legacy/unknown profile
+    var isUnknownProfile: Bool {
+        return profileId == nil
     }
 }
 

@@ -3,6 +3,7 @@ import SwiftUI
 struct AppCoordinator: View {
     @StateObject private var authService = AuthService.shared
     @StateObject private var profileService = ProfileService.shared
+    @StateObject private var tokenBalanceManager = TokenBalanceManager.shared
     @State private var isCheckingAuth = true
     
     // Global profile selection state
@@ -65,6 +66,7 @@ struct AppCoordinator: View {
             } else {
                 // User authenticated AND has selected profile - show main app
                 MainAppView()
+                    .environmentObject(tokenBalanceManager)
             }
         }
         .onAppear {
@@ -128,6 +130,14 @@ struct AppCoordinator: View {
         // If authenticated, properly load and validate stored profile
         if authService.isAuthenticated {
             await loadStoredProfile()
+            
+            // Initialize token balance after authentication
+            Task {
+                await tokenBalanceManager.initialize()
+            }
+        } else {
+            // Clear token balance state when not authenticated
+            tokenBalanceManager.clearState()
         }
         
         // Add a small delay for smooth transition

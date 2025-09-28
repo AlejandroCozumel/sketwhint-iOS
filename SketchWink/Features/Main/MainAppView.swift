@@ -4,7 +4,13 @@ struct MainAppView: View {
     @State private var selectedTab = 0
     
     var body: some View {
-        TabView(selection: $selectedTab) {
+        VStack(spacing: 0) {
+            // Network status banner (only shows when there are issues)
+            NetworkStatusBanner()
+                .padding(.horizontal, AppSpacing.md)
+                .padding(.top, AppSpacing.sm)
+            
+            TabView(selection: $selectedTab) {
             // Art tab with CategorySelectionView
             NavigationStack {
                 CategorySelectionView()
@@ -25,24 +31,34 @@ struct MainAppView: View {
             .tag(1)
             
             NavigationStack {
+                BooksView()
+            }
+            .tabItem {
+                Image(systemName: "book.fill")
+                Text("Books")
+            }
+            .tag(2)
+            
+            NavigationStack {
+                FolderView()
+            }
+            .tabItem {
+                Image(systemName: "folder.fill")
+                Text("Folders")
+            }
+            .tag(3)
+            
+            NavigationStack {
                 ProfilesView()
             }
             .tabItem {
                 Image(systemName: "person.2.fill")
                 Text("Profiles")
             }
-            .tag(2)
-            
-            NavigationStack {
-                SettingsView()
+            .tag(4)
             }
-            .tabItem {
-                Image(systemName: "gearshape.fill")
-                Text("Settings")
-            }
-            .tag(3)
+            .tint(AppColors.primaryBlue)
         }
-        .tint(AppColors.primaryBlue)
         .onAppear {
             // Configure tab bar appearance
             let appearance = UITabBarAppearance()

@@ -115,6 +115,8 @@ enum AuthError: LocalizedError {
     case profileStorageError
     case noToken
     case decodingError
+    case serverUnavailable
+    case networkTimeout
     
     var errorDescription: String? {
         switch self {
@@ -132,8 +134,20 @@ enum AuthError: LocalizedError {
             return "No authentication token found. Please sign in again."
         case .decodingError:
             return "Failed to process server response. Please try again."
+        case .serverUnavailable:
+            return "Server is temporarily unavailable. Your content will be available when connection is restored."
+        case .networkTimeout:
+            return "Connection timed out. Please check your internet connection and try again."
         }
     }
+}
+
+// MARK: - Network Status
+enum NetworkStatus {
+    case connected
+    case serverUnavailable
+    case networkError
+    case timeout
 }
 
 // MARK: - Keychain Manager
@@ -256,6 +270,8 @@ class AuthService: ObservableObject {
     
     @Published var currentUser: User?
     @Published var isAuthenticated = false
+    @Published var networkStatus: NetworkStatus = .connected
+    @Published var lastAuthCheckError: AuthError?
     
     private let session = URLSession.shared
     private let decoder = JSONDecoder()
@@ -484,14 +500,119 @@ class AuthService: ObservableObject {
             await MainActor.run {
                 self.isAuthenticated = false
                 self.currentUser = nil
+                self.networkStatus = .connected
+                self.lastAuthCheckError = nil
             }
             return
         }
         
-        // TODO: Validate token with backend
-        // For now, assume token is valid if it exists
+        // Validate token with backend by making a test API call
+        do {
+            let endpoint = AppConfig.apiURL(for: AppConfig.API.Endpoints.tokenBalance)
+            guard let url = URL(string: endpoint) else {
+                await handleNetworkIssue(.networkError)
+                return
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.timeoutInterval = 8.0 // Shorter timeout for faster detection
+            
+            let (_, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                await handleNetworkIssue(.networkError)
+                return
+            }
+            
+            // ONLY logout for actual authentication failures (401/403)
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                // Token is invalid - user was deleted, token expired, or unauthorized
+                await handleInvalidAuth()
+                return
+            }
+            
+            if 200...299 ~= httpResponse.statusCode {
+                // Token is valid and server is working
+                await MainActor.run {
+                    self.isAuthenticated = true
+                    self.networkStatus = .connected
+                    self.lastAuthCheckError = nil
+                }
+            } else if httpResponse.statusCode >= 500 {
+                // Server error - keep user logged in
+                await handleNetworkIssue(.serverUnavailable)
+            } else {
+                // Other client errors (4xx) - keep user logged in but note the issue
+                await MainActor.run {
+                    self.isAuthenticated = true
+                    self.networkStatus = .connected
+                    self.lastAuthCheckError = .networkError("Server returned error \(httpResponse.statusCode)")
+                }
+            }
+            
+        } catch {
+            // Analyze the specific error to provide better user experience
+            if let urlError = error as? URLError {
+                switch urlError.code {
+                case .timedOut:
+                    await handleNetworkIssue(.timeout)
+                case .notConnectedToInternet, .networkConnectionLost:
+                    await handleNetworkIssue(.networkError)
+                case .cannotConnectToHost, .cannotFindHost:
+                    await handleNetworkIssue(.serverUnavailable)
+                default:
+                    await handleNetworkIssue(.networkError)
+                }
+            } else {
+                // Unknown error - treat as network issue
+                await handleNetworkIssue(.networkError)
+            }
+        }
+    }
+    
+    // MARK: - Handle Invalid Authentication
+    private func handleInvalidAuth() async {
+        print("🚨 AuthService: Invalid token detected - logging out user")
+        
+        // Token is invalid - clear everything and force re-login
+        KeychainManager.shared.deleteToken()
+        KeychainManager.shared.deleteSelectedProfile()
+        ProfileService.shared.clearSelectedProfile()
+        
+        await MainActor.run {
+            self.isAuthenticated = false
+            self.currentUser = nil
+            self.networkStatus = .connected
+            self.lastAuthCheckError = nil
+        }
+    }
+    
+    // MARK: - Handle Network Issues
+    private func handleNetworkIssue(_ status: NetworkStatus) async {
+        let errorMessage: AuthError
+        
+        switch status {
+        case .serverUnavailable:
+            errorMessage = .serverUnavailable
+            print("🌐 AuthService: Server unavailable - keeping user logged in")
+        case .timeout:
+            errorMessage = .networkTimeout
+            print("⏱️ AuthService: Network timeout - keeping user logged in")
+        case .networkError:
+            errorMessage = .networkError("Network connection issue")
+            print("📡 AuthService: Network error - keeping user logged in")
+        case .connected:
+            errorMessage = .networkError("Unknown network issue")
+        }
+        
+        // Keep user logged in but update network status for UI
         await MainActor.run {
             self.isAuthenticated = true
+            self.networkStatus = status
+            self.lastAuthCheckError = errorMessage
         }
     }
     
@@ -501,6 +622,34 @@ class AuthService: ObservableObject {
             throw AuthError.noToken
         }
         return token
+    }
+    
+    // MARK: - Handle Unauthorized Response
+    /// Call this method from any service when receiving a 401 Unauthorized response
+    /// This will automatically log out the user and clear all stored data
+    static func handleUnauthorizedResponse() {
+        Task {
+            await AuthService.shared.handleInvalidAuth()
+        }
+    }
+    
+    // MARK: - Network Status Management
+    /// Retry authentication check manually
+    func retryAuthenticationCheck() async {
+        await checkAuthenticationStatus()
+    }
+    
+    /// Clear network status (call when user manually dismisses network errors)
+    func clearNetworkStatus() {
+        DispatchQueue.main.async {
+            self.networkStatus = .connected
+            self.lastAuthCheckError = nil
+        }
+    }
+    
+    /// Check if current network status allows normal app operation
+    var isNetworkAvailable: Bool {
+        return networkStatus == .connected && lastAuthCheckError == nil
     }
 }
 

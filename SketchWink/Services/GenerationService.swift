@@ -41,6 +41,10 @@ class GenerationService: ObservableObject {
         #endif
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
             throw GenerationError.httpError(httpResponse.statusCode)
         }
         
@@ -82,6 +86,10 @@ class GenerationService: ObservableObject {
         }
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
             throw GenerationError.httpError(httpResponse.statusCode)
         }
         
@@ -130,6 +138,10 @@ class GenerationService: ObservableObject {
         }
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
             throw GenerationError.httpError(httpResponse.statusCode)
         }
         
@@ -207,6 +219,10 @@ class GenerationService: ObservableObject {
         }
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
             throw GenerationError.httpError(httpResponse.statusCode)
         }
         
@@ -214,7 +230,7 @@ class GenerationService: ObservableObject {
     }
     
     // MARK: - Gallery/Images
-    func getUserImages(page: Int = 1, limit: Int = 20, favorites: Bool? = nil, category: String? = nil, search: String? = nil, filterByProfile: String? = nil) async throws -> ImagesResponse {
+    func getUserImages(page: Int = 1, limit: Int = 20, favorites: Bool? = nil, category: String? = nil, search: String? = nil, filterByProfile: String? = nil, showAll: Bool = false) async throws -> ImagesResponse {
         let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.images)"
         
         var components = URLComponents(string: endpoint)!
@@ -242,6 +258,10 @@ class GenerationService: ObservableObject {
             queryItems.append(URLQueryItem(name: "filterByProfile", value: filterByProfile))
         }
         
+        if showAll {
+            queryItems.append(URLQueryItem(name: "showAll", value: "true"))
+        }
+        
         components.queryItems = queryItems
         
         guard let url = components.url else {
@@ -251,6 +271,7 @@ class GenerationService: ObservableObject {
         #if DEBUG
         print("🌐 GenerationService: Loading user images")
         print("📤 URL: \(url.absoluteString)")
+        print("🔍 Filters - Category: \(category ?? "none"), Favorites: \(favorites?.description ?? "none"), Profile: \(filterByProfile ?? "none"), ShowAll: \(showAll)")
         #endif
         
         // Use APIRequestHelper to automatically include X-Profile-ID header for content filtering
@@ -273,6 +294,10 @@ class GenerationService: ObservableObject {
         }
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
             throw GenerationError.httpError(httpResponse.statusCode)
         }
         
@@ -305,6 +330,10 @@ class GenerationService: ObservableObject {
         }
         
         guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
             throw GenerationError.httpError(httpResponse.statusCode)
         }
     }
