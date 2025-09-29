@@ -1,5 +1,6 @@
 import SwiftUI
 import Photos
+import Combine
 
 struct GalleryView: View {
     @StateObject private var generationService = GenerationService.shared
@@ -20,6 +21,11 @@ struct GalleryView: View {
     @State private var searchText = ""
     @State private var isSearchActive = false
     @State private var selectedProfileFilter: String? = nil  // NEW: Profile filter
+    
+    // Auto-search with debouncing
+    @State private var searchWorkItem: DispatchWorkItem?
+    private let searchDebounceDelay: TimeInterval = 0.5 // 500ms debounce
+    private let minimumSearchLength = 3
     
     // Selection Mode States
     @State private var selectedImages: Set<String> = []
@@ -107,6 +113,49 @@ struct GalleryView: View {
             // Search bar (always show below filters)
             searchBarSection
             
+            // Search result summary (only show when actually searching with 3+ chars)
+            if !searchText.isEmpty && searchText.count >= minimumSearchLength && !isLoading && !images.isEmpty {
+                SearchResultSummary(
+                    searchTerm: searchText,
+                    totalResults: images.count,
+                    totalImages: totalImages,
+                    onClearSearch: {
+                        searchText = ""
+                        applyFilters()
+                    }
+                )
+            }
+            
+            // Minimum search length message
+            if !searchText.isEmpty && searchText.count < minimumSearchLength && !isLoading {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(AppColors.infoBlue)
+                        .font(.system(size: 16, weight: .medium))
+                    
+                    Text("Type at least \(minimumSearchLength) characters to search")
+                        .font(AppTypography.bodyMedium)
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Spacer()
+                    
+                    Button("Clear") {
+                        searchText = ""
+                        applyFilters()
+                    }
+                    .font(AppTypography.bodyMedium)
+                    .foregroundColor(AppColors.primaryBlue)
+                }
+                .padding(.horizontal, AppSpacing.md)
+                .padding(.vertical, AppSpacing.sm)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(AppColors.infoBlue.opacity(0.1))
+                        .stroke(AppColors.infoBlue.opacity(0.3), lineWidth: 1)
+                )
+                .padding(.horizontal, AppSpacing.md)
+            }
+            
             // Main content area
             ScrollView {
                 LazyVStack(spacing: AppSpacing.sectionSpacing) {
@@ -170,6 +219,7 @@ struct GalleryView: View {
             NavigationView {
                 ImageDetailView(
                     image: image,
+                    searchTerm: searchText,
                     onImageDeleted: { deletedImageId in
                         removeImageFromLocalState(deletedImageId)
                     }
@@ -282,13 +332,17 @@ struct GalleryView: View {
             TextField("Search your creations...", text: $searchText)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
-                .onSubmit {
-                    applyFilters()
+                .onChange(of: searchText) {
+                    print("🔍 DEBUG: SearchText changed to: '\(searchText)' (TextField #1)")
+                    handleSearchTextChange()
                 }
             
             if !searchText.isEmpty {
                 Button {
+                    // Cancel any pending search
+                    searchWorkItem?.cancel()
                     searchText = ""
+                    // Clear search immediately - no debounce
                     applyFilters()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -320,6 +374,10 @@ struct GalleryView: View {
                     TextField("Search your creations...", text: $searchText)
                         .font(AppTypography.bodyMedium)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .onChange(of: searchText) {
+                            print("🔍 DEBUG: SearchText changed to: '\(searchText)' (TextField #2)")
+                            handleSearchTextChange()
+                        }
                 }
                 
                 // Favorites toggle
@@ -408,34 +466,70 @@ struct GalleryView: View {
     
     // MARK: - Empty State
     private var emptyStateView: some View {
-        VStack(spacing: AppSpacing.xl) {
-            Text(emptyStateIcon)
-                .font(.system(size: 80))
-            
-            VStack(spacing: AppSpacing.md) {
-                Text(emptyStateTitle)
-                    .font(AppTypography.headlineLarge)
-                    .foregroundColor(AppColors.textPrimary)
-                
-                Text(emptyStateMessage)
-                    .font(AppTypography.bodyMedium)
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                
-                Button(emptyStateButtonTitle) {
-                    // Clear filters if any are active
-                    if hasActiveFilters {
-                        clearAllFilters()
+        Group {
+            if !searchText.isEmpty && searchText.count >= minimumSearchLength {
+                // Enhanced empty search state (only for valid searches with no results)
+                EnhancedEmptySearchState(
+                    searchTerm: searchText,
+                    suggestions: ["animals", "cute", "stickers", "coloring pages", "nature", "fantasy"],
+                    recentSearches: [], // TODO: Implement recent search storage
+                    onSuggestionTap: { suggestion in
+                        searchText = suggestion
+                        applyFilters()
+                    },
+                    onClearSearch: {
+                        searchText = ""
+                        applyFilters()
                     }
-                    // Note: For no creations, user can tap the Art tab
+                )
+            } else {
+                // Regular empty state
+                VStack(spacing: AppSpacing.xl) {
+                    // Enhanced icon design similar to folder empty state
+                    if showFavoritesOnly {
+                        // Special design for favorites with circle background
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.errorRed.opacity(0.15))
+                                .frame(width: 120, height: 120)
+                            
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 60, weight: .medium))
+                                .foregroundColor(AppColors.errorRed)
+                        }
+                    } else {
+                        // Regular emoji for other states
+                        Text(emptyStateIcon)
+                            .font(.system(size: 80))
+                    }
+                    
+                    VStack(spacing: AppSpacing.md) {
+                        Text(emptyStateTitle)
+                            .font(AppTypography.headlineLarge)
+                            .foregroundColor(AppColors.textPrimary)
+                        
+                        Text(emptyStateMessage)
+                            .font(AppTypography.bodyMedium)
+                            .foregroundColor(AppColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, AppSpacing.xl)
+                        
+                        Button(emptyStateButtonTitle) {
+                            // Clear filters if any are active
+                            if hasActiveFilters {
+                                clearAllFilters()
+                            }
+                            // Note: For no creations, user can tap the Art tab
+                        }
+                        .largeButtonStyle(backgroundColor: AppColors.coloringPagesColor)
+                        .childSafeTouchTarget()
+                    }
                 }
-                .largeButtonStyle(backgroundColor: AppColors.coloringPagesColor)
-                .childSafeTouchTarget()
+                .cardStyle()
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 300)
             }
         }
-        .cardStyle()
-        .frame(maxWidth: .infinity)
-        .frame(minHeight: 300)
     }
     
     // MARK: - Gallery Grid
@@ -444,6 +538,7 @@ struct GalleryView: View {
             
             // Header with stats
             galleryHeaderView
+                .padding(.top, -AppSpacing.sm)
             
             // Selection Mode Info
             if isSelectionMode {
@@ -454,41 +549,42 @@ struct GalleryView: View {
             ZStack {
                 // Current images (fade out smoothly during loading)
                 LazyVGrid(columns: columns, spacing: AppSpacing.grid.rowSpacing) {
-                    ForEach(images.indices, id: \.self) { index in
-                        GalleryImageCard(
-                            image: $images[index],
+                    ForEach(images, id: \.id) { image in
+                        GalleryImageCardStateless(
+                            image: image,
                             showCreatorName: profileService.currentProfile?.isDefault == true,
                             currentProfileId: profileService.currentProfile?.id,
-                            isSelected: selectedImages.contains(images[index].id),
+                            isSelected: selectedImages.contains(image.id),
                             isSelectionMode: isSelectionMode,
+                            searchTerm: searchText,
                             action: {
                                 if isSelectionMode {
-                                    toggleImageSelection(images[index].id)
+                                    toggleImageSelection(image.id)
                                 } else {
-                                    selectedImage = images[index]
+                                    selectedImage = image
                                 }
                             },
                             onFavoriteToggle: { imageToToggle in
-                                await toggleImageFavorite(imageToToggle, at: index)
+                                await toggleImageFavorite(imageToToggle)
                             },
                             onLongPress: {
                                 #if DEBUG
-                                print("🔥 LONG PRESS TRIGGERED on image: \(images[index].id)")
+                                print("🔥 LONG PRESS TRIGGERED on image: \(image.id)")
                                 print("🔥 Current selection mode: \(isSelectionMode)")
                                 #endif
                                 
                                 if !isSelectionMode {
                                     isSelectionMode = true
-                                    selectedImages.insert(images[index].id)
+                                    selectedImages.insert(image.id)
                                     
                                     #if DEBUG
-                                    print("🔥 Entered selection mode, selected image: \(images[index].id)")
+                                    print("🔥 Entered selection mode, selected image: \(image.id)")
                                     print("🔥 Total selected images: \(selectedImages.count)")
                                     #endif
                                 }
                             }
                         )
-                        .id("image-\(images[index].id)")
+                        .id("image-\(image.id)")
                     }
                     
                     // Smart infinite scroll trigger
@@ -688,13 +784,17 @@ struct GalleryView: View {
             TextField("Search your creations...", text: $searchText)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
-                .onSubmit {
-                    applyFilters()
+                .onChange(of: searchText) {
+                    print("🔍 DEBUG: SearchText changed to: '\(searchText)' (Main SearchBar)")
+                    handleSearchTextChange()
                 }
             
             if !searchText.isEmpty {
                 Button {
+                    // Cancel any pending search
+                    searchWorkItem?.cancel()
                     searchText = ""
+                    // Clear search immediately - no debounce
                     applyFilters()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -1089,7 +1189,21 @@ struct GalleryView: View {
     
     private func loadImagesPage(page: Int) async throws -> ImagesResponse {
         let favorites = showFavoritesOnly ? true : nil
-        let search = searchText.isEmpty ? nil : searchText
+        // Only search if text is empty OR has at least minimum characters
+        let search: String?
+        if searchText.isEmpty {
+            search = nil
+        } else if searchText.count >= minimumSearchLength {
+            search = searchText
+            #if DEBUG
+            print("🔍 GalleryView: Using search term '\(searchText)' (\(searchText.count) chars)")
+            #endif
+        } else {
+            search = nil
+            #if DEBUG
+            print("🔍 GalleryView: Ignoring search term '\(searchText)' - below minimum \(minimumSearchLength) characters")
+            #endif
+        }
         
         return try await generationService.getUserImages(
             page: page, 
@@ -1114,6 +1228,46 @@ struct GalleryView: View {
         Task {
             await loadImages()
         }
+    }
+    
+    // MARK: - Auto-Search with Debouncing
+    private func handleSearchTextChange() {
+        // Cancel previous search work item
+        searchWorkItem?.cancel()
+        
+        // Clear search immediately if text is empty
+        if searchText.isEmpty {
+            #if DEBUG
+            print("🔍 GalleryView: Search cleared - immediate refresh")
+            #endif
+            applyFilters()
+            return
+        }
+        
+        // Don't search if less than minimum characters
+        if searchText.count < minimumSearchLength {
+            #if DEBUG
+            print("🔍 GalleryView: Search text '\(searchText)' below minimum \(minimumSearchLength) characters")
+            #endif
+            return
+        }
+        
+        // Create new debounced search work item
+        let workItem = DispatchWorkItem {
+            #if DEBUG
+            print("🔍 GalleryView: Debounced search triggered for '\(self.searchText)'")
+            #endif
+            self.applyFilters()
+        }
+        
+        searchWorkItem = workItem
+        
+        // Execute after debounce delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + searchDebounceDelay, execute: workItem)
+        
+        #if DEBUG
+        print("🔍 GalleryView: Search debounce timer started for '\(searchText)' (\(searchDebounceDelay)s)")
+        #endif
     }
     
     // MARK: - Categories Loading
@@ -1164,14 +1318,25 @@ struct GalleryView: View {
     }
     
     // MARK: - Favorite Management
-    private func toggleImageFavorite(_ image: GeneratedImage, at index: Int) async {
+    private func toggleImageFavorite(_ image: GeneratedImage) async {
         do {
             // Call API to toggle favorite
             try await generationService.toggleImageFavorite(imageId: image.id)
             
             // Update local state
             await MainActor.run {
-                images[index].isFavorite.toggle()
+                // Find the image by ID to avoid index issues
+                if let currentIndex = images.firstIndex(where: { $0.id == image.id }) {
+                    images[currentIndex].isFavorite.toggle()
+                    
+                    // If we're viewing favorites only and the image is now unfavorited, remove it immediately
+                    if showFavoritesOnly && !images[currentIndex].isFavorite {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            images.remove(at: currentIndex)
+                            totalImages = max(0, totalImages - 1)
+                        }
+                    }
+                }
             }
         } catch {
             await MainActor.run {
@@ -1201,12 +1366,13 @@ struct GalleryView: View {
 }
 
 // MARK: - Supporting Views
-struct GalleryImageCard: View {
-    @Binding var image: GeneratedImage
+struct GalleryImageCardStateless: View {
+    let image: GeneratedImage
     let showCreatorName: Bool
     let currentProfileId: String?
     let isSelected: Bool
     let isSelectionMode: Bool
+    let searchTerm: String
     let action: () -> Void
     let onFavoriteToggle: (GeneratedImage) async -> Void
     let onLongPress: () -> Void
@@ -1322,6 +1488,176 @@ struct GalleryImageCard: View {
                             .overlay(favoriteButtonOverlay)
                             .overlay(selectionModeOverlay)
                             .overlay(selectionDimOverlay)
+                            .overlay(
+                                SearchIndicatorOverlay(
+                                    searchTerm: searchTerm
+                                )
+                            )
+                    },
+                    placeholder: {
+                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                            .fill(AppColors.surfaceLight.opacity(0.3))
+                            .frame(width: geometry.size.width, height: 160)
+                            .overlay(
+                                ProgressView()
+                                    .tint(AppColors.primaryBlue)
+                            )
+                            .overlay(selectionModeOverlay)
+                            .overlay(selectionDimOverlay)
+                    }
+                )
+            }
+        }
+        .frame(height: 160)
+        .frame(maxWidth: .infinity)
+        .onLongPressGesture {
+            onLongPress()
+        }
+        .childSafeTouchTarget()
+    }
+    
+    // MARK: - Helper Methods
+    private func shouldShowCreatorBadge(for createdBy: CreatedByProfile) -> Bool {
+        // Don't show badge for unknown/legacy profiles (null profileId)
+        guard let creatorProfileId = createdBy.profileId else {
+            return false
+        }
+        
+        // Show badge if profile ID is different from current user
+        return creatorProfileId != currentProfileId
+    }
+}
+
+struct GalleryImageCard: View {
+    @Binding var image: GeneratedImage
+    let showCreatorName: Bool
+    let currentProfileId: String?
+    let isSelected: Bool
+    let isSelectionMode: Bool
+    let searchTerm: String
+    let action: () -> Void
+    let onFavoriteToggle: (GeneratedImage) async -> Void
+    let onLongPress: () -> Void
+    
+    // Backend handles search filtering, no client-side matching needed
+    
+    // MARK: - Overlay Components
+    private var creatorNameOverlay: some View {
+        Group {
+            if let createdBy = image.createdBy,
+               showCreatorName,
+               shouldShowCreatorBadge(for: createdBy) {
+                HStack {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Text(createdBy.profileName)
+                                .font(AppTypography.captionSmall)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(
+                                    LinearGradient(
+                                        colors: [AppColors.primaryPurple, AppColors.primaryBlue],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ),
+                                    in: Capsule()
+                                )
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                )
+                                .shadow(color: AppColors.primaryPurple.opacity(0.3), radius: 2, x: 0, y: 1)
+                            
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(AppSpacing.xs)
+            }
+        }
+    }
+    
+    private var favoriteButtonOverlay: some View {
+        HStack {
+            Spacer()
+            VStack {
+                AnimatedFavoriteButton(
+                    isFavorite: image.isFavorite,
+                    onToggle: {
+                        Task {
+                            await onFavoriteToggle(image)
+                        }
+                    }
+                )
+                .padding(AppSpacing.xs)
+                Spacer()
+            }
+        }
+    }
+    
+    private var selectionModeOverlay: some View {
+        Group {
+            if isSelectionMode {
+                VStack {
+                    HStack {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundColor(isSelected ? AppColors.successGreen : .white)
+                            .background(
+                                Circle()
+                                    .fill(isSelected ? .white : Color.black.opacity(0.3))
+                                    .frame(width: 28, height: 28)
+                            )
+                            .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                        
+                        Spacer()
+                    }
+                    
+                    Spacer()
+                }
+                .padding(AppSpacing.xs)
+            }
+        }
+    }
+    
+    private var selectionDimOverlay: some View {
+        Group {
+            if isSelectionMode && !isSelected {
+                Color.black.opacity(0.2)
+                    .cornerRadius(AppSizing.cornerRadius.md)
+            }
+        }
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            GeometryReader { geometry in
+                OptimizedAsyncImage(
+                    url: URL(string: image.imageUrl),
+                    thumbnailSize: 320,
+                    quality: 0.8,
+                    content: { optimizedImage in
+                        optimizedImage
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: 160)
+                            .clipped()
+                            .cornerRadius(AppSizing.cornerRadius.md)
+                            .overlay(creatorNameOverlay)
+                            .overlay(favoriteButtonOverlay)
+                            .overlay(selectionModeOverlay)
+                            .overlay(selectionDimOverlay)
+                            .overlay(
+                                SearchIndicatorOverlay(
+                                    searchTerm: searchTerm
+                                )
+                            )
+                            // Backend handles search filtering, no need for border highlighting
                     },
                     placeholder: {
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
@@ -1372,10 +1708,12 @@ struct ImageDetailView: View {
     @State private var showingDeleteConfirmation = false
     @Environment(\.dismiss) private var dismiss
     
+    let searchTerm: String
     let onImageDeleted: ((String) -> Void)?  // Callback with deleted image ID
     
-    init(image: GeneratedImage, onImageDeleted: ((String) -> Void)? = nil) {
+    init(image: GeneratedImage, searchTerm: String = "", onImageDeleted: ((String) -> Void)? = nil) {
         self._image = State(initialValue: image)
+        self.searchTerm = searchTerm
         self.onImageDeleted = onImageDeleted
     }
     
@@ -1426,15 +1764,15 @@ struct ImageDetailView: View {
                         .foregroundColor(AppColors.textPrimary)
                     
                     VStack(spacing: AppSpacing.sm) {
-                        DetailRow(label: "Title", value: image.generation?.title ?? image.originalUserPrompt ?? "Unknown")
-                        DetailRow(label: "Category", value: image.generation?.category ?? "Unknown")
-                        DetailRow(label: "Style", value: image.generation?.option ?? "Unknown")
+                        DetailRowHighlighted(label: "Title", value: image.generation?.title ?? image.originalUserPrompt ?? "Unknown", searchTerm: searchTerm)
+                        DetailRowHighlighted(label: "Category", value: image.generation?.category ?? "Unknown", searchTerm: searchTerm)
+                        DetailRowHighlighted(label: "Style", value: image.generation?.option ?? "Unknown", searchTerm: searchTerm)
                         
                         // Show creator info for main users (only if created by someone else)
                         if let createdBy = image.createdBy,
                            let creatorProfileId = createdBy.profileId,
                            creatorProfileId != ProfileService.shared.currentProfile?.id {
-                            DetailRow(label: "Created by", value: createdBy.profileName)
+                            DetailRowHighlighted(label: "Created by", value: createdBy.profileName, searchTerm: searchTerm)
                         }
                         
                         DetailRow(label: "Created", value: formatDate(image.createdAt))
@@ -1593,120 +1931,31 @@ struct DetailRow: View {
     }
 }
 
-// MARK: - Twitter-Style Heart Animation (Article Implementation)
-struct AnimatedFavoriteButton: View {
-    let isFavorite: Bool
-    let onToggle: () -> Void
-    
-    @State private var isLiked = false
-    @State private var sparkleOpacity: Double = 0
-    @State private var sparkleScale: CGFloat = 0
-    @State private var heartScale: CGFloat = 1.0
+// MARK: - DetailRow with Search Highlighting
+struct DetailRowHighlighted: View {
+    let label: String
+    let value: String
+    let searchTerm: String
     
     var body: some View {
-        Button(action: {
-            // Haptic feedback
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.impactOccurred()
+        HStack {
+            Text(label + ":")
+                .font(AppTypography.titleSmall)
+                .foregroundColor(AppColors.textSecondary)
             
-            // Twitter-style animation
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                heartScale = 0.8
-            }
+            Spacer()
             
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.4).delay(0.1)) {
-                heartScale = 1.2
-                sparkleScale = 1.0
-                sparkleOpacity = 1.0
-            }
-            
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.2)) {
-                heartScale = 1.0
-            }
-            
-            // Sparkles fade out
-            withAnimation(.easeOut(duration: 0.6).delay(0.3)) {
-                sparkleOpacity = 0
-                sparkleScale = 1.5
-            }
-            
-            // Reset sparkles
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                sparkleScale = 0
-            }
-            
-            // Toggle state and call action
-            isLiked.toggle()
-            onToggle()
-        }) {
-            ZStack {
-                // Main background circle
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 44, height: 44)
-                    .shadow(
-                        color: isFavorite ? Color.pink.opacity(0.3) : Color.black.opacity(0.1),
-                        radius: isFavorite ? 6 : 2,
-                        x: 0,
-                        y: 2
-                    )
-                
-                // Sparkle Effect - Small yellow circles radiating outward
-                ForEach(0..<8, id: \.self) { index in
-                    Sparkle(index: index)
-                        .opacity(sparkleOpacity)
-                        .scaleEffect(sparkleScale)
-                }
-                
-                // Heart icon with Twitter-style animation
-                Image(systemName: isFavorite ? "heart.fill" : "heart")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(
-                        isFavorite ?
-                        LinearGradient(
-                            colors: [.pink, .red],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ) :
-                        LinearGradient(
-                            colors: [.white, .white.opacity(0.8)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .scaleEffect(heartScale)
-            }
-        }
-        .childSafeTouchTarget()
-        .onAppear {
-            isLiked = isFavorite
-        }
-        .onChange(of: isFavorite) {
-            isLiked = isFavorite
+            HighlightedText.caseInsensitive(
+                value,
+                searchTerm: searchTerm,
+                font: AppTypography.bodyMedium,
+                primaryColor: AppColors.textPrimary
+            )
+            .multilineTextAlignment(.trailing)
         }
     }
 }
 
-// MARK: - Sparkle Component
-struct Sparkle: View {
-    let index: Int
-    
-    var body: some View {
-        Circle()
-            .fill(Color.yellow)
-            .frame(width: 4, height: 4)
-            .offset(sparkleOffset)
-    }
-    
-    private var sparkleOffset: CGSize {
-        // Calculate random offset in different directions
-        let angle = Double(index) * (360.0 / 8.0) * .pi / 180.0
-        let distance: CGFloat = CGFloat.random(in: 25...35)
-        let randomX = cos(angle) * distance + CGFloat.random(in: -8...8)
-        let randomY = sin(angle) * distance + CGFloat.random(in: -8...8)
-        return CGSize(width: randomX, height: randomY)
-    }
-}
 
 // MARK: - Modern Filter Chip
 struct FilterChip: View {

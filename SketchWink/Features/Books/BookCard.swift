@@ -127,11 +127,16 @@ struct BookCard: View {
     private var favoriteButton: some View {
         Button(action: onFavorite) {
             Image(systemName: book.isFavorite ? "heart.fill" : "heart")
-                .font(.system(size: 14))
+                .font(.system(size: 20, weight: .bold))
                 .foregroundColor(book.isFavorite ? AppColors.errorRed : .white)
-                .frame(width: 28, height: 28)
+                .frame(width: 44, height: 44)
                 .background(.ultraThinMaterial, in: Circle())
-                .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                .shadow(
+                    color: book.isFavorite ? Color.pink.opacity(0.3) : Color.black.opacity(0.1),
+                    radius: book.isFavorite ? 6 : 2,
+                    x: 0,
+                    y: 2
+                )
         }
         .childSafeTouchTarget()
     }
@@ -192,6 +197,7 @@ struct BookCard: View {
                 .foregroundColor(AppColors.textPrimary)
                 .lineLimit(2)
                 .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
             
             // Category (single line)
             Text(book.category)
@@ -199,14 +205,17 @@ struct BookCard: View {
                 .foregroundColor(AppColors.primaryBlue)
                 .fontWeight(.medium)
                 .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
             
             // Date (single line below category)
             Text(book.formattedCreatedAt)
                 .font(.system(size: 10))
                 .foregroundColor(AppColors.textSecondary)
                 .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, AppSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, AppSpacing.sm)
         .padding(.vertical, AppSpacing.sm)
     }
     

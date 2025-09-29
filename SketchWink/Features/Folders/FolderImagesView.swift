@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct FolderImagesView: View {
     let folder: UserFolder
@@ -23,6 +24,11 @@ struct FolderImagesView: View {
     @State private var searchText = ""
     @State private var selectedProfileFilter: String? = nil
     
+    // Auto-search with debouncing
+    @State private var searchWorkItem: DispatchWorkItem?
+    private let searchDebounceDelay: TimeInterval = 0.5 // 500ms debounce
+    private let minimumSearchLength = 3
+    
     // Categories from backend (same as gallery)
     @State private var availableCategories: [CategoryWithOptions] = []
     @State private var isLoadingCategories = false
@@ -40,7 +46,7 @@ struct FolderImagesView: View {
     
     // Filter state helpers
     private var hasActiveFilters: Bool {
-        showFavoritesOnly || selectedCategory != nil || !searchText.isEmpty || selectedProfileFilter != nil
+        showFavoritesOnly || selectedCategory != nil || (!searchText.isEmpty && searchText.count >= minimumSearchLength) || selectedProfileFilter != nil
     }
     
     // MARK: - Computed Properties for Empty States
@@ -51,7 +57,7 @@ struct FolderImagesView: View {
             return "No \(selectedCategory!) Images"
         } else if selectedProfileFilter != nil {
             return "No Images from This Profile"
-        } else if !searchText.isEmpty {
+        } else if !searchText.isEmpty && searchText.count >= minimumSearchLength {
             return "No Results Found"
         } else if totalImages == 0 && !isLoading {
             return "Empty Folder"
@@ -67,7 +73,7 @@ struct FolderImagesView: View {
             return "This folder doesn't have any \(selectedCategory!.lowercased()) images."
         } else if selectedProfileFilter != nil {
             return "This family member hasn't contributed any images to this folder yet."
-        } else if !searchText.isEmpty {
+        } else if !searchText.isEmpty && searchText.count >= minimumSearchLength {
             return "Try different search terms or clear filters to see more results."
         } else if totalImages == 0 && !isLoading {
             return "Move images from your gallery to organize them in this folder"
@@ -92,9 +98,55 @@ struct FolderImagesView: View {
                 
                 // Filter chips section (same as gallery)
                 filterChipsSection
+                    .padding(.top, AppSpacing.md)
                 
                 // Search bar section (same as gallery)
                 searchBarSection
+                
+                // Search result summary (only show when actually searching with 3+ chars)
+                if !searchText.isEmpty && searchText.count >= minimumSearchLength && !isLoading && !images.isEmpty {
+                    SearchResultSummary(
+                        searchTerm: searchText,
+                        totalResults: images.count,
+                        totalImages: totalImages,
+                        onClearSearch: {
+                            searchText = ""
+                            applyFilters()
+                        }
+                    )
+                    .padding(.bottom, AppSpacing.md)
+                }
+                
+                // Minimum search length message
+                if !searchText.isEmpty && searchText.count < minimumSearchLength && !isLoading {
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(AppColors.infoBlue)
+                            .font(.system(size: 16, weight: .medium))
+                        
+                        Text("Type at least \(minimumSearchLength) characters to search")
+                            .font(AppTypography.bodyMedium)
+                            .foregroundColor(AppColors.textSecondary)
+                        
+                        Spacer()
+                        
+                        Button("Clear") {
+                            searchText = ""
+                            applyFilters()
+                        }
+                        .font(AppTypography.bodyMedium)
+                        .foregroundColor(AppColors.primaryBlue)
+                    }
+                    .padding(.horizontal, AppSpacing.md)
+                    .padding(.vertical, AppSpacing.sm)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(AppColors.infoBlue.opacity(0.1))
+                            .stroke(AppColors.infoBlue.opacity(0.3), lineWidth: 1)
+                    )
+                    .padding(.horizontal, AppSpacing.md)
+                    .padding(.bottom, AppSpacing.md)
+                }
                 
                 // Content
                 if isLoading && images.isEmpty {
@@ -159,6 +211,7 @@ struct FolderImagesView: View {
                 NavigationView {
                     FolderImageDetailView(
                         folderImage: folderImage,
+                        searchTerm: searchText,
                         onImageDeleted: { deletedImageId in
                             removeImageFromLocalState(deletedImageId)
                         },
@@ -252,6 +305,7 @@ struct FolderImagesView: View {
                         image: image,
                         isSelected: selectedImages.contains(image.id),
                         isSelectionMode: isSelectionMode,
+                        searchTerm: searchText,
                         onTap: {
                             if isSelectionMode {
                                 toggleImageSelection(image.id)
@@ -263,6 +317,11 @@ struct FolderImagesView: View {
                             if !isSelectionMode {
                                 isSelectionMode = true
                                 selectedImages.insert(image.id)
+                            }
+                        },
+                        onFavorite: {
+                            Task {
+                                await toggleImageFavorite(image)
                             }
                         }
                     )
@@ -410,7 +469,21 @@ struct FolderImagesView: View {
     
     private func loadImagesPage(page: Int) async throws -> FolderImagesResponse {
         let favorites = showFavoritesOnly ? true : nil
-        let search = searchText.isEmpty ? nil : searchText
+        // Only search if text is empty OR has at least minimum characters
+        let search: String?
+        if searchText.isEmpty {
+            search = nil
+        } else if searchText.count >= minimumSearchLength {
+            search = searchText
+            #if DEBUG
+            print("🔍 FolderImagesView: Using search term '\(searchText)' (\(searchText.count) chars)")
+            #endif
+        } else {
+            search = nil
+            #if DEBUG
+            print("🔍 FolderImagesView: Ignoring search term '\(searchText)' - below minimum \(minimumSearchLength) characters")
+            #endif
+        }
         
         return try await folderService.getFolderImages(
             folderId: folder.id,
@@ -584,13 +657,17 @@ struct FolderImagesView: View {
             TextField("Search in this folder...", text: $searchText)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
-                .onSubmit {
-                    applyFilters()
+                .onChange(of: searchText) {
+                    print("🔍 DEBUG: FolderImagesView SearchText changed to: '\(searchText)'")
+                    handleSearchTextChange()
                 }
             
             if !searchText.isEmpty {
                 Button {
+                    // Cancel any pending search
+                    searchWorkItem?.cancel()
                     searchText = ""
+                    // Clear search immediately - no debounce
                     applyFilters()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -623,6 +700,46 @@ struct FolderImagesView: View {
         }
     }
     
+    // MARK: - Auto-Search with Debouncing
+    private func handleSearchTextChange() {
+        // Cancel previous search work item
+        searchWorkItem?.cancel()
+        
+        // Clear search immediately if text is empty
+        if searchText.isEmpty {
+            #if DEBUG
+            print("🔍 FolderImagesView: Search cleared - immediate refresh")
+            #endif
+            applyFilters()
+            return
+        }
+        
+        // Don't search if less than minimum characters
+        if searchText.count < minimumSearchLength {
+            #if DEBUG
+            print("🔍 FolderImagesView: Search text '\(searchText)' below minimum \(minimumSearchLength) characters")
+            #endif
+            return
+        }
+        
+        // Create new debounced search work item
+        let workItem = DispatchWorkItem {
+            #if DEBUG
+            print("🔍 FolderImagesView: Debounced search triggered for '\(self.searchText)'")
+            #endif
+            self.applyFilters()
+        }
+        
+        searchWorkItem = workItem
+        
+        // Execute after debounce delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + searchDebounceDelay, execute: workItem)
+        
+        #if DEBUG
+        print("🔍 FolderImagesView: Search debounce timer started for '\(searchText)' (\(searchDebounceDelay)s)")
+        #endif
+    }
+    
     private func clearAllFilters() {
         showFavoritesOnly = false
         selectedCategory = nil
@@ -632,6 +749,25 @@ struct FolderImagesView: View {
         // Reload images without filters
         Task {
             await loadImages()
+        }
+    }
+    
+    // MARK: - Favorite Management
+    private func toggleImageFavorite(_ folderImage: FolderImage) async {
+        do {
+            // Call API to toggle favorite
+            try await GenerationService.shared.toggleImageFavorite(imageId: folderImage.id)
+            
+            // Update local state
+            await MainActor.run {
+                if let index = images.firstIndex(where: { $0.id == folderImage.id }) {
+                    images[index].isFavorite.toggle()
+                }
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+            }
         }
     }
     
@@ -665,10 +801,14 @@ struct FolderImageCard: View {
     let image: FolderImage
     let isSelected: Bool
     let isSelectionMode: Bool
+    let searchTerm: String
     let onTap: () -> Void
     let onLongPress: () -> Void
+    let onFavorite: () -> Void
     
     @State private var isPressed = false
+    
+    // Backend handles search filtering, no client-side matching needed
     
     var body: some View {
         Button(action: onTap) {
@@ -721,26 +861,23 @@ struct FolderImageCard: View {
                     }
                 )
                 .overlay(
-                    // Favorite indicator overlay
+                    // Favorite button overlay (top-right)
                     Group {
-                        if image.isFavorite {
+                        if !isSelectionMode {
                             VStack {
-                                Spacer()
                                 HStack {
-                                    Circle()
-                                        .fill(AppColors.errorRed)
-                                        .frame(width: 20, height: 20)
-                                        .overlay(
-                                            Image(systemName: "heart.fill")
-                                                .font(.system(size: 10, weight: .bold))
-                                                .foregroundColor(.white)
-                                        )
-                                        .shadow(color: AppColors.errorRed.opacity(0.3), radius: 2, x: 0, y: 1)
-                                    
                                     Spacer()
+                                    
+                                    AnimatedFavoriteButton(
+                                        isFavorite: image.isFavorite,
+                                        onToggle: onFavorite
+                                    )
                                 }
+                                .padding(.trailing, AppSpacing.sm)
+                                .padding(.top, AppSpacing.sm)
+                                
+                                Spacer()
                             }
-                            .padding(AppSpacing.xs)
                         }
                     }
                 )
@@ -753,6 +890,12 @@ struct FolderImageCard: View {
                         }
                     }
                 )
+                .overlay(
+                    SearchIndicatorOverlay(
+                        searchTerm: searchTerm
+                    )
+                )
+                // Backend handles search filtering, no need for border highlighting
             }
         }
         .frame(height: 160) // Set fixed height for GeometryReader
@@ -782,11 +925,13 @@ struct FolderImageDetailView: View {
     @State private var showingDeleteConfirmation = false
     @Environment(\.dismiss) private var dismiss
     
+    let searchTerm: String
     let onImageDeleted: ((String) -> Void)?
     let onImageUpdated: ((FolderImage) -> Void)?
     
-    init(folderImage: FolderImage, onImageDeleted: ((String) -> Void)? = nil, onImageUpdated: ((FolderImage) -> Void)? = nil) {
+    init(folderImage: FolderImage, searchTerm: String = "", onImageDeleted: ((String) -> Void)? = nil, onImageUpdated: ((FolderImage) -> Void)? = nil) {
         self._folderImage = State(initialValue: folderImage)
+        self.searchTerm = searchTerm
         self.onImageDeleted = onImageDeleted
         self.onImageUpdated = onImageUpdated
     }
@@ -838,9 +983,9 @@ struct FolderImageDetailView: View {
                         .foregroundColor(AppColors.textPrimary)
                     
                     VStack(spacing: AppSpacing.sm) {
-                        DetailRow(label: "Title", value: folderImage.generation.title)
-                        DetailRow(label: "Category", value: folderImage.generation.category)
-                        DetailRow(label: "Style", value: folderImage.generation.option)
+                        DetailRowHighlighted(label: "Title", value: folderImage.generation.title, searchTerm: searchTerm)
+                        DetailRowHighlighted(label: "Category", value: folderImage.generation.category, searchTerm: searchTerm)
+                        DetailRowHighlighted(label: "Style", value: folderImage.generation.option, searchTerm: searchTerm)
                         DetailRow(label: "Model", value: folderImage.generation.modelUsed)
                         DetailRow(label: "Quality", value: folderImage.generation.qualityUsed.capitalized)
                         
@@ -848,14 +993,14 @@ struct FolderImageDetailView: View {
                         if let creatorProfileId = folderImage.createdBy.profileId,
                            let creatorName = folderImage.createdBy.profileName,
                            creatorProfileId != profileService.currentProfile?.id {
-                            DetailRow(label: "Created by", value: creatorName)
+                            DetailRowHighlighted(label: "Created by", value: creatorName, searchTerm: searchTerm)
                         }
                         
                         DetailRow(label: "Moved to folder", value: formatDate(folderImage.movedAt))
                         
                         // Show notes if available
                         if let notes = folderImage.notes, !notes.isEmpty {
-                            DetailRow(label: "Notes", value: notes)
+                            DetailRowHighlighted(label: "Notes", value: notes, searchTerm: searchTerm)
                         }
                     }
                 }
