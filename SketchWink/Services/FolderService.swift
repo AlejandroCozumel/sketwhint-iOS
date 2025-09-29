@@ -253,10 +253,44 @@ class FolderService: ObservableObject {
     
     // MARK: - Folder Images Management
     
-    func getFolderImages(folderId: String, page: Int = 1, limit: Int = 20) async throws -> FolderImagesResponse {
+    func getFolderImages(
+        folderId: String, 
+        page: Int = 1, 
+        limit: Int = 20,
+        favorites: Bool? = nil,
+        category: String? = nil,
+        search: String? = nil,
+        filterByProfile: String? = nil
+    ) async throws -> FolderImagesResponse {
         print("🗂️ FolderService: Loading images for folder \(folderId)...")
+        print("🔍 FolderService: Filters - favorites: \(favorites?.description ?? "nil"), category: \(category ?? "nil"), search: \(search ?? "nil"), profile: \(filterByProfile ?? "nil")")
         
-        guard let url = URL(string: "\(baseURL)/folders/\(folderId)/images?page=\(page)&limit=\(limit)") else {
+        // Build query parameters (same as gallery)
+        var queryItems = [
+            URLQueryItem(name: "page", value: "\(page)"),
+            URLQueryItem(name: "limit", value: "\(limit)")
+        ]
+        
+        if let favorites = favorites {
+            queryItems.append(URLQueryItem(name: "favorites", value: "\(favorites)"))
+        }
+        
+        if let category = category {
+            queryItems.append(URLQueryItem(name: "category", value: category))
+        }
+        
+        if let search = search {
+            queryItems.append(URLQueryItem(name: "search", value: search))
+        }
+        
+        if let filterByProfile = filterByProfile {
+            queryItems.append(URLQueryItem(name: "filterByProfile", value: filterByProfile))
+        }
+        
+        var urlComponents = URLComponents(string: "\(baseURL)/folders/\(folderId)/images")!
+        urlComponents.queryItems = queryItems
+        
+        guard let url = urlComponents.url else {
             throw FolderError.invalidData
         }
         

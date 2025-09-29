@@ -25,6 +25,7 @@ struct GalleryView: View {
     @State private var selectedImages: Set<String> = []
     @State private var isSelectionMode = false
     @State private var showingFolderPicker = false
+    @State private var showingFilters = false
     
     // Categories from backend
     @State private var availableCategories: [CategoryWithOptions] = []
@@ -34,6 +35,14 @@ struct GalleryView: View {
         GridItem(.flexible(minimum: 100, maximum: .infinity), spacing: AppSpacing.grid.itemSpacing),
         GridItem(.flexible(minimum: 100, maximum: .infinity), spacing: AppSpacing.grid.itemSpacing)
     ]
+    
+    private var isMainProfile: Bool {
+        profileService.currentProfile?.isDefault == true
+    }
+    
+    private var filteredProfileOptions: [FamilyProfile] {
+        profileService.availableProfiles.filter { !$0.isDefault }
+    }
     
     // MARK: - Computed Properties for Empty States
     private var hasActiveFilters: Bool {
@@ -92,6 +101,12 @@ struct GalleryView: View {
     
     var body: some View {
         VStack(spacing: 0) {
+            // Filter chips (always show for consistency)
+            filterChipsSection
+            
+            // Search bar (always show below filters)
+            searchBarSection
+            
             // Main content area
             ScrollView {
                 LazyVStack(spacing: AppSpacing.sectionSpacing) {
@@ -171,6 +186,208 @@ struct GalleryView: View {
                 }
             )
         }
+        .sheet(isPresented: $showingFilters) {
+            filtersSheet
+        }
+    }
+    
+    // MARK: - Filter Chips Section (consistent for all users)
+    private var filterChipsSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppSpacing.sm) {
+                // All/Favorites Toggle (always show)
+                FilterChip(
+                    title: "All",
+                    icon: "square.grid.2x2",
+                    isSelected: !showFavoritesOnly
+                ) {
+                    showFavoritesOnly = false
+                    applyFilters()
+                }
+                
+                FilterChip(
+                    title: "Favorites",
+                    icon: "heart.fill",
+                    isSelected: showFavoritesOnly
+                ) {
+                    showFavoritesOnly = true
+                    applyFilters()
+                }
+                
+                // Profile filters (only for admin users with multiple profiles)
+                if isMainProfile && profileService.availableProfiles.count > 1 {
+                    // Separator
+                    Rectangle()
+                        .fill(AppColors.borderLight)
+                        .frame(width: 1, height: 24)
+                        .padding(.horizontal, AppSpacing.xs)
+                    
+                    // All Profiles chip
+                    FilterChip(
+                        title: "All Profiles",
+                        icon: "person.2.fill",
+                        isSelected: selectedProfileFilter == nil
+                    ) {
+                        selectedProfileFilter = nil
+                        applyFilters()
+                    }
+                    
+                    // Individual profile chips
+                    ForEach(filteredProfileOptions) { profile in
+                        FilterChip(
+                            title: profile.name,
+                            icon: "person.circle.fill",
+                            isSelected: selectedProfileFilter == profile.id
+                        ) {
+                            selectedProfileFilter = profile.id
+                            applyFilters()
+                        }
+                    }
+                }
+                
+                // Category filters (always show if available)
+                if !availableCategories.isEmpty {
+                    // Separator
+                    Rectangle()
+                        .fill(AppColors.borderLight)
+                        .frame(width: 1, height: 24)
+                        .padding(.horizontal, AppSpacing.xs)
+                    
+                    // Category chips
+                    ForEach(availableCategories, id: \.id) { categoryWithOptions in
+                        let category = categoryWithOptions.category
+                        FilterChip(
+                            title: category.name,
+                            icon: category.icon ?? "📂",
+                            isSelected: selectedCategory == category.id
+                        ) {
+                            selectedCategory = selectedCategory == category.id ? nil : category.id
+                            applyFilters()
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, AppSpacing.md)
+        }
+        .padding(.bottom, AppSpacing.sm)
+    }
+    
+    // MARK: - Search Bar Section (always show)
+    private var searchBarSection: some View {
+        HStack(spacing: AppSpacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(AppColors.textSecondary)
+                .font(.system(size: 16, weight: .medium))
+            
+            TextField("Search your creations...", text: $searchText)
+                .font(AppTypography.bodyMedium)
+                .foregroundColor(AppColors.textPrimary)
+                .onSubmit {
+                    applyFilters()
+                }
+            
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                    applyFilters()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(AppColors.textSecondary)
+                        .font(.system(size: 16))
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.vertical, AppSpacing.sm)
+        .background(AppColors.surfaceLight.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        .animation(.easeInOut(duration: 0.2), value: searchText.isEmpty)
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.bottom, AppSpacing.sm)
+    }
+    
+    // MARK: - Filters Sheet (like Books)
+    private var filtersSheet: some View {
+        NavigationView {
+            VStack(alignment: .leading, spacing: AppSpacing.lg) {
+                
+                // Search section
+                VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                    Text("Search")
+                        .font(AppTypography.titleMedium)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    TextField("Search your creations...", text: $searchText)
+                        .font(AppTypography.bodyMedium)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                }
+                
+                // Favorites toggle
+                Toggle("Favorites Only", isOn: $showFavoritesOnly)
+                    .font(AppTypography.bodyMedium)
+                    .toggleStyle(SwitchToggleStyle(tint: AppColors.primaryBlue))
+                
+                // Profile filter (if multiple profiles)
+                if profileService.availableProfiles.count > 1 {
+                    VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                        Text("Profile")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                        
+                        Picker("Profile Filter", selection: $selectedProfileFilter) {
+                            Text("All Profiles").tag(String?.none)
+                            ForEach(profileService.availableProfiles) { profile in
+                                Text(profile.name).tag(String?.some(profile.id))
+                            }
+                        }
+                        .pickerStyle(MenuPickerStyle())
+                    }
+                }
+                
+                // Category filter
+                if !availableCategories.isEmpty {
+                    VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                        Text("Category")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                        
+                        Picker("Category Filter", selection: $selectedCategory) {
+                            Text("All Categories").tag(String?.none)
+                            ForEach(availableCategories, id: \.id) { categoryWithOptions in
+                                Text(categoryWithOptions.category.name).tag(String?.some(categoryWithOptions.category.id))
+                            }
+                        }
+                        .pickerStyle(MenuPickerStyle())
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding(AppSpacing.md)
+            .navigationTitle("Filters")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Clear") {
+                        showFavoritesOnly = false
+                        selectedProfileFilter = nil
+                        selectedCategory = nil
+                        searchText = ""
+                    }
+                    .foregroundColor(AppColors.primaryBlue)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Apply") {
+                        showingFilters = false
+                        applyFilters()
+                    }
+                    .foregroundColor(AppColors.primaryBlue)
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
     
     // MARK: - Loading View
@@ -232,9 +449,6 @@ struct GalleryView: View {
             if isSelectionMode {
                 selectionModeHeader
             }
-            
-            // Filters UI
-            filtersView
             
             // Images grid with smooth skeleton overlay
             ZStack {
@@ -377,6 +591,46 @@ struct GalleryView: View {
                 .frame(height: 1)
                 .foregroundColor(AppColors.borderLight),
             alignment: .top
+        )
+    }
+    
+    // MARK: - Unified Filter Chips
+    private var unifiedFilterChips: some View {
+        UnifiedFilterChips(
+            config: .gallery(
+                profileService: profileService,
+                showFavoritesOnly: showFavoritesOnly,
+                selectedProfileFilter: selectedProfileFilter,
+                selectedCategory: selectedCategory,
+                isSearchActive: isSearchActive,
+                availableCategories: availableCategories.map { categoryWithOptions in
+                    FilterCategory(
+                        id: categoryWithOptions.category.id,
+                        name: categoryWithOptions.category.name,
+                        icon: categoryWithOptions.category.icon,
+                        color: GalleryView.parseColor(categoryWithOptions.category.color)
+                    )
+                },
+                onFavoritesToggle: { favorites in
+                    showFavoritesOnly = favorites
+                    applyFilters()
+                },
+                onProfileFilterChange: { profileId in
+                    selectedProfileFilter = profileId
+                    applyFilters()
+                },
+                onCategoryFilterChange: { categoryId in
+                    selectedCategory = categoryId
+                    applyFilters()
+                },
+                onSearchToggle: {
+                    isSearchActive.toggle()
+                    if !isSearchActive {
+                        searchText = ""
+                        applyFilters()
+                    }
+                }
+            )
         )
     }
     
@@ -1053,10 +1307,12 @@ struct GalleryImageCard: View {
     var body: some View {
         Button(action: action) {
             GeometryReader { geometry in
-                AsyncImage(url: URL(string: image.imageUrl)) { imagePhase in
-                    switch imagePhase {
-                    case .success(let swiftUIImage):
-                        swiftUIImage
+                OptimizedAsyncImage(
+                    url: URL(string: image.imageUrl),
+                    thumbnailSize: 320,
+                    quality: 0.8,
+                    content: { optimizedImage in
+                        optimizedImage
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: geometry.size.width, height: 160)
@@ -1066,31 +1322,19 @@ struct GalleryImageCard: View {
                             .overlay(favoriteButtonOverlay)
                             .overlay(selectionModeOverlay)
                             .overlay(selectionDimOverlay)
-                    case .failure(_):
+                    },
+                    placeholder: {
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                            .fill(AppColors.textSecondary.opacity(0.1))
-                            .frame(width: geometry.size.width, height: 160)
-                            .overlay(
-                                VStack(spacing: AppSpacing.xs) {
-                                    Text("📷")
-                                        .font(.system(size: 30))
-                                    Text("Failed to load")
-                                        .font(AppTypography.captionMedium)
-                                        .foregroundColor(AppColors.textSecondary)
-                                }
-                            )
-                    case .empty:
-                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                            .fill(AppColors.textSecondary.opacity(0.1))
+                            .fill(AppColors.surfaceLight.opacity(0.3))
                             .frame(width: geometry.size.width, height: 160)
                             .overlay(
                                 ProgressView()
                                     .tint(AppColors.primaryBlue)
                             )
-                    @unknown default:
-                        EmptyView()
+                            .overlay(selectionModeOverlay)
+                            .overlay(selectionDimOverlay)
                     }
-                }
+                )
             }
         }
         .frame(height: 160) // Set fixed height for GeometryReader

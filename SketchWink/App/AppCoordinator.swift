@@ -27,6 +27,17 @@ struct AppCoordinator: View {
                 NavigationView {
                     LoginView()
                 }
+            } else if case .serverDown = profileService.serverStatus {
+                // Only show full screen for actual server issues (not network/timeout)
+                #if DEBUG
+                let _ = print("🚫 DEBUG: Server down, showing ServerUnavailableView")
+                #endif
+                ServerUnavailableView(
+                    serverStatus: profileService.serverStatus,
+                    onRetry: {
+                        await retryServerConnection()
+                    }
+                )
             } else if !profileService.hasSelectedProfile || profileService.currentProfile == nil {
                 // User authenticated but no profile selected OR profile couldn't be restored - FORCE profile selection
                 #if DEBUG
@@ -169,6 +180,19 @@ struct AppCoordinator: View {
             print("❌ Error loading stored profile on startup: \(error)")
             #endif
             
+            // Notify AuthService about network issues for NetworkStatusBanner
+            if let profileError = error as? ProfileError, case .networkError = profileError {
+                let errorDesc = error.localizedDescription.lowercased()
+                if errorDesc.contains("not connected to the internet") ||
+                   errorDesc.contains("network connection lost") {
+                    await AuthService.shared.updateNetworkStatus(.networkError)
+                } else if errorDesc.contains("timed out") {
+                    await AuthService.shared.updateNetworkStatus(.timeout)
+                } else {
+                    await AuthService.shared.updateNetworkStatus(.networkError)
+                }
+            }
+            
             // On error, fallback to checkSelectedProfile behavior
             await profileService.checkSelectedProfile()
         }
@@ -188,6 +212,35 @@ struct AppCoordinator: View {
             print("❌ DEBUG: Profile selection failed: \(error)")
             #endif
             // Handle error appropriately
+        }
+    }
+    
+    private func retryServerConnection() async {
+        #if DEBUG
+        print("🔄 DEBUG: Retrying server connection")
+        #endif
+        
+        // Reset server status first
+        await MainActor.run {
+            profileService.resetServerStatus()
+        }
+        
+        // Try to load profiles again
+        do {
+            let profiles = try await profileService.loadFamilyProfiles()
+            
+            // Validate stored profile against loaded profiles
+            await profileService.validateStoredProfile(profiles)
+            
+            #if DEBUG
+            print("✅ DEBUG: Server connection retry successful")
+            #endif
+        } catch {
+            #if DEBUG
+            print("❌ DEBUG: Server connection retry failed: \(error)")
+            #endif
+            // ProfileService will automatically set isServerUnavailable = true
+            // The UI will remain in ServerUnavailableView state
         }
     }
 }
@@ -456,9 +509,19 @@ struct ProfileSelectionRequiredView: View {
             await profileService.validateStoredProfile(profiles)
             
         } catch {
-            await MainActor.run {
-                self.error = error
-                showingError = true
+            #if DEBUG
+            print("❌ DEBUG: ProfileSelectionRequiredView: Error loading profiles: \(error)")
+            #endif
+            
+            // Don't show error alert if server is down (handled by AppCoordinator)
+            // Network issues will be handled by NetworkStatusBanner
+            if case .serverDown = profileService.serverStatus {
+                // Server down - handled by AppCoordinator, don't show alert
+            } else {
+                await MainActor.run {
+                    self.error = error
+                    showingError = true
+                }
             }
         }
         

@@ -198,6 +198,47 @@ class TokenBalanceManager: ObservableObject {
         await fetchTokenBalance()
     }
     
+    /// Silently refresh token balance without showing loading states
+    /// Used for background updates when navigating to Art tab
+    func refreshSilently() async {
+        print("🔕 TokenBalanceManager: Silently refreshing token balance")
+        
+        // Cancel any existing request to prevent overlapping
+        currentTask?.cancel()
+        
+        // Create silent refresh task that doesn't update loading state
+        currentTask = Task { @MainActor in
+            guard !Task.isCancelled else {
+                print("🚫 TokenBalanceManager: Silent refresh cancelled")
+                return
+            }
+            
+            // Don't set loading state for silent refresh
+            do {
+                print("🔍 TokenBalanceManager: Fetching token balance silently...")
+                let tokenBalance = try await tokenBalanceService.fetchTokenBalance()
+                
+                // Only update if we successfully got data
+                loadingState = .loaded(tokenBalance)
+                lastUpdated = Date()
+                
+                print("✅ TokenBalanceManager: Silent refresh successful")
+                print("💰 TokenBalanceManager: Total tokens: \(tokenBalance.totalTokens)")
+                
+            } catch {
+                print("❌ TokenBalanceManager: Silent refresh failed - \(error)")
+                
+                // For silent refresh, don't override good data with errors
+                // Only set error state if we don't have any data
+                if case .idle = loadingState {
+                    loadingState = .error(error as? TokenBalanceError ?? .specificError("Silent refresh failed"))
+                }
+            }
+        }
+        
+        await currentTask?.value
+    }
+    
     /// Check if user can afford a generation
     /// - Parameter cost: Token cost (default: 1)
     /// - Returns: Boolean indicating if user has sufficient tokens

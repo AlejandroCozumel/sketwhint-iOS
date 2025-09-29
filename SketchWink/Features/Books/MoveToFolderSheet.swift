@@ -51,15 +51,18 @@ struct MoveToFolderSheet: View {
                 .foregroundColor(AppColors.textPrimary)
             
             HStack(spacing: AppSpacing.md) {
-                AsyncImage(url: URL(string: book.coverImageUrl)) { imagePhase in
-                    switch imagePhase {
-                    case .success(let image):
-                        image
+                OptimizedAsyncImage(
+                    url: URL(string: book.coverImageUrl),
+                    thumbnailSize: 320,
+                    quality: 0.8,
+                    content: { optimizedImage in
+                        optimizedImage
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: 60, height: 80)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
-                    case .failure(_), .empty:
+                    },
+                    placeholder: {
                         Rectangle()
                             .fill(AppColors.borderLight)
                             .frame(width: 60, height: 80)
@@ -68,10 +71,8 @@ struct MoveToFolderSheet: View {
                                 Image(systemName: "book.closed")
                                     .foregroundColor(AppColors.textSecondary)
                             )
-                    @unknown default:
-                        EmptyView()
                     }
-                }
+                )
                 
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     Text(book.title)

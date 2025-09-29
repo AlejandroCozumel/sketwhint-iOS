@@ -49,11 +49,13 @@ struct BookCard: View {
     
     // MARK: - Book Cover Section
     private var bookCoverSection: some View {
-        AsyncImage(url: URL(string: book.coverImageUrl)) { imagePhase in
-            switch imagePhase {
-            case .success(let image):
+        OptimizedAsyncImage(
+            url: URL(string: book.coverImageUrl),
+            thumbnailSize: 320,
+            quality: 0.8,
+            content: { optimizedImage in
                 ZStack {
-                    image
+                    optimizedImage
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(height: 120)
@@ -62,14 +64,11 @@ struct BookCard: View {
                     // Overlay elements
                     overlayElements
                 }
-            case .failure(_):
-                errorPlaceholder
-            case .empty:
+            },
+            placeholder: {
                 loadingPlaceholder
-            @unknown default:
-                EmptyView()
             }
-        }
+        )
         .frame(height: 120)
         .clipped()
     }

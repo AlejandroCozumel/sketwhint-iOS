@@ -29,7 +29,7 @@ struct FolderImage: Codable, Identifiable {
     let id: String
     let imageUrl: String
     let optionIndex: Int
-    let isFavorite: Bool
+    var isFavorite: Bool  // Make mutable for favorite toggle
     let movedAt: String
     let notes: String?
     let generation: GenerationInfo  // Use GenerationInfo instead of Generation to match API response

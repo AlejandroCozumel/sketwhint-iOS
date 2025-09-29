@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainAppView: View {
     @State private var selectedTab = 0
+    @StateObject private var tokenManager = TokenBalanceManager.shared
     
     var body: some View {
         VStack(spacing: 0) {
@@ -58,6 +59,14 @@ struct MainAppView: View {
             .tag(4)
             }
             .tint(AppColors.primaryBlue)
+        }
+        .onChange(of: selectedTab) { oldValue, newValue in
+            // Silent token refresh when navigating to Art tab (tab 0)
+            if newValue == 0 {
+                Task {
+                    await tokenManager.refreshSilently()
+                }
+            }
         }
         .onAppear {
             // Configure tab bar appearance

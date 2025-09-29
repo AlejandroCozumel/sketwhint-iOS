@@ -4,6 +4,7 @@ struct FolderImagesView: View {
     let folder: UserFolder
     @Environment(\.dismiss) private var dismiss
     @StateObject private var folderService = FolderService.shared
+    @StateObject private var profileService = ProfileService.shared
     
     @State private var images: [FolderImage] = []
     @State private var isLoading = true
@@ -14,23 +15,72 @@ struct FolderImagesView: View {
     @State private var selectedImages: Set<String> = []
     @State private var isSelectionMode = false
     @State private var showingRemoveConfirmation = false
+    @State private var selectedImageForDetail: FolderImage?
+    
+    // Filter States (same as gallery)
+    @State private var showFavoritesOnly = false
+    @State private var selectedCategory: String? = nil
+    @State private var searchText = ""
+    @State private var selectedProfileFilter: String? = nil
+    
+    // Categories from backend (same as gallery)
+    @State private var availableCategories: [CategoryWithOptions] = []
+    @State private var isLoadingCategories = false
     
     private let pageLimit = 20
     
+    // Profile filtering logic (same as gallery)
+    private var isMainProfile: Bool {
+        profileService.currentProfile?.isDefault == true
+    }
+    
+    private var filteredProfileOptions: [FamilyProfile] {
+        profileService.availableProfiles.filter { !$0.isDefault }
+    }
+    
+    // Filter state helpers
+    private var hasActiveFilters: Bool {
+        showFavoritesOnly || selectedCategory != nil || !searchText.isEmpty || selectedProfileFilter != nil
+    }
+    
     // MARK: - Computed Properties for Empty States
     private var emptyStateTitle: String {
-        if totalImages == 0 && !isLoading {
+        if showFavoritesOnly {
+            return "No Favorite Images"
+        } else if selectedCategory != nil {
+            return "No \(selectedCategory!) Images"
+        } else if selectedProfileFilter != nil {
+            return "No Images from This Profile"
+        } else if !searchText.isEmpty {
+            return "No Results Found"
+        } else if totalImages == 0 && !isLoading {
             return "Empty Folder"
         } else {
-            return "No Images for Current Profile"
+            return "No Images"
         }
     }
     
     private var emptyStateMessage: String {
-        if totalImages == 0 && !isLoading {
+        if showFavoritesOnly {
+            return "No favorite images in this folder. Tap the heart icon on any image to add it to your favorites."
+        } else if selectedCategory != nil {
+            return "This folder doesn't have any \(selectedCategory!.lowercased()) images."
+        } else if selectedProfileFilter != nil {
+            return "This family member hasn't contributed any images to this folder yet."
+        } else if !searchText.isEmpty {
+            return "Try different search terms or clear filters to see more results."
+        } else if totalImages == 0 && !isLoading {
             return "Move images from your gallery to organize them in this folder"
         } else {
-            return "This folder doesn't have any images for the current family member"
+            return "No images match your current filters."
+        }
+    }
+    
+    private var emptyStateButtonTitle: String {
+        if hasActiveFilters {
+            return "Clear Filters"
+        } else {
+            return "Go to Gallery"
         }
     }
     
@@ -39,6 +89,12 @@ struct FolderImagesView: View {
             VStack(spacing: 0) {
                 // Folder info header
                 folderInfoHeader
+                
+                // Filter chips section (same as gallery)
+                filterChipsSection
+                
+                // Search bar section (same as gallery)
+                searchBarSection
                 
                 // Content
                 if isLoading && images.isEmpty {
@@ -85,6 +141,7 @@ struct FolderImagesView: View {
                 }
             }
             .task {
+                await loadCategories()
                 await loadImages()
             }
             .refreshable {
@@ -97,6 +154,19 @@ struct FolderImagesView: View {
                 }
             } message: {
                 Text("Remove \(selectedImages.count) image\(selectedImages.count == 1 ? "" : "s") from this folder? The images will return to your main gallery.")
+            }
+            .sheet(item: $selectedImageForDetail) { folderImage in
+                NavigationView {
+                    FolderImageDetailView(
+                        folderImage: folderImage,
+                        onImageDeleted: { deletedImageId in
+                            removeImageFromLocalState(deletedImageId)
+                        },
+                        onImageUpdated: { updatedImage in
+                            updateImageInLocalState(updatedImage)
+                        }
+                    )
+                }
             }
         }
     }
@@ -167,10 +237,16 @@ struct FolderImagesView: View {
         }
     }
     
+    // Define the same 2-column grid layout as the main gallery
+    private let columns = [
+        GridItem(.flexible(minimum: 100, maximum: .infinity), spacing: AppSpacing.grid.itemSpacing),
+        GridItem(.flexible(minimum: 100, maximum: .infinity), spacing: AppSpacing.grid.itemSpacing)
+    ]
+    
     // MARK: - Image Grid View
     private var imageGridView: some View {
         ScrollView {
-            LazyVGrid(columns: GridLayouts.threeColumnGrid, spacing: AppSpacing.grid.itemSpacing) {
+            LazyVGrid(columns: columns, spacing: AppSpacing.grid.rowSpacing) {
                 ForEach(images, id: \.id) { image in
                     FolderImageCard(
                         image: image,
@@ -180,8 +256,7 @@ struct FolderImagesView: View {
                             if isSelectionMode {
                                 toggleImageSelection(image.id)
                             } else {
-                                // Open image detail or full screen view
-                                print("📱 Opening image detail for: \(image.id)")
+                                selectedImageForDetail = image
                             }
                         },
                         onLongPress: {
@@ -244,12 +319,18 @@ struct FolderImagesView: View {
                     .padding(.horizontal, AppSpacing.xl)
             }
             
-            Button(action: { dismiss() }) {
+            Button(action: { 
+                if hasActiveFilters {
+                    clearAllFilters()
+                } else {
+                    dismiss()
+                }
+            }) {
                 HStack(spacing: AppSpacing.sm) {
                     Image(systemName: "photo.on.rectangle")
                         .font(.system(size: 16, weight: .semibold))
                     
-                    Text("Go to Gallery")
+                    Text(emptyStateButtonTitle)
                         .font(AppTypography.titleMedium)
                         .fontWeight(.semibold)
                 }
@@ -286,11 +367,7 @@ struct FolderImagesView: View {
         defer { isLoading = false }
         
         do {
-            let response = try await folderService.getFolderImages(
-                folderId: folder.id,
-                page: 1,
-                limit: pageLimit
-            )
+            let response = try await loadImagesPage(page: 1)
             
             await MainActor.run {
                 self.images = response.images
@@ -316,11 +393,7 @@ struct FolderImagesView: View {
         
         do {
             let nextPage = currentPage + 1
-            let response = try await folderService.getFolderImages(
-                folderId: folder.id,
-                page: nextPage,
-                limit: pageLimit
-            )
+            let response = try await loadImagesPage(page: nextPage)
             
             await MainActor.run {
                 self.images.append(contentsOf: response.images)
@@ -333,6 +406,21 @@ struct FolderImagesView: View {
                 self.errorMessage = error.localizedDescription
             }
         }
+    }
+    
+    private func loadImagesPage(page: Int) async throws -> FolderImagesResponse {
+        let favorites = showFavoritesOnly ? true : nil
+        let search = searchText.isEmpty ? nil : searchText
+        
+        return try await folderService.getFolderImages(
+            folderId: folder.id,
+            page: page,
+            limit: pageLimit,
+            favorites: favorites,
+            category: selectedCategory,
+            search: search,
+            filterByProfile: selectedProfileFilter
+        )
     }
     
     private func toggleSelectionMode() {
@@ -373,6 +461,203 @@ struct FolderImagesView: View {
             }
         }
     }
+    
+    // MARK: - Local State Management for Image Updates
+    private func removeImageFromLocalState(_ imageId: String) {
+        // Remove the deleted image from local state immediately
+        images.removeAll { $0.id == imageId }
+        
+        // Also update the total count
+        if totalImages > 0 {
+            totalImages -= 1
+        }
+        
+        #if DEBUG
+        print("🗑️ FolderImagesView: Removed image from local state")
+        print("   - Image ID: \(imageId)")
+        print("   - Remaining images: \(images.count)")
+        print("   - Total count: \(totalImages)")
+        #endif
+    }
+    
+    private func updateImageInLocalState(_ updatedImage: FolderImage) {
+        // Update the image in local state (e.g., favorite status changes)
+        if let index = images.firstIndex(where: { $0.id == updatedImage.id }) {
+            images[index] = updatedImage
+            
+            #if DEBUG
+            print("📝 FolderImagesView: Updated image in local state")
+            print("   - Image ID: \(updatedImage.id)")
+            print("   - Favorite status: \(updatedImage.isFavorite)")
+            #endif
+        }
+    }
+    
+    // MARK: - Filter Chips Section (same as gallery)
+    private var filterChipsSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppSpacing.sm) {
+                // All/Favorites Toggle (always show)
+                FilterChip(
+                    title: "All",
+                    icon: "square.grid.2x2",
+                    isSelected: !showFavoritesOnly
+                ) {
+                    showFavoritesOnly = false
+                    applyFilters()
+                }
+                
+                FilterChip(
+                    title: "Favorites",
+                    icon: "heart.fill",
+                    isSelected: showFavoritesOnly
+                ) {
+                    showFavoritesOnly = true
+                    applyFilters()
+                }
+                
+                // Profile filters (only for admin users with multiple profiles)
+                if isMainProfile && profileService.availableProfiles.count > 1 {
+                    // Separator
+                    Rectangle()
+                        .fill(AppColors.borderLight)
+                        .frame(width: 1, height: 24)
+                        .padding(.horizontal, AppSpacing.xs)
+                    
+                    // All Profiles chip
+                    FilterChip(
+                        title: "All Profiles",
+                        icon: "person.2.fill",
+                        isSelected: selectedProfileFilter == nil
+                    ) {
+                        selectedProfileFilter = nil
+                        applyFilters()
+                    }
+                    
+                    // Individual profile chips
+                    ForEach(filteredProfileOptions) { profile in
+                        FilterChip(
+                            title: profile.name,
+                            icon: "person.circle.fill",
+                            isSelected: selectedProfileFilter == profile.id
+                        ) {
+                            selectedProfileFilter = profile.id
+                            applyFilters()
+                        }
+                    }
+                }
+                
+                // Category filters (always show if available)
+                if !availableCategories.isEmpty {
+                    // Separator
+                    Rectangle()
+                        .fill(AppColors.borderLight)
+                        .frame(width: 1, height: 24)
+                        .padding(.horizontal, AppSpacing.xs)
+                    
+                    // Category chips
+                    ForEach(availableCategories, id: \.id) { categoryWithOptions in
+                        let category = categoryWithOptions.category
+                        ModernCategoryChip(
+                            category: category,
+                            isSelected: selectedCategory == category.id,
+                            action: {
+                                selectedCategory = selectedCategory == category.id ? nil : category.id
+                                applyFilters()
+                            }
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, AppSpacing.md)
+        }
+        .padding(.bottom, AppSpacing.sm)
+    }
+    
+    // MARK: - Search Bar Section (same as gallery)
+    private var searchBarSection: some View {
+        HStack(spacing: AppSpacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(AppColors.textSecondary)
+                .font(.system(size: 16, weight: .medium))
+            
+            TextField("Search in this folder...", text: $searchText)
+                .font(AppTypography.bodyMedium)
+                .foregroundColor(AppColors.textPrimary)
+                .onSubmit {
+                    applyFilters()
+                }
+            
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                    applyFilters()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(AppColors.textSecondary)
+                        .font(.system(size: 16))
+                }
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.vertical, AppSpacing.sm)
+        .background(AppColors.surfaceLight.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        .animation(.easeInOut(duration: 0.2), value: searchText.isEmpty)
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.bottom, AppSpacing.sm)
+    }
+    
+    // MARK: - Filter Application Methods
+    private func applyFilters() {
+        #if DEBUG
+        print("🔍 FolderImagesView: Applying filters")
+        print("   - Favorites only: \(showFavoritesOnly)")
+        print("   - Category: \(selectedCategory ?? "All")")
+        print("   - Profile filter: \(selectedProfileFilter ?? "All")")
+        print("   - Search: \(searchText.isEmpty ? "None" : searchText)")
+        #endif
+        
+        Task {
+            await loadImages()
+        }
+    }
+    
+    private func clearAllFilters() {
+        showFavoritesOnly = false
+        selectedCategory = nil
+        searchText = ""
+        selectedProfileFilter = nil
+        
+        // Reload images without filters
+        Task {
+            await loadImages()
+        }
+    }
+    
+    // MARK: - Categories Loading (same as gallery)
+    private func loadCategories() async {
+        isLoadingCategories = true
+        
+        do {
+            let generationService = GenerationService.shared
+            let categories = try await generationService.getCategoriesWithOptions()
+            
+            await MainActor.run {
+                availableCategories = categories
+                isLoadingCategories = false
+            }
+        } catch {
+            await MainActor.run {
+                // Categories loading is not critical for the folder functionality
+                // We can fail silently and use fallback UI
+                isLoadingCategories = false
+                #if DEBUG
+                print("❌ Failed to load categories for filters: \(error)")
+                #endif
+            }
+        }
+    }
 }
 
 // MARK: - Folder Image Card
@@ -387,82 +672,93 @@ struct FolderImageCard: View {
     
     var body: some View {
         Button(action: onTap) {
-            ZStack {
-                // Image
-                AsyncImage(url: URL(string: image.imageUrl)) { imagePhase in
-                    switch imagePhase {
-                    case .success(let uiImage):
-                        uiImage
+            GeometryReader { geometry in
+                OptimizedAsyncImage(
+                    url: URL(string: image.imageUrl),
+                    thumbnailSize: 320,
+                    quality: 0.8,
+                    content: { optimizedImage in
+                        optimizedImage
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                    case .failure(_):
-                        Image(systemName: "photo")
-                            .font(.system(size: 24))
-                            .foregroundColor(AppColors.textSecondary)
-                    case .empty:
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    @unknown default:
-                        EmptyView()
+                            .frame(width: geometry.size.width, height: 160)
+                            .clipped()
+                            .cornerRadius(AppSizing.cornerRadius.md)
+                    },
+                    placeholder: {
+                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                            .fill(AppColors.textSecondary.opacity(0.1))
+                            .frame(width: geometry.size.width, height: 160)
+                            .overlay(
+                                ProgressView()
+                                    .tint(AppColors.primaryBlue)
+                            )
                     }
-                }
-                .frame(width: 100, height: 100)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                
-                // Selection overlay
-                if isSelectionMode {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            
-                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 20))
-                                .foregroundColor(isSelected ? AppColors.primaryBlue : .white)
-                                .background(
-                                    Circle()
-                                        .fill(isSelected ? .white : Color.black.opacity(0.3))
-                                        .frame(width: 24, height: 24)
-                                )
-                                .padding(.top, AppSpacing.xs)
-                                .padding(.trailing, AppSpacing.xs)
-                        }
-                        
-                        Spacer()
-                    }
-                }
-                
-                // Favorite indicator
-                if image.isFavorite {
-                    VStack {
-                        Spacer()
-                        
-                        HStack {
-                            Image(systemName: "heart.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(AppColors.errorRed)
-                                .background(
-                                    Circle()
-                                        .fill(.white)
-                                        .frame(width: 18, height: 18)
-                                )
-                                .padding(.leading, AppSpacing.xs)
-                                .padding(.bottom, AppSpacing.xs)
-                            
-                            Spacer()
+                )
+                .overlay(
+                    // Selection overlay
+                    Group {
+                        if isSelectionMode {
+                            VStack {
+                                HStack {
+                                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 24, weight: .semibold))
+                                        .foregroundColor(isSelected ? AppColors.successGreen : .white)
+                                        .background(
+                                            Circle()
+                                                .fill(isSelected ? .white : Color.black.opacity(0.3))
+                                                .frame(width: 28, height: 28)
+                                        )
+                                        .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
+                                    
+                                    Spacer()
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding(AppSpacing.xs)
                         }
                     }
-                }
+                )
+                .overlay(
+                    // Favorite indicator overlay
+                    Group {
+                        if image.isFavorite {
+                            VStack {
+                                Spacer()
+                                HStack {
+                                    Circle()
+                                        .fill(AppColors.errorRed)
+                                        .frame(width: 20, height: 20)
+                                        .overlay(
+                                            Image(systemName: "heart.fill")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(.white)
+                                        )
+                                        .shadow(color: AppColors.errorRed.opacity(0.3), radius: 2, x: 0, y: 1)
+                                    
+                                    Spacer()
+                                }
+                            }
+                            .padding(AppSpacing.xs)
+                        }
+                    }
+                )
+                .overlay(
+                    // Selection dim overlay
+                    Group {
+                        if isSelectionMode && !isSelected {
+                            Color.black.opacity(0.2)
+                                .cornerRadius(AppSizing.cornerRadius.md)
+                        }
+                    }
+                )
             }
         }
-        .buttonStyle(PlainButtonStyle())
+        .frame(height: 160) // Set fixed height for GeometryReader
+        .frame(maxWidth: .infinity) // Ensure button respects grid cell width
         .scaleEffect(isPressed ? 0.95 : 1.0)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(
-                    isSelected ? AppColors.primaryBlue : Color.clear,
-                    lineWidth: isSelected ? 2 : 0
-                )
-        )
+        .animation(.easeInOut(duration: 0.1), value: isPressed)
         .onLongPressGesture(minimumDuration: 0.5) {
             onLongPress()
         } onPressingChanged: { pressing in
@@ -470,6 +766,265 @@ struct FolderImageCard: View {
                 isPressed = pressing
             }
         }
+    }
+}
+
+// MARK: - Folder Image Detail View
+struct FolderImageDetailView: View {
+    @State private var folderImage: FolderImage
+    @StateObject private var generationService = GenerationService.shared
+    @StateObject private var profileService = ProfileService.shared
+    @State private var isTogglingFavorite = false
+    @State private var isDeleting = false
+    @State private var error: Error?
+    @State private var showingError = false
+    @State private var showingDownloadView = false
+    @State private var showingDeleteConfirmation = false
+    @Environment(\.dismiss) private var dismiss
+    
+    let onImageDeleted: ((String) -> Void)?
+    let onImageUpdated: ((FolderImage) -> Void)?
+    
+    init(folderImage: FolderImage, onImageDeleted: ((String) -> Void)? = nil, onImageUpdated: ((FolderImage) -> Void)? = nil) {
+        self._folderImage = State(initialValue: folderImage)
+        self.onImageDeleted = onImageDeleted
+        self.onImageUpdated = onImageUpdated
+    }
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: AppSpacing.lg) {
+                
+                // Full size image with favorite button overlay
+                AsyncImage(url: URL(string: folderImage.imageUrl)) { imagePhase in
+                    switch imagePhase {
+                    case .success(let swiftUIImage):
+                        swiftUIImage
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .cornerRadius(AppSizing.cornerRadius.lg)
+                            .overlay(
+                                // Favorite button - TOP RIGHT
+                                AnimatedFavoriteButton(
+                                    isFavorite: folderImage.isFavorite,
+                                    onToggle: {
+                                        Task {
+                                            await toggleFavorite()
+                                        }
+                                    }
+                                )
+                                .disabled(isTogglingFavorite)
+                                .opacity(isTogglingFavorite ? 0.6 : 1.0)
+                                .padding(AppSpacing.md),
+                                alignment: .topTrailing
+                            )
+                    case .failure(_), .empty:
+                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                            .fill(AppColors.textSecondary.opacity(0.1))
+                            .frame(height: 300)
+                            .overlay(
+                                ProgressView()
+                                    .tint(AppColors.primaryBlue)
+                            )
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+                
+                // Image info
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    Text("Details")
+                        .font(AppTypography.headlineMedium)
+                        .foregroundColor(AppColors.textPrimary)
+                    
+                    VStack(spacing: AppSpacing.sm) {
+                        DetailRow(label: "Title", value: folderImage.generation.title)
+                        DetailRow(label: "Category", value: folderImage.generation.category)
+                        DetailRow(label: "Style", value: folderImage.generation.option)
+                        DetailRow(label: "Model", value: folderImage.generation.modelUsed)
+                        DetailRow(label: "Quality", value: folderImage.generation.qualityUsed.capitalized)
+                        
+                        // Show creator info if available and different from current user
+                        if let creatorProfileId = folderImage.createdBy.profileId,
+                           let creatorName = folderImage.createdBy.profileName,
+                           creatorProfileId != profileService.currentProfile?.id {
+                            DetailRow(label: "Created by", value: creatorName)
+                        }
+                        
+                        DetailRow(label: "Moved to folder", value: formatDate(folderImage.movedAt))
+                        
+                        // Show notes if available
+                        if let notes = folderImage.notes, !notes.isEmpty {
+                            DetailRow(label: "Notes", value: notes)
+                        }
+                    }
+                }
+                .cardStyle()
+                
+                // Action buttons row
+                HStack(spacing: AppSpacing.md) {
+                    // Download button (left side)
+                    Button {
+                        showingDownloadView = true
+                    } label: {
+                        HStack(spacing: AppSpacing.sm) {
+                            Text("📥")
+                            Text("Download")
+                                .font(AppTypography.titleMedium)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
+                    .childSafeTouchTarget()
+                    
+                    // Delete button (right side)
+                    Button {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        HStack(spacing: AppSpacing.sm) {
+                            if isDeleting {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .tint(.white)
+                            } else {
+                                Text("🗑️")
+                            }
+                            Text(isDeleting ? "Deleting..." : "Delete")
+                                .font(AppTypography.titleMedium)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .largeButtonStyle(backgroundColor: AppColors.errorRed)
+                    .disabled(isDeleting)
+                    .childSafeTouchTarget()
+                }
+            }
+            .pageMargins()
+            .padding(.vertical, AppSpacing.sectionSpacing)
+        }
+        .background(AppColors.backgroundLight)
+        .navigationTitle("Image Details")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") {
+                    dismiss()
+                }
+                .font(AppTypography.titleMedium)
+                .foregroundColor(AppColors.primaryBlue)
+            }
+        }
+        .alert("Error", isPresented: $showingError) {
+            Button("OK") { }
+        } message: {
+            Text(error?.localizedDescription ?? "An error occurred")
+        }
+        .sheet(isPresented: $showingDownloadView) {
+            // Convert FolderImage to GeneratedImage for download view
+            if let generatedImage = convertToGeneratedImage(folderImage) {
+                ImageDownloadView(image: generatedImage)
+            }
+        }
+        .alert("Delete Image", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await deleteImage()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this image? This action cannot be undone.")
+        }
+    }
+    
+    // MARK: - Helper Methods
+    private func toggleFavorite() async {
+        isTogglingFavorite = true
+        
+        do {
+            // Call API to toggle favorite
+            try await generationService.toggleImageFavorite(imageId: folderImage.id)
+            
+            // Update local state
+            await MainActor.run {
+                folderImage.isFavorite.toggle()
+                onImageUpdated?(folderImage)
+                isTogglingFavorite = false
+            }
+        } catch {
+            await MainActor.run {
+                self.error = error
+                showingError = true
+                isTogglingFavorite = false
+            }
+        }
+    }
+    
+    private func deleteImage() async {
+        isDeleting = true
+        
+        do {
+            // Call API to delete image
+            try await generationService.deleteImage(imageId: folderImage.id)
+            
+            // If successful, notify parent and dismiss
+            await MainActor.run {
+                isDeleting = false
+                onImageDeleted?(folderImage.id)
+                dismiss()
+            }
+        } catch {
+            await MainActor.run {
+                self.error = error
+                showingError = true
+                isDeleting = false
+            }
+        }
+    }
+    
+    private func formatDate(_ dateString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: dateString) else {
+            return dateString
+        }
+        
+        let displayFormatter = DateFormatter()
+        displayFormatter.dateStyle = .medium
+        displayFormatter.timeStyle = .short
+        return displayFormatter.string(from: date)
+    }
+    
+    private func convertToGeneratedImage(_ folderImage: FolderImage) -> GeneratedImage? {
+        // Convert FolderImage to GeneratedImage for download functionality
+        // This is a helper to reuse the existing ImageDownloadView
+        return GeneratedImage(
+            id: folderImage.id,
+            imageUrl: folderImage.imageUrl,
+            optionIndex: folderImage.optionIndex,
+            isFavorite: folderImage.isFavorite,
+            originalUserPrompt: nil, // Not available in FolderImage
+            enhancedPrompt: nil,
+            wasEnhanced: nil,
+            wasFromImageUpload: nil,
+            modelUsed: folderImage.generation.modelUsed,
+            qualityUsed: folderImage.generation.qualityUsed,
+            dimensionsUsed: nil,
+            createdAt: folderImage.movedAt, // Use movedAt since that's what we have
+            generation: GenerationInfo(
+                id: folderImage.generation.id,
+                title: folderImage.generation.title,
+                category: folderImage.generation.category,
+                option: folderImage.generation.option,
+                modelUsed: folderImage.generation.modelUsed,
+                qualityUsed: folderImage.generation.qualityUsed
+            ),
+            collections: nil,
+            createdBy: CreatedByProfile(
+                profileId: folderImage.createdBy.profileId,
+                profileName: folderImage.createdBy.profileName ?? "Unknown",
+                profileAvatar: nil // Not available in folder image
+            )
+        )
     }
 }
 

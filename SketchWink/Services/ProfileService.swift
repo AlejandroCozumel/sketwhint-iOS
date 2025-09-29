@@ -9,6 +9,7 @@ class ProfileService: ObservableObject {
     @Published var hasSelectedProfile = false
     @Published var currentProfile: FamilyProfile?
     @Published var availableProfiles: [FamilyProfile] = []
+    @Published var serverStatus: ServerStatus = .available
     
     private let baseURL = AppConfig.API.baseURL
     
@@ -75,6 +76,9 @@ class ProfileService: ObservableObject {
         let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.availableProfiles)"
         
         guard let url = URL(string: endpoint) else {
+            await MainActor.run {
+                self.serverStatus = .invalidConfiguration
+            }
             throw ProfileError.invalidURL
         }
         
@@ -86,50 +90,96 @@ class ProfileService: ObservableObject {
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ProfileError.invalidResponse
-        }
-        
-        #if DEBUG
-        print("🌐 Load Family Profiles API Response Status: \(httpResponse.statusCode)")
-        if let responseString = String(data: data, encoding: .utf8) {
-            print("📥 Load Family Profiles API Response: \(responseString)")
-        }
-        #endif
-        
-        guard 200...299 ~= httpResponse.statusCode else {
-            // Handle unauthorized responses by automatically logging out
-            if httpResponse.statusCode == 401 {
-                AuthService.handleUnauthorizedResponse()
-            }
-            
-            // Try to decode API error message first, fallback to generic error
-            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
-                throw ProfileError.apiError(apiError.userMessage)
-            } else {
-                throw ProfileError.httpError(httpResponse.statusCode)
-            }
-        }
+        request.timeoutInterval = 10.0 // 10 second timeout
         
         do {
-            let profilesResponse = try JSONDecoder().decode(FamilyProfilesResponse.self, from: data)
+            let (data, response) = try await URLSession.shared.data(for: request)
             
-            // Convert AvailableProfile to FamilyProfile for UI compatibility
-            let familyProfiles = profilesResponse.profiles.map { $0.toFamilyProfile() }
-            
-            await MainActor.run {
-                self.availableProfiles = familyProfiles
+            guard let httpResponse = response as? HTTPURLResponse else {
+                await MainActor.run {
+                    self.serverStatus = .serverDown("Invalid response from server")
+                }
+                throw ProfileError.invalidResponse
             }
             
-            return familyProfiles
-        } catch {
             #if DEBUG
-            print("❌ Family Profiles Decoding Error: \(error)")
+            print("🌐 Load Family Profiles API Response Status: \(httpResponse.statusCode)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📥 Load Family Profiles API Response: \(responseString)")
+            }
             #endif
-            throw ProfileError.decodingError
+            
+            // Reset server status on successful connection
+            await MainActor.run {
+                self.serverStatus = .available
+            }
+            
+            guard 200...299 ~= httpResponse.statusCode else {
+                // Handle unauthorized responses by automatically logging out
+                if httpResponse.statusCode == 401 {
+                    AuthService.handleUnauthorizedResponse()
+                }
+                
+                // Try to decode API error message first, fallback to generic error
+                if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                    throw ProfileError.apiError(apiError.userMessage)
+                } else {
+                    throw ProfileError.httpError(httpResponse.statusCode)
+                }
+            }
+            
+            do {
+                let profilesResponse = try JSONDecoder().decode(FamilyProfilesResponse.self, from: data)
+                
+                // Convert AvailableProfile to FamilyProfile for UI compatibility
+                let familyProfiles = profilesResponse.profiles.map { $0.toFamilyProfile() }
+                
+                await MainActor.run {
+                    self.availableProfiles = familyProfiles
+                }
+                
+                return familyProfiles
+            } catch {
+                #if DEBUG
+                print("❌ Family Profiles Decoding Error: \(error)")
+                #endif
+                throw ProfileError.decodingError
+            }
+        } catch {
+            // Handle different types of network connectivity issues
+            await MainActor.run {
+                if let urlError = error as? URLError {
+                    switch urlError.code {
+                    case .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed:
+                        // These are actual server issues - show full screen
+                        self.serverStatus = .serverDown("Cannot reach SketchWink servers. They might be temporarily down.")
+                    case .secureConnectionFailed:
+                        // SSL/Security issues are server-side - show full screen
+                        self.serverStatus = .serverDown("Secure connection failed. Please try again later.")
+                    case .notConnectedToInternet, .networkConnectionLost, .timedOut:
+                        // These are client/network issues - keep available but let banner handle it
+                        self.serverStatus = .available
+                    default:
+                        // Other errors - keep available but let banner handle it
+                        self.serverStatus = .available
+                    }
+                } else {
+                    // Non-URL errors - keep available but let banner handle it
+                    self.serverStatus = .available
+                }
+            }
+            
+            #if DEBUG
+            print("❌ Network Error loading profiles: \(error)")
+            print("🔍 Error type: \(type(of: error))")
+            if let urlError = error as? URLError {
+                print("🔍 URLError code: \(urlError.code)")
+                print("🔍 Will show full screen: \(urlError.code == .cannotConnectToHost || urlError.code == .cannotFindHost || urlError.code == .dnsLookupFailed || urlError.code == .secureConnectionFailed)")
+            }
+            #endif
+            
+            // Re-throw as network error for better handling
+            throw ProfileError.networkError(error.localizedDescription)
         }
     }
     
@@ -440,10 +490,16 @@ class ProfileService: ObservableObject {
         currentProfile = nil
         hasSelectedProfile = false
         availableProfiles = []
+        serverStatus = .available
         
         #if DEBUG
         print("🔄 Profile selection cleared")
         #endif
+    }
+    
+    /// Reset server status (for retry attempts)
+    func resetServerStatus() {
+        serverStatus = .available
     }
     
     /// Update family profile
@@ -567,6 +623,7 @@ enum ProfileError: LocalizedError {
     case pinVerificationFailed(String)
     case encodingError
     case decodingError
+    case networkError(String)
     
     var errorDescription: String? {
         switch self {
@@ -586,6 +643,56 @@ enum ProfileError: LocalizedError {
             return "Failed to encode request"
         case .decodingError:
             return "Failed to decode response"
+        case .networkError(let message):
+            return message // Network connectivity error
+        }
+    }
+}
+
+// MARK: - Server Status Types
+enum ServerStatus {
+    case available
+    case networkError(String)      // No internet, connection lost
+    case serverDown(String)         // Server unreachable, maintenance
+    case timeout(String)           // Request timeout
+    case invalidConfiguration      // Invalid URL or config issue
+    
+    var isUnavailable: Bool {
+        switch self {
+        case .available:
+            return false
+        default:
+            return true
+        }
+    }
+    
+    var errorMessage: String {
+        switch self {
+        case .available:
+            return ""
+        case .networkError(let message):
+            return message
+        case .serverDown(let message):
+            return message
+        case .timeout(let message):
+            return message
+        case .invalidConfiguration:
+            return "App configuration error"
+        }
+    }
+    
+    var errorType: String {
+        switch self {
+        case .available:
+            return "available"
+        case .networkError:
+            return "network"
+        case .serverDown:
+            return "server"
+        case .timeout:
+            return "timeout"
+        case .invalidConfiguration:
+            return "config"
         }
     }
 }

@@ -647,6 +647,11 @@ class AuthService: ObservableObject {
         }
     }
     
+    /// Update network status from external services (e.g., ProfileService)
+    func updateNetworkStatus(_ status: NetworkStatus) async {
+        await handleNetworkIssue(status)
+    }
+    
     /// Check if current network status allows normal app operation
     var isNetworkAvailable: Bool {
         return networkStatus == .connected && lastAuthCheckError == nil
