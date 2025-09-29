@@ -125,20 +125,10 @@ struct BookCard: View {
     }
     
     private var favoriteButton: some View {
-        Button(action: onFavorite) {
-            Image(systemName: book.isFavorite ? "heart.fill" : "heart")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(book.isFavorite ? AppColors.errorRed : .white)
-                .frame(width: 44, height: 44)
-                .background(.ultraThinMaterial, in: Circle())
-                .shadow(
-                    color: book.isFavorite ? Color.pink.opacity(0.3) : Color.black.opacity(0.1),
-                    radius: book.isFavorite ? 6 : 2,
-                    x: 0,
-                    y: 2
-                )
-        }
-        .childSafeTouchTarget()
+        AnimatedFavoriteButton(
+            isFavorite: book.isFavorite,
+            onToggle: onFavorite
+        )
     }
     
     private var pagesIndicator: some View {

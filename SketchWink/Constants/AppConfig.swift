@@ -70,6 +70,12 @@ struct AppConfig {
             // Analytics
             static let analytics = "/analytics"
             
+            // Books
+            static let books = "/books"
+            static let bookPages = "/books/%@/pages" // %@ = bookId
+            static let bookFavorite = "/books/%@/favorite" // %@ = bookId
+            static let moveBookToFolder = "/books/%@/move-to-folder" // %@ = bookId
+            
             // Server-Sent Events (SSE)
             static let sseGenerationProgress = "/sse/generation-progress/%@" // %@ = generationId
             static let sseUserProgress = "/sse/user-progress"

@@ -16,6 +16,88 @@ struct StoryBook: Codable, Identifiable {
     let updatedAt: String
     let createdBy: CreatedByProfile?
     
+    // Custom decoder to handle API sending isFavorite as Int (0/1) instead of Bool
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        coverImageUrl = try container.decode(String.self, forKey: .coverImageUrl)
+        totalPages = try container.decode(Int.self, forKey: .totalPages)
+        category = try container.decode(String.self, forKey: .category)
+        
+        // Handle isFavorite as either Bool or Int (0/1)
+        if let boolValue = try? container.decode(Bool.self, forKey: .isFavorite) {
+            isFavorite = boolValue
+        } else if let intValue = try? container.decode(Int.self, forKey: .isFavorite) {
+            isFavorite = intValue != 0
+        } else {
+            isFavorite = false // default fallback
+        }
+        
+        // Handle inFolder as either Bool or Int (0/1)
+        if let boolValue = try? container.decode(Bool.self, forKey: .inFolder) {
+            inFolder = boolValue
+        } else if let intValue = try? container.decode(Int.self, forKey: .inFolder) {
+            inFolder = intValue != 0
+        } else {
+            inFolder = false // default fallback
+        }
+        
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+        createdBy = try container.decodeIfPresent(CreatedByProfile.self, forKey: .createdBy)
+    }
+    
+    // Custom encoder to maintain Encodable conformance
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encodeIfPresent(description, forKey: .description)
+        try container.encode(coverImageUrl, forKey: .coverImageUrl)
+        try container.encode(totalPages, forKey: .totalPages)
+        try container.encode(category, forKey: .category)
+        try container.encode(isFavorite, forKey: .isFavorite)
+        try container.encode(inFolder, forKey: .inFolder)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
+        try container.encodeIfPresent(createdBy, forKey: .createdBy)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, title, description, coverImageUrl, totalPages, category, isFavorite, inFolder, createdAt, updatedAt, createdBy
+    }
+    
+    // Regular initializer for creating instances manually (e.g., in previews)
+    init(
+        id: String,
+        title: String,
+        description: String? = nil,
+        coverImageUrl: String,
+        totalPages: Int,
+        category: String,
+        isFavorite: Bool = false,
+        inFolder: Bool = false,
+        createdAt: String,
+        updatedAt: String,
+        createdBy: CreatedByProfile? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.description = description
+        self.coverImageUrl = coverImageUrl
+        self.totalPages = totalPages
+        self.category = category
+        self.isFavorite = isFavorite
+        self.inFolder = inFolder
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.createdBy = createdBy
+    }
+    
     /// UI helper for creator display
     var creatorDisplayName: String {
         return createdBy?.profileName ?? "Unknown Profile"

@@ -23,9 +23,10 @@ class BooksService: ObservableObject {
         favorites: Bool? = nil,
         sortBy: String = "createdAt",
         sortOrder: String = "desc",
-        filterByProfile: String? = nil
+        filterByProfile: String? = nil,
+        category: String? = nil
     ) async throws -> BooksResponse {
-        let endpoint = "\(baseURL)/books"
+        let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.books)"
         
         var components = URLComponents(string: endpoint)!
         var queryItems = [
@@ -44,6 +45,10 @@ class BooksService: ObservableObject {
             queryItems.append(URLQueryItem(name: "filterByProfile", value: filterByProfile))
         }
         
+        if let category = category {
+            queryItems.append(URLQueryItem(name: "category", value: category))
+        }
+        
         components.queryItems = queryItems
         
         guard let url = components.url else {
@@ -53,7 +58,7 @@ class BooksService: ObservableObject {
         #if DEBUG
         print("📚 BooksService: Loading books")
         print("📤 URL: \(url.absoluteString)")
-        print("🔍 Filters - Favorites: \(favorites?.description ?? "none"), Profile: \(filterByProfile ?? "none")")
+        print("🔍 Filters - Favorites: \(favorites?.description ?? "none"), Profile: \(filterByProfile ?? "none"), Category: \(category ?? "none")")
         #endif
         
         // Use APIRequestHelper to automatically include X-Profile-ID header for content filtering
@@ -83,7 +88,16 @@ class BooksService: ObservableObject {
             }
         }
         
-        return try JSONDecoder().decode(BooksResponse.self, from: data)
+        let booksResponse = try JSONDecoder().decode(BooksResponse.self, from: data)
+        
+        #if DEBUG
+        print("✅ BooksService: Successfully decoded \(booksResponse.books.count) books")
+        for book in booksResponse.books.prefix(3) {
+            print("   - \(book.title) (isFavorite: \(book.isFavorite), inFolder: \(book.inFolder))")
+        }
+        #endif
+        
+        return booksResponse
     }
     
     /// Load books into published property
@@ -125,7 +139,7 @@ class BooksService: ObservableObject {
     
     /// Get book pages for reading experience
     func getBookPages(bookId: String) async throws -> BookWithPages {
-        let endpoint = "\(baseURL)/books/\(bookId)/pages"
+        let endpoint = "\(baseURL)\(String(format: AppConfig.API.Endpoints.bookPages, bookId))"
         
         guard let url = URL(string: endpoint) else {
             throw BooksError.invalidURL
@@ -165,7 +179,7 @@ class BooksService: ObservableObject {
     
     /// Toggle book favorite status
     func toggleBookFavorite(bookId: String) async throws {
-        let endpoint = "\(baseURL)/books/\(bookId)/favorite"
+        let endpoint = "\(baseURL)\(String(format: AppConfig.API.Endpoints.bookFavorite, bookId))"
         
         guard let url = URL(string: endpoint) else {
             throw BooksError.invalidURL
@@ -203,7 +217,7 @@ class BooksService: ObservableObject {
     
     /// Move book to folder
     func moveBookToFolder(bookId: String, folderId: String, notes: String? = nil) async throws -> MoveBookToFolderResponse {
-        let endpoint = "\(baseURL)/books/\(bookId)/move-to-folder"
+        let endpoint = "\(baseURL)\(String(format: AppConfig.API.Endpoints.moveBookToFolder, bookId))"
         
         guard let url = URL(string: endpoint) else {
             throw BooksError.invalidURL

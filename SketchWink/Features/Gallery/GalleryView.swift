@@ -1957,44 +1957,6 @@ struct DetailRowHighlighted: View {
 }
 
 
-// MARK: - Modern Filter Chip
-struct FilterChip: View {
-    let title: String
-    let icon: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: AppSpacing.xs) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                
-                Text(title)
-                    .font(AppTypography.captionLarge)
-                    .fontWeight(.medium)
-            }
-            .padding(.horizontal, AppSpacing.md)
-            .padding(.vertical, AppSpacing.sm)
-            .background(
-                isSelected ? AppColors.primaryBlue : Color.clear,
-                in: Capsule()
-            )
-            .foregroundColor(isSelected ? .white : AppColors.textPrimary)
-            .overlay(
-                Capsule()
-                    .stroke(
-                        isSelected ? Color.clear : AppColors.borderMedium,
-                        lineWidth: 1
-                    )
-            )
-            .scaleEffect(isSelected ? 1.05 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
-        }
-        .childSafeTouchTarget()
-    }
-}
-
 // MARK: - Modern Category Chip
 struct ModernCategoryChip: View {
     let category: GenerationCategory
