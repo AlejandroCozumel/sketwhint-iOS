@@ -195,10 +195,16 @@ class ProfileService: ObservableObject {
             throw ProfileError.noToken
         }
         
+        // Ensure we have a current profile with admin privileges
+        guard let currentProfile = self.currentProfile, currentProfile.isDefault else {
+            throw ProfileError.apiError("Only the main family profile can manage family settings.")
+        }
+        
         var httpRequest = URLRequest(url: url)
         httpRequest.httpMethod = "POST"
         httpRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         httpRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        httpRequest.setValue(currentProfile.id, forHTTPHeaderField: "X-Profile-ID") // Required for admin access
         
         do {
             let jsonData = try JSONEncoder().encode(request)
@@ -514,14 +520,30 @@ class ProfileService: ObservableObject {
             throw ProfileError.noToken
         }
         
+        // Ensure we have a current profile with admin privileges
+        guard let currentProfile = self.currentProfile, currentProfile.isDefault else {
+            throw ProfileError.apiError("Only the main family profile can manage family settings.")
+        }
+        
         var httpRequest = URLRequest(url: url)
         httpRequest.httpMethod = "PUT"
         httpRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         httpRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        httpRequest.setValue(currentProfile.id, forHTTPHeaderField: "X-Profile-ID") // Required for admin access
         
         do {
             let jsonData = try JSONEncoder().encode(request)
             httpRequest.httpBody = jsonData
+            
+            #if DEBUG
+            print("📤 Update Profile Request Details:")
+            print("   - URL: \(endpoint)")
+            print("   - Method: PUT")
+            print("   - Headers: Authorization: Bearer [token], Content-Type: application/json, X-Profile-ID: \(currentProfile.id)")
+            if let requestString = String(data: jsonData, encoding: .utf8) {
+                print("   - Body: \(requestString)")
+            }
+            #endif
         } catch {
             throw ProfileError.encodingError
         }
@@ -531,6 +553,15 @@ class ProfileService: ObservableObject {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ProfileError.invalidResponse
         }
+        
+        #if DEBUG
+        print("📥 Update Profile API Response: \(httpResponse.statusCode)")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📥 Response Body: \(responseString)")
+        } else {
+            print("📥 Response Body: Unable to decode as UTF-8")
+        }
+        #endif
         
         guard 200...299 ~= httpResponse.statusCode else {
             // Handle unauthorized responses by automatically logging out
@@ -546,22 +577,50 @@ class ProfileService: ObservableObject {
         }
         
         do {
-            let updateResponse = try JSONDecoder().decode(UpdateProfileResponse.self, from: data)
+            #if DEBUG
+            print("🔄 Attempting to decode wrapped profile response from response data...")
+            #endif
+            
+            // Decode the wrapper response with message and profile
+            let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
+            guard let profileData = json?["profile"] as? [String: Any] else {
+                throw ProfileError.decodingError
+            }
+            
+            // Convert profile dictionary back to Data and decode as AdminProfile
+            let profileJsonData = try JSONSerialization.data(withJSONObject: profileData)
+            let adminProfile = try JSONDecoder().decode(AdminProfile.self, from: profileJsonData)
+            let familyProfile = adminProfile.toFamilyProfile()
+            
+            #if DEBUG
+            print("✅ Successfully decoded wrapped profile response")
+            print("   - Message: \(json?["message"] as? String ?? "No message")")
+            print("   - Profile ID: \(familyProfile.id)")
+            print("   - Profile Name: \(familyProfile.name)")
+            print("   - Can Make Purchases: \(familyProfile.canMakePurchases)")
+            print("   - Can Use Custom Content: \(familyProfile.canUseCustomContentTypes)")
+            #endif
             
             // Update local profiles array
             await MainActor.run {
                 if let index = self.availableProfiles.firstIndex(where: { $0.id == profileId }) {
-                    self.availableProfiles[index] = updateResponse.profile
+                    self.availableProfiles[index] = familyProfile
                 }
                 
                 // Update current profile if it's the one being updated
                 if self.currentProfile?.id == profileId {
-                    self.currentProfile = updateResponse.profile
+                    self.currentProfile = familyProfile
                 }
             }
             
-            return updateResponse.profile
+            return familyProfile
         } catch {
+            #if DEBUG
+            print("❌ Failed to decode UpdateProfileResponse: \(error)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("❌ Raw response that failed to decode: \(responseString)")
+            }
+            #endif
             throw ProfileError.decodingError
         }
     }
@@ -578,9 +637,15 @@ class ProfileService: ObservableObject {
             throw ProfileError.noToken
         }
         
+        // Ensure we have a current profile with admin privileges
+        guard let currentProfile = self.currentProfile, currentProfile.isDefault else {
+            throw ProfileError.apiError("Only the main family profile can manage family settings.")
+        }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(currentProfile.id, forHTTPHeaderField: "X-Profile-ID") // Required for admin access
         
         let (data, response) = try await URLSession.shared.data(for: request)
         

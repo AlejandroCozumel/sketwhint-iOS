@@ -47,7 +47,8 @@ struct GalleryView: View {
     }
     
     private var filteredProfileOptions: [FamilyProfile] {
-        profileService.availableProfiles.filter { !$0.isDefault }
+        // Show all profiles like folders does - don't filter out the admin profile
+        profileService.availableProfiles
     }
     
     // MARK: - Computed Properties for Empty States
@@ -124,6 +125,7 @@ struct GalleryView: View {
                         applyFilters()
                     }
                 )
+                .padding(.horizontal, AppSpacing.md)
             }
             
             // Minimum search length message
@@ -282,7 +284,7 @@ struct GalleryView: View {
                         applyFilters()
                     }
                     
-                    // Individual profile chips
+                    // Individual profile chips (all profiles, consistent with folders)
                     ForEach(filteredProfileOptions) { profile in
                         FilterChip(
                             title: profile.name,
@@ -450,18 +452,61 @@ struct GalleryView: View {
     
     // MARK: - Loading View
     private var loadingView: some View {
-        VStack(spacing: AppSpacing.xl) {
-            ProgressView()
-                .scaleEffect(1.5)
-                .tint(AppColors.primaryBlue)
+        VStack(spacing: AppSpacing.sectionSpacing) {
+            // Header skeleton
+            skeletonHeaderView
             
-            Text("Loading your creations...")
-                .font(AppTypography.bodyLarge)
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
+            // Skeleton grid
+            LazyVGrid(columns: columns, spacing: AppSpacing.grid.rowSpacing) {
+                ForEach(0..<6, id: \.self) { index in
+                    SkeletonImageCard()
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
+            }
         }
-        .frame(maxWidth: .infinity)
-        .frame(minHeight: 200)
+    }
+    
+    // MARK: - Skeleton Header
+    private var skeletonHeaderView: some View {
+        VStack(spacing: AppSpacing.md) {
+            HStack {
+                // Skeleton title with better contrast
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(AppColors.textSecondary.opacity(0.3))
+                    .frame(width: 140, height: 24)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(AppColors.borderMedium.opacity(0.4), lineWidth: 1)
+                    )
+                
+                Spacer()
+                
+                // Skeleton stats with better definition
+                VStack(alignment: .trailing, spacing: 4) {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(AppColors.textSecondary.opacity(0.25))
+                        .frame(width: 80, height: 14)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(AppColors.borderLight.opacity(0.5), lineWidth: 0.5)
+                        )
+                    
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(AppColors.textSecondary.opacity(0.2))
+                        .frame(width: 60, height: 12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(AppColors.borderLight.opacity(0.5), lineWidth: 0.5)
+                        )
+                }
+            }
+        }
+        .cardStyle()
+        .overlay(
+            // Card border for definition
+            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                .stroke(AppColors.borderMedium.opacity(0.3), lineWidth: 1)
+        )
     }
     
     // MARK: - Empty State
@@ -1496,7 +1541,7 @@ struct GalleryImageCardStateless: View {
                     },
                     placeholder: {
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                            .fill(AppColors.surfaceLight.opacity(0.3))
+                            .fill(Color.gray.opacity(0.25))
                             .frame(width: geometry.size.width, height: 160)
                             .overlay(
                                 ProgressView()
@@ -1661,7 +1706,7 @@ struct GalleryImageCard: View {
                     },
                     placeholder: {
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                            .fill(AppColors.surfaceLight.opacity(0.3))
+                            .fill(Color.gray.opacity(0.25))
                             .frame(width: geometry.size.width, height: 160)
                             .overlay(
                                 ProgressView()
@@ -2029,40 +2074,28 @@ struct ModernCategoryChip: View {
 // MARK: - Enhanced Skeleton Loading Card
 struct SkeletonImageCard: View {
     @State private var isAnimating = false
-    @State private var pulse = false
     
     var body: some View {
+        // Simple solid gray background like Books view
         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        AppColors.surfaceLight.opacity(0.8),
-                        AppColors.surfaceLight.opacity(0.4),
-                        AppColors.surfaceLight.opacity(0.8)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+            .fill(Color.gray.opacity(0.25))
             .frame(height: 160)
             .overlay(
-                // Enhanced shimmer effect
+                // Simple shimmer effect
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
                     .fill(
                         LinearGradient(
                             colors: [
                                 Color.clear,
-                                AppColors.primaryBlue.opacity(0.1),
-                                Color.white.opacity(0.6),
-                                AppColors.primaryBlue.opacity(0.1),
+                                Color.white.opacity(0.4),
                                 Color.clear
                             ],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    .scaleEffect(x: isAnimating ? 2.0 : 0.1)
-                    .offset(x: isAnimating ? 150 : -150)
+                    .scaleEffect(x: isAnimating ? 2.5 : 0.5)
+                    .offset(x: isAnimating ? 200 : -200)
                     .animation(
                         .linear(duration: 1.8)
                         .repeatForever(autoreverses: false),
@@ -2070,43 +2103,8 @@ struct SkeletonImageCard: View {
                     )
                     .clipped()
             )
-            .overlay(
-                // Animated skeleton favorite button
-                VStack {
-                    HStack {
-                        Spacer()
-                        Circle()
-                            .fill(AppColors.surfaceLight.opacity(pulse ? 0.3 : 0.6))
-                            .frame(width: 32, height: 32)
-                            .overlay(
-                                Circle()
-                                    .stroke(AppColors.primaryBlue.opacity(0.2), lineWidth: 1)
-                            )
-                            .animation(
-                                .easeInOut(duration: 1.2)
-                                .repeatForever(autoreverses: true),
-                                value: pulse
-                            )
-                    }
-                    Spacer()
-                }
-                .padding(AppSpacing.xs)
-            )
-            .shadow(
-                color: AppColors.primaryBlue.opacity(0.1),
-                radius: 4,
-                x: 0,
-                y: 2
-            )
-            .scaleEffect(pulse ? 0.98 : 1.0)
-            .animation(
-                .easeInOut(duration: 1.5)
-                .repeatForever(autoreverses: true),
-                value: pulse
-            )
             .onAppear {
                 isAnimating = true
-                pulse = true
             }
     }
 }

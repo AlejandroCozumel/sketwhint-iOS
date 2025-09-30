@@ -215,6 +215,7 @@ struct AvailableProfile: Identifiable, Codable {
     let avatar: String?
     let hasPin: Bool  // Boolean indicator only (no actual PIN)
     let canMakePurchases: Bool
+    let canUseCustomContentTypes: Bool
     let isDefault: Bool
     
     /// Convert to FamilyProfile for compatibility with existing UI
@@ -225,7 +226,7 @@ struct AvailableProfile: Identifiable, Codable {
             avatar: avatar,
             isDefault: isDefault,
             canMakePurchases: canMakePurchases,
-            canUseCustomContentTypes: false, // Default value since not provided
+            canUseCustomContentTypes: canUseCustomContentTypes,
             hasPin: hasPin,
             createdAt: "", // Not provided in available profiles
             updatedAt: ""  // Not provided in available profiles

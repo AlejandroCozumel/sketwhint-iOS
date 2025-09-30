@@ -31,7 +31,8 @@ struct BooksView: View {
     }
     
     private var filteredProfileOptions: [FamilyProfile] {
-        profileService.availableProfiles.filter { !$0.isDefault }
+        // Show all profiles like folders does - don't filter out the admin profile
+        profileService.availableProfiles
     }
     
     // MARK: - Computed Properties for Empty States
@@ -151,7 +152,7 @@ struct BooksView: View {
                 selectedProfileFilter: selectedProfileFilter,
                 selectedCategory: selectedCategory,
                 isSearchActive: false,
-                availableProfiles: filteredProfileOptions, // Use filtered profiles (exclude default)
+                availableProfiles: filteredProfileOptions, // Use all profiles (consistent with folders)
                 availableCategories: availableCategories,
                 showFavoritesToggle: true,
                 showProfileFilters: true,

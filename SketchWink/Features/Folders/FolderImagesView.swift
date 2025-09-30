@@ -114,6 +114,7 @@ struct FolderImagesView: View {
                             applyFilters()
                         }
                     )
+                    .padding(.horizontal, AppSpacing.md)
                     .padding(.bottom, AppSpacing.md)
                 }
                 

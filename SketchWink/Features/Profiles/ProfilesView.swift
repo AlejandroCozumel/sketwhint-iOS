@@ -16,9 +16,7 @@ struct ProfilesView: View {
     @State private var showingAdminOnlyAlert = false
     @State private var profileToSelect: FamilyProfile? {
         didSet {
-            #if DEBUG
-            print("🔄 ProfilesView: profileToSelect changed from \(oldValue?.name ?? "nil") to \(profileToSelect?.name ?? "nil")")
-            #endif
+            // Profile selection changed
         }
     }
     @State private var currentProfile: FamilyProfile?
@@ -72,12 +70,44 @@ struct ProfilesView: View {
                 }
             )
         }
-        .sheet(item: $selectedProfile) { profile in
+        .sheet(item: $selectedProfile) { selectedProfile in
             EditProfileView(
-                profile: profile,
+                profileId: selectedProfile.id,  // Pass ID instead of profile object
                 onProfileUpdated: { updatedProfile in
                     if let index = profiles.firstIndex(where: { $0.id == updatedProfile.id }) {
+                        #if DEBUG
+                        print("🔄 ProfilesView: Updating profile in array")
+                        print("   - Profile: \(updatedProfile.name)")
+                        print("   - Old canUseCustomContentTypes: \(profiles[index].canUseCustomContentTypes)")
+                        print("   - New canUseCustomContentTypes: \(updatedProfile.canUseCustomContentTypes)")
+                        #endif
                         profiles[index] = updatedProfile
+                        #if DEBUG
+                        print("   - Array updated successfully")
+                        #endif
+                    }
+                    
+                    // Also refresh the profile data from API to ensure consistency
+                    Task {
+                        do {
+                            #if DEBUG
+                            print("🔄 ProfilesView: Refreshing profiles from API after update")
+                            #endif
+                            let freshProfiles = try await loadProfiles()
+                            await MainActor.run {
+                                profiles = freshProfiles
+                                #if DEBUG
+                                print("✅ ProfilesView: Profiles refreshed from API")
+                                if let updatedFromAPI = freshProfiles.first(where: { $0.id == updatedProfile.id }) {
+                                    print("   - API Profile canUseCustomContentTypes: \(updatedFromAPI.canUseCustomContentTypes)")
+                                }
+                                #endif
+                            }
+                        } catch {
+                            #if DEBUG
+                            print("❌ ProfilesView: Failed to refresh profiles from API: \(error)")
+                            #endif
+                        }
                     }
                 },
                 onProfileDeleted: { deletedProfile in
@@ -265,14 +295,9 @@ struct ProfilesView: View {
                     profile: profile,
                     isCurrentProfile: currentProfile?.id == profile.id,
                     isLoading: isSwitchingProfile,
+                    canEdit: currentProfile?.isDefault == true,
                     onTap: {
                         // Switch to profile
-                        #if DEBUG
-                        print("🎯 ProfilesView: ProfileCard tapped for \(profile.name)")
-                        print("   - Profile ID: \(profile.id)")
-                        print("   - Has PIN: \(profile.hasPin)")
-                        print("   - Is current profile: \(currentProfile?.id == profile.id)")
-                        #endif
                         
                         if profile.hasPin {
                             #if DEBUG
@@ -468,9 +493,6 @@ struct ProfilesView: View {
                 isSwitchingProfile = false
                 profileToSelect = nil
                 
-                #if DEBUG
-                print("✅ ProfilesView: Successfully switched to profile: \(profile.name)")
-                #endif
             }
         } catch {
             await MainActor.run {
@@ -479,7 +501,7 @@ struct ProfilesView: View {
                 showingError = true
                 
                 #if DEBUG
-                print("❌ ProfilesView: Failed to switch profile: \(error)")
+                print("Failed to switch profile: \(error)")
                 #endif
             }
         }
@@ -526,6 +548,7 @@ struct ProfileCard: View {
     let profile: FamilyProfile
     let isCurrentProfile: Bool
     let isLoading: Bool
+    let canEdit: Bool
     let onTap: () -> Void
     let onEditTap: () -> Void
     
@@ -591,27 +614,29 @@ struct ProfileCard: View {
                             .frame(width: 80, height: 80)
                         }
                         
-                        // Edit button overlay - TOP RIGHT
-                        VStack {
-                            HStack {
-                                Spacer()
-                                Button(action: onEditTap) {
-                                    Image(systemName: "gearshape.fill")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(AppColors.primaryBlue)
-                                        .frame(width: 28, height: 28)
-                                        .background(.ultraThinMaterial, in: Circle())
-                                        .overlay(
-                                            Circle()
-                                                .stroke(AppColors.primaryBlue.opacity(0.3), lineWidth: 1)
-                                        )
-                                        .shadow(color: AppColors.primaryBlue.opacity(0.2), radius: 2, x: 0, y: 1)
+                        // Edit button overlay - TOP RIGHT (only for admin users)
+                        if canEdit {
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    Button(action: onEditTap) {
+                                        Image(systemName: "gearshape.fill")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(AppColors.primaryBlue)
+                                            .frame(width: 28, height: 28)
+                                            .background(.ultraThinMaterial, in: Circle())
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(AppColors.primaryBlue.opacity(0.3), lineWidth: 1)
+                                            )
+                                            .shadow(color: AppColors.primaryBlue.opacity(0.2), radius: 2, x: 0, y: 1)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
-                                .buttonStyle(PlainButtonStyle())
+                                Spacer()
                             }
-                            Spacer()
+                            .frame(width: 80, height: 80)
                         }
-                        .frame(width: 80, height: 80)
                     }
                     
                     VStack(spacing: AppSpacing.xs) {
@@ -1286,10 +1311,14 @@ struct PermissionToggleDisabled: View {
 }
 
 struct EditProfileView: View {
-    let profile: FamilyProfile
+    let profileId: String
     let onProfileUpdated: (FamilyProfile) -> Void
     let onProfileDeleted: (FamilyProfile) -> Void
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var profileService = ProfileService.shared
+    
+    @State private var profile: FamilyProfile?
+    @State private var isLoadingProfile = false
     
     @State private var showingDeleteAlert = false
     @State private var showingCannotDeleteAlert = false
@@ -1299,28 +1328,59 @@ struct EditProfileView: View {
     @State private var successMessage = ""
     @State private var showingError = false
     
+    // Profile permission states
+    @State private var canMakePurchases = false
+    @State private var canUseCustomContentTypes = false
+    @State private var isUpdatingPermissions = false
+    
+    // Admin access control
+    private var isCurrentProfileAdmin: Bool {
+        profileService.currentProfile?.isDefault == true
+    }
+    
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: AppSpacing.sectionSpacing) {
-                    // Profile Header
-                    profileHeaderSection
-                    
-                    // Profile Actions
-                    profileActionsSection
-                    
-                    // Profile Management Info
-                    profileManagementInfoSection
-                    
-                    // Delete Section (conditional)
-                    if !profile.isDefault {
-                        deleteProfileSection
-                    } else {
-                        cannotDeleteSection
+            Group {
+                if isLoadingProfile {
+                    VStack {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Loading profile...")
+                            .font(AppTypography.bodyMedium)
+                            .foregroundColor(AppColors.textSecondary)
+                            .padding(.top, AppSpacing.sm)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let profile = profile {
+                    ScrollView {
+                        VStack(spacing: AppSpacing.sectionSpacing) {
+                            // Profile Header
+                            profileHeaderSection
+                            
+                            // Profile Actions
+                            profileActionsSection
+                            
+                            // Profile Management Info
+                            profileManagementInfoSection
+                            
+                            // Delete Section (conditional)
+                            if profile.isDefault == false {
+                                deleteProfileSection
+                            } else {
+                                cannotDeleteSection
+                            }
+                        }
+                        .pageMargins()
+                        .padding(.vertical, AppSpacing.sectionSpacing)
+                    }
+                } else {
+                    VStack {
+                        Text("Profile not found")
+                            .font(AppTypography.bodyMedium)
+                            .foregroundColor(AppColors.errorRed)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .pageMargins()
-                .padding(.vertical, AppSpacing.sectionSpacing)
             }
             .background(AppColors.backgroundLight)
             .navigationTitle("Edit Profile")
@@ -1341,7 +1401,7 @@ struct EditProfileView: View {
             }
         } message: {
             VStack {
-                Text("Hide \(profile.name)'s profile from selection?")
+                Text("Hide \(profile?.name ?? "this")'s profile from selection?")
                 Text("All images created by this profile will remain accessible to parents. This profile slot will become available for a new profile.")
                     .font(.caption)
             }
@@ -1363,6 +1423,58 @@ struct EditProfileView: View {
         } message: {
             Text(successMessage)
         }
+        .onAppear {
+            loadCurrentProfile()
+        }
+    }
+    
+    // MARK: - Profile Loading
+    private func loadCurrentProfile() {
+        isLoadingProfile = true
+        
+        Task {
+            do {
+                #if DEBUG
+                print("🔄 EditProfileView: Loading fresh profile data from API")
+                print("   - Profile ID: \(profileId)")
+                #endif
+                
+                // Fetch fresh profiles from API
+                let profiles = try await ProfileService.shared.loadFamilyProfiles()
+                
+                await MainActor.run {
+                    if let freshProfile = profiles.first(where: { $0.id == profileId }) {
+                        #if DEBUG
+                        print("✅ EditProfileView: Loaded fresh profile from API")
+                        print("   - Profile: \(freshProfile.name)")
+                        print("   - canMakePurchases: \(freshProfile.canMakePurchases)")
+                        print("   - canUseCustomContentTypes: \(freshProfile.canUseCustomContentTypes)")
+                        #endif
+                        
+                        profile = freshProfile
+                        canMakePurchases = freshProfile.canMakePurchases
+                        canUseCustomContentTypes = freshProfile.canUseCustomContentTypes
+                        
+                        #if DEBUG
+                        print("   - State initialized with fresh data")
+                        #endif
+                    } else {
+                        #if DEBUG
+                        print("❌ EditProfileView: Profile not found in API response")
+                        #endif
+                        profile = nil
+                    }
+                    isLoadingProfile = false
+                }
+            } catch {
+                #if DEBUG
+                print("❌ EditProfileView: Failed to load profile: \(error)")
+                #endif
+                await MainActor.run {
+                    isLoadingProfile = false
+                }
+            }
+        }
     }
     
     // MARK: - Profile Header
@@ -1370,20 +1482,20 @@ struct EditProfileView: View {
         VStack(spacing: AppSpacing.lg) {
             ZStack {
                 Circle()
-                    .fill(Color(hex: profile.profileColor))
+                    .fill(Color(hex: profile?.profileColor ?? "#6B7280"))
                     .frame(width: 120, height: 120)
                     .shadow(
-                        color: Color(hex: profile.profileColor).opacity(0.3),
+                        color: Color(hex: profile?.profileColor ?? "#6B7280").opacity(0.3),
                         radius: AppSizing.shadows.large.radius,
                         x: AppSizing.shadows.large.x,
                         y: AppSizing.shadows.large.y
                     )
                 
-                Text(profile.displayAvatar)
+                Text(profile?.displayAvatar ?? "👤")
                     .font(.system(size: 60))
                 
                 // Default profile badge
-                if profile.isDefault {
+                if profile?.isDefault == true {
                     VStack {
                         HStack {
                             Spacer()
@@ -1404,11 +1516,11 @@ struct EditProfileView: View {
             
             VStack(spacing: AppSpacing.sm) {
                 HStack {
-                    Text(profile.name)
+                    Text(profile?.name ?? "Profile")
                         .headlineLarge()
                         .foregroundColor(AppColors.textPrimary)
                     
-                    if profile.isDefault {
+                    if profile?.isDefault == true {
                         Text("MAIN")
                             .captionMedium()
                             .foregroundColor(.white)
@@ -1419,7 +1531,7 @@ struct EditProfileView: View {
                     }
                 }
                 
-                if profile.isDefault {
+                if profile?.isDefault == true {
                     Text("Main family profile with admin privileges")
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
@@ -1438,15 +1550,86 @@ struct EditProfileView: View {
     // MARK: - Profile Actions
     private var profileActionsSection: some View {
         VStack(spacing: AppSpacing.md) {
-            Text("Profile Settings")
-                .headlineMedium()
-                .foregroundColor(AppColors.textPrimary)
+            HStack {
+                Text("Permissions")
+                    .headlineMedium()
+                    .foregroundColor(AppColors.textPrimary)
+                
+                Spacer()
+                
+                if !isCurrentProfileAdmin {
+                    Image(systemName: "lock.fill")
+                        .foregroundColor(AppColors.textSecondary)
+                        .font(.system(size: 16))
+                }
+            }
             
-            Text("Profile editing features are coming soon. You'll be able to change avatar, update PIN, and modify permissions.")
-                .bodyMedium()
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding()
+            if isCurrentProfileAdmin {
+                VStack(spacing: AppSpacing.md) {
+                    if profile?.isDefault == true {
+                        // Main profile: purchases always enabled, show locked state
+                        PermissionToggleDisabled(
+                            icon: "creditcard.fill",
+                            title: "Can Make Purchases",
+                            description: "Required for main profile - manages subscriptions and payments",
+                            isOn: true,
+                            color: AppColors.warningOrange,
+                            lockedReason: "Required for main profile"
+                        )
+                    } else {
+                        // Additional profiles: allow toggle
+                        PermissionToggle(
+                            icon: "creditcard.fill",
+                            title: "Can Make Purchases",
+                            description: "Allow this profile to make in-app purchases",
+                            isOn: $canMakePurchases,
+                            color: AppColors.warningOrange
+                        )
+                        .disabled(isUpdatingPermissions)
+                        .onChange(of: canMakePurchases) { oldValue, newValue in
+                            #if DEBUG
+                            print("🎛️ Can Make Purchases toggle changed: \(oldValue) → \(newValue)")
+                            #endif
+                            if !isUpdatingPermissions {
+                                updatePermissions()
+                            }
+                        }
+                    }
+                    
+                    PermissionToggle(
+                        icon: "photo.fill",
+                        title: "Can Use Custom Content",
+                        description: "Allow uploading custom images for generation",
+                        isOn: $canUseCustomContentTypes,
+                        color: AppColors.primaryPurple
+                    )
+                    .disabled(isUpdatingPermissions)
+                    .onChange(of: canUseCustomContentTypes) { oldValue, newValue in
+                        #if DEBUG
+                        print("🎛️ Can Use Custom Content toggle changed: \(oldValue) → \(newValue)")
+                        #endif
+                        if !isUpdatingPermissions {
+                            updatePermissions()
+                        }
+                    }
+                }
+            } else {
+                VStack(spacing: AppSpacing.sm) {
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 32))
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text("Admin Access Required")
+                        .titleMedium()
+                        .foregroundColor(AppColors.textSecondary)
+                    
+                    Text("Only the main profile can modify family member permissions. Switch to your main profile to edit these settings.")
+                        .bodyMedium()
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(AppSpacing.lg)
+            }
         }
         .cardStyle()
     }
@@ -1569,8 +1752,110 @@ struct EditProfileView: View {
         .cardStyle()
     }
     
+    // MARK: - Permission Management Methods
+    private func loadCurrentPermissions() {
+        guard let profile = profile else { return }
+        
+        #if DEBUG
+        print("🔄 EditProfileView: loadCurrentPermissions() called")
+        print("   - Profile: \(profile.name) (ID: \(profile.id))")
+        print("   - OLD canMakePurchases state: \(canMakePurchases)")
+        print("   - OLD canUseCustomContentTypes state: \(canUseCustomContentTypes)")
+        print("   - Profile.canMakePurchases: \(profile.canMakePurchases)")
+        print("   - Profile.canUseCustomContentTypes: \(profile.canUseCustomContentTypes)")
+        #endif
+        
+        canMakePurchases = profile.canMakePurchases
+        canUseCustomContentTypes = profile.canUseCustomContentTypes
+        
+        #if DEBUG
+        print("   - NEW canMakePurchases state: \(canMakePurchases)")
+        print("   - NEW canUseCustomContentTypes state: \(canUseCustomContentTypes)")
+        print("   - Profile.isDefault: \(profile.isDefault)")
+        print("   - isCurrentProfileAdmin: \(isCurrentProfileAdmin)")
+        #endif
+    }
+    
+    private func updatePermissions() {
+        guard let profile = profile else { return }
+        
+        #if DEBUG
+        print("   - Profile ID: \(profile.id)")
+        print("   - Profile Name: \(profile.name)")
+        print("   - isCurrentProfileAdmin: \(isCurrentProfileAdmin)")
+        print("   - canMakePurchases: \(canMakePurchases)")
+        print("   - canUseCustomContentTypes: \(canUseCustomContentTypes)")
+        #endif
+        
+        guard isCurrentProfileAdmin else { 
+            #if DEBUG
+            print("Permission update blocked - admin access required")
+            #endif
+            return 
+        }
+        
+        isUpdatingPermissions = true
+        
+        Task {
+            do {
+                let request = UpdateProfileRequest(
+                    name: nil, // Not updating name
+                    avatar: nil, // Not updating avatar
+                    pin: nil, // Not updating PIN
+                    canMakePurchases: canMakePurchases,
+                    canUseCustomContentTypes: canUseCustomContentTypes
+                )
+                
+                #if DEBUG
+                print("📤 EditProfileView: Sending updateFamilyProfile request")
+                print("   - Profile ID: \(profile.id)")
+                print("   - canMakePurchases (sending): \(canMakePurchases)")
+                print("   - canUseCustomContentTypes (sending): \(canUseCustomContentTypes)")
+                print("   - Request object: \(request)")
+                #endif
+                
+                let updatedProfile = try await ProfileService.shared.updateFamilyProfile(
+                    profileId: profile.id,
+                    request: request
+                )
+                
+                #if DEBUG
+                // Profile updated successfully
+                print("   - Updated Profile: canMakePurchases=\(updatedProfile.canMakePurchases), canUseCustomContentTypes=\(updatedProfile.canUseCustomContentTypes)")
+                #endif
+                
+                await MainActor.run {
+                    onProfileUpdated(updatedProfile)
+                    
+                    // Update local state with the returned values
+                    canMakePurchases = updatedProfile.canMakePurchases
+                    canUseCustomContentTypes = updatedProfile.canUseCustomContentTypes
+                    
+                    isUpdatingPermissions = false
+                }
+            } catch {
+                #if DEBUG
+                print("Failed to update profile: \(error)")
+                #endif
+                
+                await MainActor.run {
+                    // Revert the UI state if API call failed
+                    if let currentProfile = self.profile {
+                        canMakePurchases = currentProfile.canMakePurchases
+                        canUseCustomContentTypes = currentProfile.canUseCustomContentTypes
+                    }
+                    
+                    isUpdatingPermissions = false
+                    errorMessage = error.localizedDescription
+                    showingError = true
+                }
+            }
+        }
+    }
+    
     // MARK: - Methods
     private func deleteProfile() {
+        guard let profile = profile else { return }
         guard !profile.isDefault else {
             showingCannotDeleteAlert = true
             return
