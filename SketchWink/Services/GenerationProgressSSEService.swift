@@ -333,6 +333,15 @@ class GenerationProgressSSEService: ObservableObject {
                     self.reconnectAttempt = 0
                     self.isReconnecting = false
                     self.stopWatchdog()
+                    
+                    // Refresh token balance in the global manager after successful generation
+                    Task { @MainActor in
+                        await TokenBalanceManager.shared.refresh()
+                        #if DEBUG
+                        print("✅ GenerationProgressSSE: Token balance refreshed in global manager after generation completion")
+                        #endif
+                    }
+                    
                     self.onGenerationComplete?(progress.generationId)
                     // Don't disconnect - user might start another generation
                 } else if progress.status == .failed {
