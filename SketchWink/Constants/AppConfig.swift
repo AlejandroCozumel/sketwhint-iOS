@@ -39,6 +39,7 @@ struct AppConfig {
             
             // Content Generation
             static let categories = "/categories/with-options"
+            static let productCategories = "/categories/products"
             static let generations = "/generations"
             static let enhancePrompt = "/prompt/enhance"
             
@@ -69,6 +70,12 @@ struct AppConfig {
             
             // Analytics
             static let analytics = "/analytics"
+            
+            // Story Drafts
+            static let storyDrafts = "/stories/drafts"
+            static let storyDraft = "/stories/drafts/%@" // %@ = draftId
+            static let regenerateDraft = "/stories/drafts/%@/regenerate" // %@ = draftId
+            static let generateBookFromDraft = "/books/%@/generate-images" // %@ = draftId
             
             // Books
             static let books = "/books"
