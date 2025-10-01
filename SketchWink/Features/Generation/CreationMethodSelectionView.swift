@@ -95,8 +95,7 @@ struct CreationMethodSelectionView: View {
             }
         }
         .sheet(isPresented: $showingAIAssisted) {
-            AIAssistedCreationView(
-                productCategory: productCategory,
+            SimpleStoryInputView(
                 onDismiss: {
                     showingAIAssisted = false
                 },
@@ -436,7 +435,8 @@ struct AIAssistedCreationView: View {
             ageGroup: .preschool,       // Default to popular age group
             pageCount: 6,               // Recommended page count
             focusTags: nil,             // Let AI decide
-            customFocus: "Create an engaging, age-appropriate story based on the theme"
+            customFocus: "Create an engaging, age-appropriate story based on the theme",
+            aiGenerated: true           // AI-assisted creation uses AI generation
         )
         
         do {

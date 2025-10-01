@@ -14,6 +14,7 @@ struct ProfilesView: View {
     @State private var showingMaxProfilesAlert = false
     @State private var showingProfileSelection = false
     @State private var showingAdminOnlyAlert = false
+    @State private var showingSignOutAlert = false
     @State private var profileToSelect: FamilyProfile? {
         didSet {
             // Profile selection changed
@@ -21,6 +22,8 @@ struct ProfilesView: View {
     }
     @State private var currentProfile: FamilyProfile?
     @State private var isSwitchingProfile = false
+
+    @StateObject private var authService = AuthService.shared
     
     var body: some View {
         NavigationStack {
@@ -58,15 +61,24 @@ struct ProfilesView: View {
         } message: {
             Text("You've reached the maximum of \(userPermissions?.maxFamilyProfiles ?? 5) family profiles for your plan.")
         }
+        .alert("Sign Out", isPresented: $showingSignOutAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Sign Out", role: .destructive) {
+                authService.signOut()
+            }
+        } message: {
+            Text("Are you sure you want to sign out? You can always sign back in anytime.")
+        }
         .sheet(isPresented: $showingCreateProfile) {
             CreateProfileView(
                 maxProfiles: userPermissions?.maxFamilyProfiles ?? 1,
                 isFirstProfile: profiles.isEmpty,  // Pass if this is the first profile
-                onProfileCreated: { newProfile in
+                onProfileCreated: { newProfile, usedPin in
                     profiles.append(newProfile)
-                    // After creating profile, force user to select it
-                    profileToSelect = newProfile
-                    showingProfileSelection = true
+                    // After creating profile, automatically select it
+                    Task {
+                        await selectNewProfile(newProfile, usedPin: usedPin)
+                    }
                 }
             )
         }
@@ -237,15 +249,18 @@ struct ProfilesView: View {
     // MARK: - Profile Management View
     private var profileManagementView: some View {
         VStack(spacing: AppSpacing.sectionSpacing) {
-            
+
             // Header with stats
             profilesHeaderView
-            
+
             // Profiles Grid
             profilesGrid
-            
+
             // Plan limits info
             planLimitsView
+
+            // Account section
+            accountSection
         }
     }
     
@@ -376,7 +391,70 @@ struct ProfilesView: View {
             }
         }
     }
-    
+
+    // MARK: - Account Section
+    private var accountSection: some View {
+        VStack(spacing: AppSpacing.md) {
+            HStack {
+                Text("Account")
+                    .headlineMedium()
+                    .foregroundColor(AppColors.textPrimary)
+                Spacer()
+            }
+
+            VStack(spacing: AppSpacing.sm) {
+                if let user = authService.currentUser {
+                    // User info
+                    HStack(spacing: AppSpacing.md) {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.primaryBlue)
+                                .frame(width: 50, height: 50)
+
+                            Text("👤")
+                                .font(.system(size: 24))
+                        }
+
+                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                            Text(user.name)
+                                .bodyLarge()
+                                .foregroundColor(AppColors.textPrimary)
+
+                            Text(user.email)
+                                .captionLarge()
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+
+                        Spacer()
+
+                        if user.emailVerified {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundColor(AppColors.successGreen)
+                                .font(.system(size: 16))
+                        }
+                    }
+                    .contentPadding()
+                    .background(AppColors.backgroundLight)
+                    .cornerRadius(AppSizing.cornerRadius.md)
+                }
+
+                // Sign Out Button
+                Button("Sign Out") {
+                    showingSignOutAlert = true
+                }
+                .largeButtonStyle(backgroundColor: AppColors.buttonSecondary)
+                .foregroundColor(AppColors.errorRed)
+                .childSafeTouchTarget()
+
+                Text("You can always sign back in anytime")
+                    .captionLarge()
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .cardStyle()
+    }
+
     // MARK: - Computed Properties
     private var canCreateProfile: Bool {
         guard let permissions = userPermissions else { 
@@ -510,10 +588,47 @@ struct ProfilesView: View {
     private func loadCurrentProfile() {
         // Load current profile from ProfileService
         currentProfile = ProfileService.shared.currentProfile
-        
+
         #if DEBUG
         print("🔍 ProfilesView: Current profile loaded: \(currentProfile?.name ?? "None")")
         #endif
+    }
+
+    private func selectNewProfile(_ profile: FamilyProfile, usedPin: String?) async {
+        #if DEBUG
+        print("🎯 ProfilesView: Auto-selecting newly created profile: \(profile.name)")
+        print("   - Profile has PIN: \(profile.hasPin)")
+        print("   - Used PIN: \(usedPin != nil ? "provided" : "none")")
+        #endif
+
+        await MainActor.run {
+            isSwitchingProfile = true
+        }
+
+        do {
+            // Use selectProfile which properly handles PIN validation and profile selection
+            // This calls the correct /api/profiles/select endpoint
+            try await ProfileService.shared.selectProfile(profile, pin: usedPin)
+
+            await MainActor.run {
+                currentProfile = profile
+                isSwitchingProfile = false
+
+                #if DEBUG
+                print("✅ ProfilesView: Successfully auto-selected new profile: \(profile.name)")
+                #endif
+            }
+        } catch {
+            await MainActor.run {
+                isSwitchingProfile = false
+                self.error = error
+                showingError = true
+
+                #if DEBUG
+                print("❌ ProfilesView: Failed to auto-select new profile: \(error)")
+                #endif
+            }
+        }
     }
 }
 
@@ -764,7 +879,7 @@ struct PlanInfoRow: View {
 struct CreateProfileView: View {
     let maxProfiles: Int
     let isFirstProfile: Bool  // NEW: Indicates if this is the first profile
-    let onProfileCreated: (FamilyProfile) -> Void
+    let onProfileCreated: (FamilyProfile, String?) -> Void
     @Environment(\.dismiss) private var dismiss
     
     @State private var profileName = ""
@@ -1206,7 +1321,8 @@ struct CreateProfileView: View {
                 let newProfile = try await ProfileService.shared.createFamilyProfile(request)
                 
                 await MainActor.run {
-                    onProfileCreated(newProfile)
+                    // Pass the profile and the PIN that was used (if any)
+                    onProfileCreated(newProfile, enablePin ? pin : nil)
                     isCreating = false
                     dismiss()
                 }
@@ -2146,22 +2262,13 @@ struct PINEntryView: View {
         
         Task {
             do {
-                let isValid = try await ProfileService.shared.verifyProfilePIN(
-                    profileId: profile.id,
-                    pin: enteredPIN
-                )
-                
+                // Use selectProfile instead of verifyProfilePIN
+                try await ProfileService.shared.selectProfile(profile, pin: enteredPIN)
+
                 await MainActor.run {
-                    if isValid {
-                        // PIN correct
-                        onPINVerified(profile, enteredPIN)
-                        dismiss()
-                    } else {
-                        // This shouldn't happen since API throws on invalid PIN
-                        errorMessage = "PIN verification failed"
-                        showingError = true
-                        enteredPIN = ""
-                    }
+                    // Profile selection successful
+                    onPINVerified(profile, enteredPIN)
+                    dismiss()
                     isVerifying = false
                 }
             } catch {

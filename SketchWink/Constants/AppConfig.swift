@@ -14,7 +14,7 @@ struct AppConfig {
     // MARK: - API Configuration
     struct API {
         #if DEBUG
-        static let baseURL = "http://127.0.0.1:3000/api"  // Include /api in baseURL
+        static let baseURL = "http://127.0.0.1:3000/api"  // LOCAL DEVELOPMENT API
         #else
         static let baseURL = "https://api.sketchwink.com/api"
         #endif

@@ -89,19 +89,15 @@ struct AppCoordinator: View {
             CreateProfileView(
                 maxProfiles: 5,
                 isFirstProfile: true,  // AppCoordinator only shows this when no profiles exist
-                onProfileCreated: { newProfile in
+                onProfileCreated: { newProfile, usedPin in
                     #if DEBUG
                     print("🎯 DEBUG: Profile created at AppCoordinator level - Name: \(newProfile.name), HasPin: \(newProfile.hasPin)")
+                    print("🎯 DEBUG: Used PIN: \(usedPin != nil ? "provided" : "none")")
                     #endif
-                    profileToSelect = newProfile
-                    
-                    if newProfile.hasPin {
-                        showingPINEntry = true
-                    } else {
-                        // For profiles without PIN, select immediately
-                        Task {
-                            await selectProfile(newProfile, pin: nil)
-                        }
+
+                    // Automatically select the newly created profile using the PIN from creation
+                    Task {
+                        await selectProfile(newProfile, pin: usedPin)
                     }
                 }
             )

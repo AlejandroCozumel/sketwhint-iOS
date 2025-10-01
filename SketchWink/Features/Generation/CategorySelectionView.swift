@@ -3,6 +3,7 @@ import SwiftUI
 struct CategorySelectionView: View {
     @StateObject private var generationService = GenerationService.shared
     @StateObject private var productService = ProductCategoriesService.shared
+    @StateObject private var draftService = DraftService.shared
     @State private var categories: [CategoryWithOptions] = []
     @State private var productCategories: [ProductCategory] = []
     @State private var isLoading = true
@@ -10,8 +11,10 @@ struct CategorySelectionView: View {
     @State private var showingError = false
     @State private var selectedCategory: CategoryWithOptions?
     @State private var selectedProductCategory: ProductCategory?
-    @State private var showingBookGeneration = false
     @State private var createdDraft: StoryDraft?
+    @State private var activeProductCategoryForGeneration: ProductCategory?
+    @State private var navigateToCreationMethod = false
+    @State private var navigateToBookGeneration = false
     
     
     var body: some View {
@@ -60,36 +63,53 @@ struct CategorySelectionView: View {
                 #endif
             }
         }
-        .sheet(item: $selectedProductCategory) { productCategory in
-            SimpleCreationMethodView(
-                productCategory: productCategory,
-                onDismiss: {
-                    selectedProductCategory = nil
-                },
-                onDraftCreated: { draft in
-                    selectedProductCategory = nil
-                    createdDraft = draft
-                    showingBookGeneration = true
-                }
-            )
-            .onAppear {
-                print("📚 CategorySelection: Creation method sheet appeared for: \(productCategory.name)")
+        // Navigation-based flow instead of stacked sheets
+        .background(
+            Group {
+                NavigationLink(
+                    destination:
+                        Group {
+                            if let productCategory = selectedProductCategory {
+                                SimpleCreationMethodView(
+                                    productCategory: productCategory,
+                                    onDismiss: {
+                                        navigateToCreationMethod = false
+                                        selectedProductCategory = nil
+                                    },
+                                    onDraftCreated: { draft in
+                                        // Navigate to story review/preview before generating book
+                                        activeProductCategoryForGeneration = productCategory
+                                        createdDraft = draft
+                                        navigateToBookGeneration = true
+                                    }
+                                )
+                            } else {
+                                EmptyView()
+                            }
+                        },
+                    isActive: $navigateToCreationMethod
+                ) { EmptyView() }
+                NavigationLink(
+                    destination:
+                        Group {
+                            if let draft = createdDraft {
+                                StoryDraftDetailView(
+                                    draft: draft,
+                                    onDismiss: {
+                                        navigateToBookGeneration = false
+                                        selectedProductCategory = nil
+                                        createdDraft = nil
+                                        activeProductCategoryForGeneration = nil
+                                    }
+                                )
+                            } else {
+                                EmptyView()
+                            }
+                        },
+                    isActive: $navigateToBookGeneration
+                ) { EmptyView() }
             }
-        }
-        .sheet(isPresented: $showingBookGeneration) {
-            if let draft = createdDraft,
-               let productCategory = selectedProductCategory {
-                BookGenerationView(
-                    draft: draft,
-                    productCategory: productCategory,
-                    onDismiss: {
-                        showingBookGeneration = false
-                        selectedProductCategory = nil
-                        createdDraft = nil
-                    }
-                )
-            }
-        }
+        )
     }
     
     // MARK: - Loading View
@@ -199,6 +219,49 @@ struct CategorySelectionView: View {
     }
     
     // MARK: - Methods
+    private func generateBookWithDefaults(for draft: StoryDraft) async {
+        #if DEBUG
+        print("📖 CategorySelectionView: Generating book with default settings for draft: \(draft.title)")
+        #endif
+
+        // Use default values for book generation
+        let request = GenerateBookFromDraftRequest(
+            model: "seedream",           // Default model
+            quality: "standard",        // Default quality
+            dimensions: "a4"           // Default dimensions
+        )
+
+        do {
+            let response = try await draftService.generateBookFromDraft(draftId: draft.id, options: request)
+
+            #if DEBUG
+            print("📖 CategorySelectionView: Book generation started with ID: \(response.productId)")
+            #endif
+
+            await MainActor.run {
+                // Reset navigation state and show success
+                navigateToCreationMethod = false
+                selectedProductCategory = nil
+                createdDraft = nil
+                activeProductCategoryForGeneration = nil
+
+                // Could show a success message or navigate to book status
+                #if DEBUG
+                print("📖 CategorySelectionView: Book generation initiated successfully")
+                #endif
+            }
+        } catch {
+            #if DEBUG
+            print("❌ CategorySelectionView: Book generation failed: \(error)")
+            #endif
+
+            await MainActor.run {
+                self.error = error
+                showingError = true
+            }
+        }
+    }
+
     private func loadCategories() async {
         isLoading = true
         
@@ -229,9 +292,10 @@ struct CategorySelectionView: View {
         print("   - Draft endpoint: \(productCategory.draftEndpoint)")
         print("   - Generate endpoint: \(productCategory.generateEndpoint)")
         
-        // Navigate to draft creation flow - sheet will auto-present when selectedProductCategory is set
+        // Push to creation method page instead of presenting as a sheet
         selectedProductCategory = productCategory
-        print("📚 CategorySelection: selectedProductCategory set to: \(selectedProductCategory?.name ?? "nil")")
+        navigateToCreationMethod = true
+        print("📚 CategorySelection: navigating to creation method for: \(productCategory.name)")
     }
 }
 

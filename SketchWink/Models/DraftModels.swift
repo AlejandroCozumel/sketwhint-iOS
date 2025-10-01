@@ -101,14 +101,16 @@ struct CreateDraftRequest: Codable {
     let pageCount: Int
     let focusTags: [FocusTag]?
     let customFocus: String?
+    let aiGenerated: Bool
     
     enum CodingKeys: String, CodingKey {
         case theme
-        case storyType = "story_type"
-        case ageGroup = "age_group"
-        case pageCount = "page_count"
-        case focusTags = "focus_tags"
-        case customFocus = "custom_focus"
+        case storyType = "storyType"
+        case ageGroup = "ageGroup"
+        case pageCount = "pageCount"
+        case focusTags = "focusTags"
+        case customFocus = "customFocus"
+        case aiGenerated = "aiGenerated"
     }
     
     func encode(to encoder: Encoder) throws {
@@ -117,11 +119,19 @@ struct CreateDraftRequest: Codable {
         try container.encode(storyType.rawValue, forKey: .storyType)
         try container.encode(ageGroup.rawValue, forKey: .ageGroup)
         try container.encode(pageCount, forKey: .pageCount)
-        
+        try container.encode(aiGenerated, forKey: .aiGenerated)
+
         if let focusTags = focusTags {
             try container.encode(focusTags.map { $0.rawValue }, forKey: .focusTags)
+        } else {
+            try container.encode([String](), forKey: .focusTags) // Empty array instead of null
         }
-        try container.encodeIfPresent(customFocus, forKey: .customFocus)
+
+        if let customFocus = customFocus, !customFocus.isEmpty {
+            try container.encode(customFocus, forKey: .customFocus)
+        } else {
+            try container.encode("", forKey: .customFocus) // Empty string instead of null
+        }
     }
 }
 
@@ -133,24 +143,60 @@ struct StoryPage: Codable, Identifiable {
     let text: String
     let sceneDescription: String
     let characters: [String]
-    
+
     enum CodingKeys: String, CodingKey {
-        case pageNumber = "page_number"
+        case pageNumber = "pageNumber"
         case title
         case text
-        case sceneDescription = "scene_description"
+        case sceneDescription = "sceneDescription"
         case characters
     }
 }
 
-/// Character description structure
+/// Character description structure - matches backend response exactly
 struct CharacterDescription: Codable {
     let physicalAppearance: [String]
     let personalityTraits: [String]
-    
+    let roleInStory: String
+
+    // Custom decoder to handle the actual backend structure
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // PhysicalAppearance is a STRING in the backend response, not an object or array
+        if let physicalString = try? container.decode(String.self, forKey: .physicalAppearance) {
+            // Split the string into sentences for better display
+            self.physicalAppearance = physicalString.components(separatedBy: ". ").filter { !$0.isEmpty }
+        } else {
+            self.physicalAppearance = ["Friendly character"]
+        }
+
+        // PersonalityTraits is an array of strings
+        if let traits = try? container.decode([String].self, forKey: .personalityTraits) {
+            self.personalityTraits = traits
+        } else {
+            self.personalityTraits = ["Friendly", "Brave", "Kind"]
+        }
+
+        // RoleInStory is a string
+        if let role = try? container.decode(String.self, forKey: .roleInStory) {
+            self.roleInStory = role
+        } else {
+            self.roleInStory = "Important character in the story"
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(physicalAppearance.joined(separator: ". "), forKey: .physicalAppearance)
+        try container.encode(personalityTraits, forKey: .personalityTraits)
+        try container.encode(roleInStory, forKey: .roleInStory)
+    }
+
     enum CodingKeys: String, CodingKey {
-        case physicalAppearance = "Physical appearance details"
-        case personalityTraits = "Personality traits"
+        case physicalAppearance = "PhysicalAppearance"
+        case personalityTraits = "PersonalityTraits"
+        case roleInStory = "RoleInStory"
     }
 }
 
@@ -158,11 +204,17 @@ struct CharacterDescription: Codable {
 struct StoryOutline: Codable {
     let title: String
     let mainCharacters: [String]
+    let setting: String
+    let theme: String
+    let moralLesson: String
     let pages: [StoryPage]
-    
+
     enum CodingKeys: String, CodingKey {
         case title
-        case mainCharacters = "main_characters"
+        case mainCharacters = "mainCharacters"
+        case setting
+        case theme
+        case moralLesson = "moralLesson"
         case pages
     }
 }
@@ -170,30 +222,53 @@ struct StoryOutline: Codable {
 /// Complete draft response from API
 struct StoryDraft: Codable, Identifiable {
     let id: String
+    let userId: String
+    let familyProfileId: String?
+    let templateId: String?
+    let productType: String
     let title: String
     let theme: String
+    let ageGroup: String
+    let pageCount: Int
+    let focusTags: [String]
+    let customFocus: String?
+    let aiGenerated: Bool
     let storyOutline: StoryOutline
+    let pageTexts: [String]
     let characterDescriptions: [String: CharacterDescription]
-    let tokensCost: Int
+    let artStyle: String
     let status: String
+    let tokensCost: Int
     let createdAt: String
     let updatedAt: String
-    
+
     enum CodingKeys: String, CodingKey {
         case id
+        case userId
+        case familyProfileId
+        case templateId
+        case productType
         case title
         case theme
-        case storyOutline = "story_outline"
-        case characterDescriptions = "character_descriptions"
-        case tokensCost = "tokens_cost"
+        case ageGroup
+        case pageCount
+        case focusTags
+        case customFocus
+        case aiGenerated
+        case storyOutline = "storyOutline"
+        case pageTexts
+        case characterDescriptions = "characterDescriptions"
+        case artStyle
         case status
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
+        case tokensCost = "tokensCost"
+        case createdAt = "createdAt"
+        case updatedAt = "updatedAt"
     }
 }
 
-/// Response from draft creation
+/// Response from draft creation - matches actual backend format
 struct CreateDraftResponse: Codable {
+    let success: Bool
     let draft: StoryDraft
     let message: String?
 }
@@ -217,11 +292,15 @@ struct UpdateDraftRequest: Codable {
 
 /// Generate book from draft request
 struct GenerateBookFromDraftRequest: Codable {
+    let draftId: String?
+    let confirm: Bool
     let model: String?
     let quality: String?
     let dimensions: String?
-    
-    init(model: String = "seedream", quality: String = "standard", dimensions: String = "a4") {
+
+    init(draftId: String? = nil, confirm: Bool = true, model: String = "seedream", quality: String = "standard", dimensions: String = "a4") {
+        self.draftId = draftId
+        self.confirm = confirm
         self.model = model
         self.quality = quality
         self.dimensions = dimensions
@@ -230,11 +309,17 @@ struct GenerateBookFromDraftRequest: Codable {
 
 /// Generate book response
 struct GenerateBookResponse: Codable {
-    let bookId: String
+    let productId: String
+    let status: String
+    let tokensUsed: Int
+    let estimatedCompletion: String?
     let message: String?
-    
+
     enum CodingKeys: String, CodingKey {
-        case bookId = "book_id"
+        case productId
+        case status
+        case tokensUsed
+        case estimatedCompletion
         case message
     }
 }

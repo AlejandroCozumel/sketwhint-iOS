@@ -30,6 +30,9 @@ struct StoryDraftCreationView: View {
     @State private var isLoading = false
     @State private var error: Error?
     @State private var showingError = false
+    @State private var isShowingProgress = false
+    @State private var showingPreview = false
+    @State private var activeDraft: StoryDraft?
     
     let productCategory: ProductCategory
     let onDismiss: () -> Void
@@ -86,38 +89,72 @@ struct StoryDraftCreationView: View {
         } message: {
             Text(error?.localizedDescription ?? "An unknown error occurred")
         }
-        .fullScreenCover(isPresented: .constant(draftCreationState.isCreating)) {
-            DraftCreationProgressView(
-                productCategory: productCategory,
-                onComplete: { createdDraft in
-                    draftCreationState = .completed(createdDraft)
-                },
-                onError: { errorMessage in
-                    draftCreationState = .failed(errorMessage)
-                    error = DraftError.serverError(errorMessage)
-                    showingError = true
-                    // Reset form on error
-                    userTheme = ""
+        // Overlays instead of sheet/fullScreenCover to avoid presenter conflicts
+        .overlay(alignment: .center) {
+            if isShowingProgress {
+                ZStack {
+                    Color.black.opacity(0.25).ignoresSafeArea()
+                    DraftCreationProgressView(
+                        productCategory: productCategory,
+                        onComplete: { _ in },
+                        onError: { errorMessage in
+                            error = DraftError.serverError(errorMessage)
+                            showingError = true
+                            isShowingProgress = false
+                        }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(AppColors.backgroundLight)
                 }
-            )
-        }
-        .sheet(isPresented: .constant(draftCreationState.isCompleted)) {
-            if case .completed(let draft) = draftCreationState {
-                DraftPreviewView(
-                    draft: draft,
-                    productCategory: productCategory,
-                    onDismiss: {
-                        draftCreationState = .idle
-                        userTheme = ""
-                        onDraftCreated(draft)
-                    },
-                    onGenerateBook: { draftToGenerate in
-                        draftCreationState = .idle
-                        userTheme = ""
-                        onDraftCreated(draftToGenerate)
-                    }
-                )
+                .transition(.opacity)
+                .zIndex(100)
             }
+        }
+        .overlay(alignment: .center) {
+            if showingPreview, let draft = activeDraft {
+                ZStack {
+                    Color.black.opacity(0.25).ignoresSafeArea()
+                    NavigationView {
+                        VStack(spacing: 16) {
+                            Text("Test Draft Preview")
+                                .font(.title)
+                            Text(draft.title)
+                                .font(.headline)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                            Button("Close") {
+                                showingPreview = false
+                                userTheme = ""
+                                onDraftCreated(draft)
+                            }
+                            .padding(.top, 12)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(AppColors.backgroundLight)
+                        .navigationTitle("Test Sheet")
+                        .navigationBarTitleDisplayMode(.inline)
+                    }
+                    .cardStyle()
+                    .onAppear {
+                        #if DEBUG
+                        print("🧪 Presenting Test Draft Preview Overlay for draft: \(draft.id)")
+                        #endif
+                    }
+                }
+                .transition(.opacity)
+                .zIndex(200)
+            }
+        }
+        // Debug state logs
+        .onChange(of: isShowingProgress) { _, presenting in
+            #if DEBUG
+            print("🔁 isShowingProgress = \(presenting)")
+            #endif
+        }
+        .onChange(of: showingPreview) { _, presenting in
+            #if DEBUG
+            print("🔁 showingPreview = \(presenting)")
+            #endif
         }
         // Align with other sheets: rely on pageMargins() inside ScrollView
     }
@@ -560,7 +597,8 @@ struct StoryDraftCreationView: View {
             ageGroup: selectedAgeGroup,
             pageCount: selectedPageCount,
             focusTags: selectedFocusTags.isEmpty ? nil : Array(selectedFocusTags),
-            customFocus: customFocus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : customFocus.trimmingCharacters(in: .whitespacesAndNewlines)
+            customFocus: customFocus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : customFocus.trimmingCharacters(in: .whitespacesAndNewlines),
+            aiGenerated: true // Manual creation still uses AI for story generation
         )
         
         // Validate request
@@ -579,15 +617,22 @@ struct StoryDraftCreationView: View {
         print("📝 Custom Focus: \(customFocus)")
         #endif
         
-        draftCreationState = .creating
+        await MainActor.run {
+            isShowingProgress = true
+        }
         
         do {
             let response = try await draftService.createDraft(request)
-            draftCreationState = .completed(response.draft)
+            await MainActor.run {
+                isShowingProgress = false
+                onDraftCreated(response.draft)
+            }
         } catch {
-            draftCreationState = .failed(error.localizedDescription)
-            self.error = error
-            showingError = true
+            await MainActor.run {
+                self.error = error
+                showingError = true
+                isShowingProgress = false
+            }
         }
     }
 }

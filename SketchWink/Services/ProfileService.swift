@@ -186,25 +186,37 @@ class ProfileService: ObservableObject {
     /// Create new family profile
     func createFamilyProfile(_ request: CreateProfileRequest) async throws -> FamilyProfile {
         let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.familyProfiles)"
-        
+
         guard let url = URL(string: endpoint) else {
             throw ProfileError.invalidURL
         }
-        
+
         guard let token = try KeychainManager.shared.retrieveToken() else {
             throw ProfileError.noToken
         }
-        
-        // Ensure we have a current profile with admin privileges
-        guard let currentProfile = self.currentProfile, currentProfile.isDefault else {
-            throw ProfileError.apiError("Only the main family profile can manage family settings.")
-        }
-        
+
         var httpRequest = URLRequest(url: url)
         httpRequest.httpMethod = "POST"
         httpRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         httpRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        httpRequest.setValue(currentProfile.id, forHTTPHeaderField: "X-Profile-ID") // Required for admin access
+
+        // Only require admin profile if user has existing profiles
+        // For first-time users (no profiles), allow creation without X-Profile-ID header
+        if !availableProfiles.isEmpty {
+            // User has existing profiles - require admin privileges
+            guard let currentProfile = self.currentProfile, currentProfile.isDefault else {
+                throw ProfileError.apiError("Only the main family profile can manage family settings.")
+            }
+            httpRequest.setValue(currentProfile.id, forHTTPHeaderField: "X-Profile-ID") // Required for admin access
+
+            #if DEBUG
+            print("📋 CreateProfile: User has existing profiles, using admin profile ID: \(currentProfile.id)")
+            #endif
+        } else {
+            #if DEBUG
+            print("📋 CreateProfile: First-time user (no existing profiles), creating without X-Profile-ID header")
+            #endif
+        }
         
         do {
             let jsonData = try JSONEncoder().encode(request)

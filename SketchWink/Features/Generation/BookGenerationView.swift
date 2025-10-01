@@ -425,7 +425,7 @@ struct BookGenerationView: View {
         
         do {
             let response = try await draftService.generateBookFromDraft(draftId: draft.id, options: options)
-            bookGenerationState = .generating(response.bookId)
+            bookGenerationState = .generating(response.productId)
         } catch {
             self.error = error
             showingError = true
