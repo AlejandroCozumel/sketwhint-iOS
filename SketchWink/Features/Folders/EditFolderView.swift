@@ -244,22 +244,22 @@ struct EditFolderView: View {
             Text("Icon")
                 .font(AppTypography.titleMedium)
                 .foregroundColor(AppColors.textPrimary)
-            
-            LazyVGrid(columns: GridLayouts.iconGrid, spacing: AppSpacing.sm) {
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: AppSpacing.sm) {
                 ForEach(FolderConstants.defaultIcons, id: \.self) { icon in
                     Button(action: { selectedIcon = icon }) {
                         Text(icon)
-                            .font(.system(size: 24))
-                            .frame(width: 44, height: 44)
+                            .font(.system(size: 32))
+                            .frame(width: 48, height: 48)
                             .background(
-                                selectedIcon == icon ? AppColors.primaryBlue.opacity(0.2) : AppColors.surfaceLight
+                                Circle()
+                                    .fill(selectedIcon == icon ? Color(hex: selectedColor).opacity(0.2) : AppColors.backgroundLight)
                             )
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 12)
+                                Circle()
                                     .stroke(
-                                        selectedIcon == icon ? AppColors.primaryBlue : AppColors.borderLight,
-                                        lineWidth: selectedIcon == icon ? 2 : 1
+                                        selectedIcon == icon ? Color(hex: selectedColor) : AppColors.borderLight,
+                                        lineWidth: selectedIcon == icon ? 3 : 1
                                     )
                             )
                     }
