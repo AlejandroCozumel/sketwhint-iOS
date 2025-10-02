@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FolderView: View {
+    @Binding var selectedTab: Int
     @StateObject private var folderService = FolderService.shared
     @StateObject private var profileService = ProfileService.shared
     @State private var searchText = ""
@@ -10,7 +11,7 @@ struct FolderView: View {
     @State private var showingEditFolder = false
     @State private var isLoading = true
     @State private var errorMessage: String?
-    
+
     // Profile filtering (only for admin profiles)
     @State private var selectedProfileFilter: String?
     @State private var showingProfileFilter = false
@@ -70,7 +71,7 @@ struct FolderView: View {
             CreateFolderView()
         }
         .sheet(item: $showingFolderImages) { folder in
-            FolderImagesView(folder: folder)
+            FolderImagesView(folder: folder, selectedTab: $selectedTab)
         }
         .sheet(item: $selectedFolder) { folder in
             EditFolderView(folder: folder)
@@ -288,6 +289,6 @@ struct FolderView: View {
 
 
 #Preview {
-    FolderView()
+    FolderView(selectedTab: .constant(3))
         .environmentObject(ProfileService.shared)
 }

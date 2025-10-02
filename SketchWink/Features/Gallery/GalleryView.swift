@@ -1822,6 +1822,8 @@ struct ImageDetailView: View {
                             DetailRowHighlighted(label: "Created by", value: createdBy.profileName, searchTerm: searchTerm)
                         }
 
+                        DetailRow(label: "Model", value: image.generation?.modelUsed ?? "Unknown")
+                        DetailRow(label: "Quality", value: (image.generation?.qualityUsed ?? "unknown").capitalized)
                         DetailRow(label: "Created", value: formatDate(image.createdAt))
                     }
                 }
@@ -1946,15 +1948,32 @@ struct ImageDetailView: View {
     }
 
     private func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: dateString) else {
-            return dateString
+        // Try ISO8601 formatter first
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        if let date = iso8601Formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .short
+            displayFormatter.timeZone = TimeZone.current
+            displayFormatter.locale = Locale.current
+            return displayFormatter.string(from: date)
         }
 
-        let displayFormatter = DateFormatter()
-        displayFormatter.dateStyle = .medium
-        displayFormatter.timeStyle = .short
-        return displayFormatter.string(from: date)
+        // Fallback: try without fractional seconds
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        if let date = iso8601Formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .short
+            displayFormatter.timeZone = TimeZone.current
+            displayFormatter.locale = Locale.current
+            return displayFormatter.string(from: date)
+        }
+
+        // If all fails, return original string
+        return dateString
     }
 }
 

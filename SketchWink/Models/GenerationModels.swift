@@ -228,6 +228,7 @@ struct GenerationInfo: Codable {
     let option: String
     let modelUsed: String
     let qualityUsed: String
+    let createdAt: String?  // Optional for backward compatibility
 }
 
 // MARK: - User Settings Models

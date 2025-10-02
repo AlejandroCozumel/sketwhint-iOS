@@ -3,6 +3,7 @@ import Combine
 
 struct FolderImagesView: View {
     let folder: UserFolder
+    @Binding var selectedTab: Int
     @Environment(\.dismiss) private var dismiss
     @StateObject private var folderService = FolderService.shared
     @StateObject private var profileService = ProfileService.shared
@@ -378,10 +379,12 @@ struct FolderImagesView: View {
                     .padding(.horizontal, AppSpacing.xl)
             }
             
-            Button(action: { 
+            Button(action: {
                 if hasActiveFilters {
                     clearAllFilters()
                 } else {
+                    // Navigate to Gallery tab (tag 1) and dismiss folder sheet
+                    selectedTab = 1
                     dismiss()
                 }
             }) {
@@ -980,7 +983,8 @@ struct FolderImageDetailView: View {
                            creatorProfileId != profileService.currentProfile?.id {
                             DetailRowHighlighted(label: "Created by", value: creatorName, searchTerm: searchTerm)
                         }
-                        
+
+                        DetailRow(label: "Created", value: formatDate(folderImage.generation.createdAt ?? folderImage.movedAt))
                         DetailRow(label: "Moved to folder", value: formatDate(folderImage.movedAt))
                         
                         // Show notes if available
@@ -1112,15 +1116,32 @@ struct FolderImageDetailView: View {
     }
     
     private func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: dateString) else {
-            return dateString
+        // Try ISO8601 formatter first
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        if let date = iso8601Formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .short
+            displayFormatter.timeZone = TimeZone.current
+            displayFormatter.locale = Locale.current
+            return displayFormatter.string(from: date)
         }
-        
-        let displayFormatter = DateFormatter()
-        displayFormatter.dateStyle = .medium
-        displayFormatter.timeStyle = .short
-        return displayFormatter.string(from: date)
+
+        // Fallback: try without fractional seconds
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        if let date = iso8601Formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .short
+            displayFormatter.timeZone = TimeZone.current
+            displayFormatter.locale = Locale.current
+            return displayFormatter.string(from: date)
+        }
+
+        // If all fails, return original string
+        return dateString
     }
     
     private func convertToGeneratedImage(_ folderImage: FolderImage) -> GeneratedImage? {
@@ -1145,7 +1166,8 @@ struct FolderImageDetailView: View {
                 category: folderImage.generation.category,
                 option: folderImage.generation.option,
                 modelUsed: folderImage.generation.modelUsed,
-                qualityUsed: folderImage.generation.qualityUsed
+                qualityUsed: folderImage.generation.qualityUsed,
+                createdAt: folderImage.generation.createdAt  // Already optional in API
             ),
             collections: nil,
             createdBy: CreatedByProfile(
@@ -1158,7 +1180,9 @@ struct FolderImageDetailView: View {
 }
 
 #Preview {
-    FolderImagesView(
+    @Previewable @State var selectedTab = 3
+
+    return FolderImagesView(
         folder: UserFolder(
             id: "1",
             name: "Family Photos",
@@ -1173,6 +1197,7 @@ struct FolderImageDetailView: View {
                 profileId: "profile_123",
                 profileName: "Mom"
             )
-        )
+        ),
+        selectedTab: $selectedTab
     )
 }

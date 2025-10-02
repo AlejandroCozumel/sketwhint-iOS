@@ -3,14 +3,14 @@ import SwiftUI
 struct MainAppView: View {
     @State private var selectedTab = 0
     @StateObject private var tokenManager = TokenBalanceManager.shared
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Network status banner (only shows when there are issues)
             NetworkStatusBanner()
                 .padding(.horizontal, AppSpacing.md)
                 .padding(.top, AppSpacing.sm)
-            
+
             TabView(selection: $selectedTab) {
             // Art tab with CategorySelectionView
             NavigationStack {
@@ -21,7 +21,7 @@ struct MainAppView: View {
                 Text("Art")
             }
             .tag(0)
-            
+
             NavigationStack {
                 GalleryView()
             }
@@ -30,7 +30,7 @@ struct MainAppView: View {
                 Text("Gallery")
             }
             .tag(1)
-            
+
             NavigationStack {
                 BooksView()
             }
@@ -39,16 +39,16 @@ struct MainAppView: View {
                 Text("Books")
             }
             .tag(2)
-            
+
             NavigationStack {
-                FolderView()
+                FolderView(selectedTab: $selectedTab)
             }
             .tabItem {
                 Image(systemName: "folder.fill")
                 Text("Folders")
             }
             .tag(3)
-            
+
             NavigationStack {
                 ProfilesView()
             }
