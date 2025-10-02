@@ -241,12 +241,27 @@ struct PromptEnhancementResponse: Codable {
 }
 
 // MARK: - Generation State for UI
-enum GenerationState {
+enum GenerationState: Equatable {
     case idle
     case loading
     case generating(Generation)
     case completed(Generation)
     case failed(String)
+
+    static func == (lhs: GenerationState, rhs: GenerationState) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle), (.loading, .loading):
+            return true
+        case (.generating(let lhsGen), .generating(let rhsGen)):
+            return lhsGen.id == rhsGen.id
+        case (.completed(let lhsGen), .completed(let rhsGen)):
+            return lhsGen.id == rhsGen.id
+        case (.failed(let lhsMsg), .failed(let rhsMsg)):
+            return lhsMsg == rhsMsg
+        default:
+            return false
+        }
+    }
 }
 
 // MARK: - Gallery Models

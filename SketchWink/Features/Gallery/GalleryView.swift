@@ -14,48 +14,48 @@ struct GalleryView: View {
     @State private var hasMorePages = true
     @State private var totalImages = 0
     @State private var lastLoadTime = Date()
-    
+
     // Filter States
     @State private var showFavoritesOnly = false
     @State private var selectedCategory: String? = nil
     @State private var searchText = ""
     @State private var isSearchActive = false
     @State private var selectedProfileFilter: String? = nil  // NEW: Profile filter
-    
+
     // Auto-search with debouncing
     @State private var searchWorkItem: DispatchWorkItem?
     private let searchDebounceDelay: TimeInterval = 0.5 // 500ms debounce
     private let minimumSearchLength = 3
-    
+
     // Selection Mode States
     @State private var selectedImages: Set<String> = []
     @State private var isSelectionMode = false
     @State private var showingFolderPicker = false
     @State private var showingFilters = false
-    
+
     // Categories from backend
     @State private var availableCategories: [CategoryWithOptions] = []
     @State private var isLoadingCategories = false
-    
+
     private let columns = [
         GridItem(.flexible(minimum: 100, maximum: .infinity), spacing: AppSpacing.grid.itemSpacing),
         GridItem(.flexible(minimum: 100, maximum: .infinity), spacing: AppSpacing.grid.itemSpacing)
     ]
-    
+
     private var isMainProfile: Bool {
         profileService.currentProfile?.isDefault == true
     }
-    
+
     private var filteredProfileOptions: [FamilyProfile] {
         // Show all profiles like folders does - don't filter out the admin profile
         profileService.availableProfiles
     }
-    
+
     // MARK: - Computed Properties for Empty States
     private var hasActiveFilters: Bool {
         showFavoritesOnly || selectedCategory != nil || !searchText.isEmpty || selectedProfileFilter != nil
     }
-    
+
     private var emptyStateIcon: String {
         if showFavoritesOnly {
             return "💖"
@@ -69,7 +69,7 @@ struct GalleryView: View {
             return "🎨"
         }
     }
-    
+
     private var emptyStateTitle: String {
         if showFavoritesOnly {
             return "No Favorite Images"
@@ -83,7 +83,7 @@ struct GalleryView: View {
             return "No Creations Yet"
         }
     }
-    
+
     private var emptyStateMessage: String {
         if showFavoritesOnly {
             return "Tap the heart icon on any image to add it to your favorites."
@@ -97,7 +97,7 @@ struct GalleryView: View {
             return "Start creating amazing coloring pages, stickers, and more! Your generated art will appear here."
         }
     }
-    
+
     private var emptyStateButtonTitle: String {
         if hasActiveFilters {
             return "Clear Filters"
@@ -105,15 +105,15 @@ struct GalleryView: View {
             return "Create Your First Art"
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Filter chips (always show for consistency)
             filterChipsSection
-            
+
             // Search bar (always show below filters)
             searchBarSection
-            
+
             // Search result summary (only show when actually searching with 3+ chars)
             if !searchText.isEmpty && searchText.count >= minimumSearchLength && !isLoading && !images.isEmpty {
                 SearchResultSummary(
@@ -127,20 +127,20 @@ struct GalleryView: View {
                 )
                 .padding(.horizontal, AppSpacing.md)
             }
-            
+
             // Minimum search length message
             if !searchText.isEmpty && searchText.count < minimumSearchLength && !isLoading {
                 HStack {
                     Image(systemName: "info.circle")
                         .foregroundColor(AppColors.infoBlue)
                         .font(.system(size: 16, weight: .medium))
-                    
+
                     Text("Type at least \(minimumSearchLength) characters to search")
                         .font(AppTypography.bodyMedium)
                         .foregroundColor(AppColors.textSecondary)
-                    
+
                     Spacer()
-                    
+
                     Button("Clear") {
                         searchText = ""
                         applyFilters()
@@ -157,11 +157,11 @@ struct GalleryView: View {
                 )
                 .padding(.horizontal, AppSpacing.md)
             }
-            
+
             // Main content area
             ScrollView {
                 LazyVStack(spacing: AppSpacing.sectionSpacing) {
-                    
+
                     if isLoading && images.isEmpty {
                         loadingView
                     } else if images.isEmpty {
@@ -174,7 +174,7 @@ struct GalleryView: View {
                 .padding(.vertical, AppSpacing.sectionSpacing)
                 .padding(.bottom, isSelectionMode && !selectedImages.isEmpty ? 80 : 0) // Add bottom padding when toolbar is visible
             }
-            
+
             // Sticky bottom toolbar for selection actions
             if isSelectionMode && !selectedImages.isEmpty {
                 selectionModeBottomToolbar
@@ -219,13 +219,15 @@ struct GalleryView: View {
         }
         .sheet(item: $selectedImage) { image in
             NavigationView {
-                ImageDetailView(
-                    image: image,
-                    searchTerm: searchText,
-                    onImageDeleted: { deletedImageId in
-                        removeImageFromLocalState(deletedImageId)
-                    }
-                )
+                if let imageIndex = images.firstIndex(where: { $0.id == image.id }) {
+                    ImageDetailView(
+                        image: $images[imageIndex],
+                        searchTerm: searchText,
+                        onImageDeleted: { deletedImageId in
+                            removeImageFromLocalState(deletedImageId)
+                        }
+                    )
+                }
             }
         }
         .sheet(isPresented: $showingFolderPicker) {
@@ -242,7 +244,7 @@ struct GalleryView: View {
             filtersSheet
         }
     }
-    
+
     // MARK: - Filter Chips Section (consistent for all users)
     private var filterChipsSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -256,7 +258,7 @@ struct GalleryView: View {
                     showFavoritesOnly = false
                     applyFilters()
                 }
-                
+
                 FilterChip(
                     title: "Favorites",
                     icon: "heart.fill",
@@ -265,7 +267,7 @@ struct GalleryView: View {
                     showFavoritesOnly = true
                     applyFilters()
                 }
-                
+
                 // Profile filters (only for admin users with multiple profiles)
                 if isMainProfile && profileService.availableProfiles.count > 1 {
                     // Separator
@@ -273,7 +275,7 @@ struct GalleryView: View {
                         .fill(AppColors.borderLight)
                         .frame(width: 1, height: 24)
                         .padding(.horizontal, AppSpacing.xs)
-                    
+
                     // All Profiles chip
                     FilterChip(
                         title: "All Profiles",
@@ -283,7 +285,7 @@ struct GalleryView: View {
                         selectedProfileFilter = nil
                         applyFilters()
                     }
-                    
+
                     // Individual profile chips (all profiles, consistent with folders)
                     ForEach(filteredProfileOptions) { profile in
                         FilterChip(
@@ -296,7 +298,7 @@ struct GalleryView: View {
                         }
                     }
                 }
-                
+
                 // Category filters (always show if available)
                 if !availableCategories.isEmpty {
                     // Separator
@@ -304,7 +306,7 @@ struct GalleryView: View {
                         .fill(AppColors.borderLight)
                         .frame(width: 1, height: 24)
                         .padding(.horizontal, AppSpacing.xs)
-                    
+
                     // Category chips
                     ForEach(availableCategories, id: \.id) { categoryWithOptions in
                         let category = categoryWithOptions.category
@@ -323,14 +325,14 @@ struct GalleryView: View {
         }
         .padding(.bottom, AppSpacing.sm)
     }
-    
+
     // MARK: - Search Bar Section (always show)
     private var searchBarSection: some View {
         HStack(spacing: AppSpacing.sm) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(AppColors.textSecondary)
                 .font(.system(size: 16, weight: .medium))
-            
+
             TextField("Search your creations...", text: $searchText)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
@@ -338,7 +340,7 @@ struct GalleryView: View {
                     print("🔍 DEBUG: SearchText changed to: '\(searchText)' (TextField #1)")
                     handleSearchTextChange()
                 }
-            
+
             if !searchText.isEmpty {
                 Button {
                     // Cancel any pending search
@@ -361,18 +363,18 @@ struct GalleryView: View {
         .padding(.horizontal, AppSpacing.md)
         .padding(.bottom, AppSpacing.sm)
     }
-    
+
     // MARK: - Filters Sheet (like Books)
     private var filtersSheet: some View {
         NavigationView {
             VStack(alignment: .leading, spacing: AppSpacing.lg) {
-                
+
                 // Search section
                 VStack(alignment: .leading, spacing: AppSpacing.sm) {
                     Text("Search")
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
-                    
+
                     TextField("Search your creations...", text: $searchText)
                         .font(AppTypography.bodyMedium)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -381,19 +383,19 @@ struct GalleryView: View {
                             handleSearchTextChange()
                         }
                 }
-                
+
                 // Favorites toggle
                 Toggle("Favorites Only", isOn: $showFavoritesOnly)
                     .font(AppTypography.bodyMedium)
                     .toggleStyle(SwitchToggleStyle(tint: AppColors.primaryBlue))
-                
+
                 // Profile filter (if multiple profiles)
                 if profileService.availableProfiles.count > 1 {
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
                         Text("Profile")
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
-                        
+
                         Picker("Profile Filter", selection: $selectedProfileFilter) {
                             Text("All Profiles").tag(String?.none)
                             ForEach(profileService.availableProfiles) { profile in
@@ -403,14 +405,14 @@ struct GalleryView: View {
                         .pickerStyle(MenuPickerStyle())
                     }
                 }
-                
+
                 // Category filter
                 if !availableCategories.isEmpty {
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
                         Text("Category")
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
-                        
+
                         Picker("Category Filter", selection: $selectedCategory) {
                             Text("All Categories").tag(String?.none)
                             ForEach(availableCategories, id: \.id) { categoryWithOptions in
@@ -420,7 +422,7 @@ struct GalleryView: View {
                         .pickerStyle(MenuPickerStyle())
                     }
                 }
-                
+
                 Spacer()
             }
             .padding(AppSpacing.md)
@@ -436,7 +438,7 @@ struct GalleryView: View {
                     }
                     .foregroundColor(AppColors.primaryBlue)
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Apply") {
                         showingFilters = false
@@ -449,13 +451,13 @@ struct GalleryView: View {
         }
         .presentationDetents([.medium, .large])
     }
-    
+
     // MARK: - Loading View
     private var loadingView: some View {
         VStack(spacing: AppSpacing.sectionSpacing) {
             // Header skeleton
             skeletonHeaderView
-            
+
             // Skeleton grid
             LazyVGrid(columns: columns, spacing: AppSpacing.grid.rowSpacing) {
                 ForEach(0..<6, id: \.self) { index in
@@ -465,7 +467,7 @@ struct GalleryView: View {
             }
         }
     }
-    
+
     // MARK: - Skeleton Header
     private var skeletonHeaderView: some View {
         VStack(spacing: AppSpacing.md) {
@@ -478,9 +480,9 @@ struct GalleryView: View {
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(AppColors.borderMedium.opacity(0.4), lineWidth: 1)
                     )
-                
+
                 Spacer()
-                
+
                 // Skeleton stats with better definition
                 VStack(alignment: .trailing, spacing: 4) {
                     RoundedRectangle(cornerRadius: 6)
@@ -490,7 +492,7 @@ struct GalleryView: View {
                             RoundedRectangle(cornerRadius: 6)
                                 .stroke(AppColors.borderLight.opacity(0.5), lineWidth: 0.5)
                         )
-                    
+
                     RoundedRectangle(cornerRadius: 6)
                         .fill(AppColors.textSecondary.opacity(0.2))
                         .frame(width: 60, height: 12)
@@ -508,7 +510,7 @@ struct GalleryView: View {
                 .stroke(AppColors.borderMedium.opacity(0.3), lineWidth: 1)
         )
     }
-    
+
     // MARK: - Empty State
     private var emptyStateView: some View {
         Group {
@@ -537,7 +539,7 @@ struct GalleryView: View {
                             Circle()
                                 .fill(AppColors.errorRed.opacity(0.15))
                                 .frame(width: 120, height: 120)
-                            
+
                             Image(systemName: "heart.fill")
                                 .font(.system(size: 60, weight: .medium))
                                 .foregroundColor(AppColors.errorRed)
@@ -547,18 +549,18 @@ struct GalleryView: View {
                         Text(emptyStateIcon)
                             .font(.system(size: 80))
                     }
-                    
+
                     VStack(spacing: AppSpacing.md) {
                         Text(emptyStateTitle)
                             .font(AppTypography.headlineLarge)
                             .foregroundColor(AppColors.textPrimary)
-                        
+
                         Text(emptyStateMessage)
                             .font(AppTypography.bodyMedium)
                             .foregroundColor(AppColors.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, AppSpacing.xl)
-                        
+
                         Button(emptyStateButtonTitle) {
                             // Clear filters if any are active
                             if hasActiveFilters {
@@ -576,20 +578,20 @@ struct GalleryView: View {
             }
         }
     }
-    
+
     // MARK: - Gallery Grid
     private var galleryGridView: some View {
         VStack(spacing: AppSpacing.sectionSpacing) {
-            
+
             // Header with stats
             galleryHeaderView
                 .padding(.top, -AppSpacing.sm)
-            
+
             // Selection Mode Info
             if isSelectionMode {
                 selectionModeHeader
             }
-            
+
             // Images grid with smooth skeleton overlay
             ZStack {
                 // Current images (fade out smoothly during loading)
@@ -617,11 +619,11 @@ struct GalleryView: View {
                                 print("🔥 LONG PRESS TRIGGERED on image: \(image.id)")
                                 print("🔥 Current selection mode: \(isSelectionMode)")
                                 #endif
-                                
+
                                 if !isSelectionMode {
                                     isSelectionMode = true
                                     selectedImages.insert(image.id)
-                                    
+
                                     #if DEBUG
                                     print("🔥 Entered selection mode, selected image: \(image.id)")
                                     print("🔥 Total selected images: \(selectedImages.count)")
@@ -631,7 +633,7 @@ struct GalleryView: View {
                         )
                         .id("image-\(image.id)")
                     }
-                    
+
                     // Smart infinite scroll trigger
                     if hasMorePages && !isLoading {
                         infiniteScrollTrigger
@@ -639,7 +641,7 @@ struct GalleryView: View {
                 }
                 .opacity(isLoading ? 0.3 : 1.0)
                 .animation(.easeInOut(duration: 0.3), value: isLoading)
-                
+
                 // Skeleton overlay (appears on top during loading)
                 if isLoading {
                     LazyVGrid(columns: columns, spacing: AppSpacing.grid.rowSpacing) {
@@ -654,16 +656,16 @@ struct GalleryView: View {
             }
         }
     }
-    
+
     // MARK: - Selection Mode Views
     private var selectionModeHeader: some View {
         HStack {
             Text("\(selectedImages.count) selected")
                 .font(AppTypography.captionLarge)
                 .foregroundColor(AppColors.primaryBlue)
-            
+
             Spacer()
-            
+
             Button(selectedImages.count == images.count ? "Deselect All" : "Select All") {
                 if selectedImages.count == images.count {
                     selectedImages.removeAll()
@@ -677,7 +679,7 @@ struct GalleryView: View {
         .padding(.horizontal, AppSpacing.md)
         .cardStyle()
     }
-    
+
     // MARK: - Sticky Bottom Toolbar
     private var selectionModeBottomToolbar: some View {
         VStack(spacing: 0) {
@@ -686,9 +688,9 @@ struct GalleryView: View {
                 Text("\(selectedImages.count) image\(selectedImages.count == 1 ? "" : "s") selected")
                     .font(AppTypography.captionLarge)
                     .foregroundColor(AppColors.textSecondary)
-                
+
                 Spacer()
-                
+
                 Button(selectedImages.count == images.count ? "Deselect All" : "Select All") {
                     if selectedImages.count == images.count {
                         selectedImages.removeAll()
@@ -702,7 +704,7 @@ struct GalleryView: View {
             .padding(.horizontal, AppSpacing.md)
             .padding(.vertical, AppSpacing.sm)
             .background(AppColors.surfaceLight)
-            
+
             // Action buttons
             HStack(spacing: AppSpacing.md) {
                 // Move to Folder button (primary action)
@@ -710,7 +712,7 @@ struct GalleryView: View {
                     HStack(spacing: AppSpacing.xs) {
                         Image(systemName: "folder")
                             .font(.system(size: 18, weight: .semibold))
-                        
+
                         Text("Move to Folder")
                             .font(AppTypography.titleMedium)
                             .fontWeight(.semibold)
@@ -734,7 +736,7 @@ struct GalleryView: View {
             alignment: .top
         )
     }
-    
+
     // MARK: - Unified Filter Chips
     private var unifiedFilterChips: some View {
         UnifiedFilterChips(
@@ -774,7 +776,7 @@ struct GalleryView: View {
             )
         )
     }
-    
+
     // MARK: - Gallery Header
     private var galleryHeaderView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
@@ -782,14 +784,14 @@ struct GalleryView: View {
                 Text("Your Creations")
                     .font(AppTypography.headlineMedium)
                     .foregroundColor(AppColors.textPrimary)
-                
+
                 Spacer()
-                
+
                 VStack(alignment: .trailing, spacing: AppSpacing.xxxs) {
                     Text("\(images.count) of \(totalImages) images")
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
-                    
+
                     if hasMorePages {
                         Text("More available")
                             .font(AppTypography.captionSmall)
@@ -797,19 +799,19 @@ struct GalleryView: View {
                     }
                 }
             }
-            
+
             // Categories filter could go here in the future
         }
         .cardStyle()
     }
-    
+
     // MARK: - Modern Filters View
     private var filtersView: some View {
         VStack(spacing: AppSpacing.sm) {
-            
+
             // Search Bar
             modernSearchBarView
-            
+
             // Filter Chips Row
             modernFilterChipsView
         }
@@ -818,14 +820,14 @@ struct GalleryView: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
         .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
     }
-    
+
     // MARK: - Modern Search Bar
     private var modernSearchBarView: some View {
         HStack(spacing: AppSpacing.sm) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(AppColors.textSecondary)
                 .font(.system(size: 16, weight: .medium))
-            
+
             TextField("Search your creations...", text: $searchText)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
@@ -833,7 +835,7 @@ struct GalleryView: View {
                     print("🔍 DEBUG: SearchText changed to: '\(searchText)' (Main SearchBar)")
                     handleSearchTextChange()
                 }
-            
+
             if !searchText.isEmpty {
                 Button {
                     // Cancel any pending search
@@ -854,7 +856,7 @@ struct GalleryView: View {
         .background(AppColors.surfaceLight.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
         .animation(.easeInOut(duration: 0.2), value: searchText.isEmpty)
     }
-    
+
     // MARK: - Modern Filter Chips
     private var modernFilterChipsView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -869,7 +871,7 @@ struct GalleryView: View {
                         applyFilters()
                     }
                 )
-                
+
                 FilterChip(
                     title: "Favorites",
                     icon: "heart.fill",
@@ -879,22 +881,22 @@ struct GalleryView: View {
                         applyFilters()
                     }
                 )
-                
+
                 // Separator
                 Rectangle()
                     .fill(AppColors.borderLight)
                     .frame(width: 1, height: 24)
                     .padding(.horizontal, AppSpacing.xs)
-                
+
                 // Profile Filters (only show if multiple profiles exist AND current user is default/main profile)
-                if profileService.availableProfiles.count > 1 && 
+                if profileService.availableProfiles.count > 1 &&
                    profileService.currentProfile?.isDefault == true {
                     // Separator
                     Rectangle()
                         .fill(AppColors.borderLight)
                         .frame(width: 1, height: 24)
                         .padding(.horizontal, AppSpacing.xs)
-                    
+
                     // "All Profiles" chip
                     ProfileFilterChip(
                         title: "All Profiles",
@@ -905,7 +907,7 @@ struct GalleryView: View {
                             applyFilters()
                         }
                     )
-                    
+
                     // Individual Profile Chips
                     ForEach(profileService.availableProfiles, id: \.id) { profile in
                         ProfileFilterChip(
@@ -918,14 +920,14 @@ struct GalleryView: View {
                             }
                         )
                     }
-                    
+
                     // Separator
                     Rectangle()
                         .fill(AppColors.borderLight)
                         .frame(width: 1, height: 24)
                         .padding(.horizontal, AppSpacing.xs)
                 }
-                
+
                 // Dynamic Category Chips
                 ForEach(availableCategories, id: \.id) { categoryWithOptions in
                     let category = categoryWithOptions.category
@@ -943,14 +945,14 @@ struct GalleryView: View {
         }
         .padding(.horizontal, -AppSpacing.md)
     }
-    
+
     // MARK: - Favorites Toggle
     private var favoritesToggleView: some View {
         HStack(spacing: AppSpacing.sm) {
             Text("Show:")
                 .font(AppTypography.titleSmall)
                 .foregroundColor(AppColors.textSecondary)
-            
+
             Button {
                 showFavoritesOnly = false
                 applyFilters()
@@ -967,7 +969,7 @@ struct GalleryView: View {
                 .cornerRadius(AppSizing.cornerRadius.md)
             }
             .childSafeTouchTarget()
-            
+
             Button {
                 showFavoritesOnly = true
                 applyFilters()
@@ -984,23 +986,23 @@ struct GalleryView: View {
                 .cornerRadius(AppSizing.cornerRadius.md)
             }
             .childSafeTouchTarget()
-            
+
             Spacer()
         }
     }
-    
+
     // MARK: - Category Filters
     private var categoryFiltersView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
             Text("Categories:")
                 .font(AppTypography.titleSmall)
                 .foregroundColor(AppColors.textSecondary)
-            
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppSpacing.sm) {
                     // "All" category chip
                     categoryChip(name: "All", id: nil, color: nil, icon: "📂", imageUrl: nil)
-                    
+
                     // Dynamic categories from backend
                     ForEach(availableCategories, id: \.id) { categoryWithOptions in
                         let category = categoryWithOptions.category
@@ -1017,12 +1019,12 @@ struct GalleryView: View {
             }
         }
     }
-    
+
     // MARK: - Category Chip
     private func categoryChip(name: String, id: String?, color: Color?, icon: String?, imageUrl: String?) -> some View {
         let chipColor = color ?? AppColors.primaryBlue
         let chipIcon = icon ?? "📂"
-        
+
         return Button {
             selectedCategory = id
             applyFilters()
@@ -1050,7 +1052,7 @@ struct GalleryView: View {
                     Text(chipIcon)
                         .font(.system(size: 16))
                 }
-                
+
                 Text(name)
                     .font(AppTypography.captionLarge)
             }
@@ -1062,7 +1064,7 @@ struct GalleryView: View {
         }
         .childSafeTouchTarget()
     }
-    
+
     // MARK: - Infinite Scroll Trigger
     private var infiniteScrollTrigger: some View {
         VStack(spacing: AppSpacing.md) {
@@ -1071,7 +1073,7 @@ struct GalleryView: View {
                     ProgressView()
                         .scaleEffect(0.8)
                         .tint(AppColors.primaryBlue)
-                    
+
                     Text("Loading more creations...")
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
@@ -1102,20 +1104,20 @@ struct GalleryView: View {
             }
         }
     }
-    
+
     // MARK: - Selection Mode Methods
     private func toggleSelectionMode() {
         #if DEBUG
         print("🔥 TOOLBAR: Toggle Selection Mode button tapped!")
         print("🔥 Selection mode BEFORE toggle: \(isSelectionMode)")
         #endif
-        
+
         isSelectionMode.toggle()
-        
+
         #if DEBUG
         print("🔥 Selection mode AFTER toggle: \(isSelectionMode)")
         #endif
-        
+
         if !isSelectionMode {
             selectedImages.removeAll()
             #if DEBUG
@@ -1123,19 +1125,19 @@ struct GalleryView: View {
             #endif
         }
     }
-    
+
     private func clearAllFilters() {
         showFavoritesOnly = false
         selectedCategory = nil
         searchText = ""
         selectedProfileFilter = nil
-        
+
         // Reload images without filters
         Task {
             await loadImages()
         }
     }
-    
+
     private func toggleImageSelection(_ imageId: String) {
         if selectedImages.contains(imageId) {
             selectedImages.remove(imageId)
@@ -1143,35 +1145,35 @@ struct GalleryView: View {
             selectedImages.insert(imageId)
         }
     }
-    
+
     private func moveSelectedImagesToFolder(_ folder: UserFolder) async {
         guard !selectedImages.isEmpty else { return }
-        
+
         do {
             // Import FolderService
             let folderService = FolderService.shared
-            
+
             _ = try await folderService.moveImagesToFolder(
                 folderId: folder.id,
                 imageIds: Array(selectedImages)
             )
-            
+
             await MainActor.run {
                 // Remove moved images from gallery (they're now organized)
                 images.removeAll { selectedImages.contains($0.id) }
-                
+
                 // Update total count
                 totalImages -= selectedImages.count
-                
+
                 // Clear selection and exit selection mode
                 selectedImages.removeAll()
                 isSelectionMode = false
-                
+
                 #if DEBUG
                 print("✅ GalleryView: Moved \(selectedImages.count) images to folder '\(folder.name)'")
                 #endif
             }
-            
+
         } catch {
             await MainActor.run {
                 self.error = error
@@ -1179,18 +1181,18 @@ struct GalleryView: View {
             }
         }
     }
-    
+
     // MARK: - Methods
     private func loadImages() async {
         isLoading = true
-        
+
         do {
             // Reset pagination
             currentPage = 1
-            
+
             // Load first page of images
             let response = try await loadImagesPage(page: currentPage)
-            
+
             await MainActor.run {
                 images = response.images
                 totalImages = response.total
@@ -1206,16 +1208,16 @@ struct GalleryView: View {
             }
         }
     }
-    
+
     private func loadMoreImages() async {
         guard hasMorePages && !isLoading else { return }
-        
+
         isLoading = true
         currentPage += 1
-        
+
         do {
             let response = try await loadImagesPage(page: currentPage)
-            
+
             await MainActor.run {
                 images.append(contentsOf: response.images)
                 // Calculate if there are more pages: (page * limit) < total
@@ -1231,7 +1233,7 @@ struct GalleryView: View {
             }
         }
     }
-    
+
     private func loadImagesPage(page: Int) async throws -> ImagesResponse {
         let favorites = showFavoritesOnly ? true : nil
         // Only search if text is empty OR has at least minimum characters
@@ -1249,17 +1251,17 @@ struct GalleryView: View {
             print("🔍 GalleryView: Ignoring search term '\(searchText)' - below minimum \(minimumSearchLength) characters")
             #endif
         }
-        
+
         return try await generationService.getUserImages(
-            page: page, 
-            limit: 15, 
+            page: page,
+            limit: 15,
             favorites: favorites,
             category: selectedCategory,
             search: search,
             filterByProfile: selectedProfileFilter
         )
     }
-    
+
     // MARK: - Filter Application
     private func applyFilters() {
         #if DEBUG
@@ -1269,17 +1271,17 @@ struct GalleryView: View {
         print("   - Profile filter: \(selectedProfileFilter ?? "All")")
         print("   - Search: \(searchText.isEmpty ? "None" : searchText)")
         #endif
-        
+
         Task {
             await loadImages()
         }
     }
-    
+
     // MARK: - Auto-Search with Debouncing
     private func handleSearchTextChange() {
         // Cancel previous search work item
         searchWorkItem?.cancel()
-        
+
         // Clear search immediately if text is empty
         if searchText.isEmpty {
             #if DEBUG
@@ -1288,7 +1290,7 @@ struct GalleryView: View {
             applyFilters()
             return
         }
-        
+
         // Don't search if less than minimum characters
         if searchText.count < minimumSearchLength {
             #if DEBUG
@@ -1296,7 +1298,7 @@ struct GalleryView: View {
             #endif
             return
         }
-        
+
         // Create new debounced search work item
         let workItem = DispatchWorkItem {
             #if DEBUG
@@ -1304,24 +1306,24 @@ struct GalleryView: View {
             #endif
             self.applyFilters()
         }
-        
+
         searchWorkItem = workItem
-        
+
         // Execute after debounce delay
         DispatchQueue.main.asyncAfter(deadline: .now() + searchDebounceDelay, execute: workItem)
-        
+
         #if DEBUG
         print("🔍 GalleryView: Search debounce timer started for '\(searchText)' (\(searchDebounceDelay)s)")
         #endif
     }
-    
+
     // MARK: - Categories Loading
     private func loadCategories() async {
         isLoadingCategories = true
-        
+
         do {
             let categories = try await generationService.getCategoriesWithOptions()
-            
+
             await MainActor.run {
                 availableCategories = categories
                 isLoadingCategories = false
@@ -1337,18 +1339,18 @@ struct GalleryView: View {
             }
         }
     }
-    
+
     // MARK: - Color Parsing Helper
     static func parseColor(_ colorString: String?) -> Color? {
         guard let colorString = colorString else { return nil }
-        
+
         // Handle hex colors
         if colorString.hasPrefix("#") {
             let hex = String(colorString.dropFirst())
             if hex.count == 6 {
                 let scanner = Scanner(string: hex)
                 var hexNumber: UInt64 = 0
-                
+
                 if scanner.scanHexInt64(&hexNumber) {
                     let r = Double((hexNumber & 0xff0000) >> 16) / 255
                     let g = Double((hexNumber & 0x00ff00) >> 8) / 255
@@ -1357,23 +1359,23 @@ struct GalleryView: View {
                 }
             }
         }
-        
+
         // Fallback to nil for invalid colors
         return nil
     }
-    
+
     // MARK: - Favorite Management
     private func toggleImageFavorite(_ image: GeneratedImage) async {
         do {
             // Call API to toggle favorite
             try await generationService.toggleImageFavorite(imageId: image.id)
-            
+
             // Update local state
             await MainActor.run {
                 // Find the image by ID to avoid index issues
                 if let currentIndex = images.firstIndex(where: { $0.id == image.id }) {
                     images[currentIndex].isFavorite.toggle()
-                    
+
                     // If we're viewing favorites only and the image is now unfavorited, remove it immediately
                     if showFavoritesOnly && !images[currentIndex].isFavorite {
                         withAnimation(.easeOut(duration: 0.3)) {
@@ -1390,17 +1392,17 @@ struct GalleryView: View {
             }
         }
     }
-    
+
     // MARK: - Local State Management
     private func removeImageFromLocalState(_ imageId: String) {
         // Remove the deleted image from local state immediately
         images.removeAll { $0.id == imageId }
-        
+
         // Also update the total count
         if totalImages > 0 {
             totalImages -= 1
         }
-        
+
         #if DEBUG
         print("🗑️ GalleryView: Removed image from local state")
         print("   - Image ID: \(imageId)")
@@ -1421,7 +1423,7 @@ struct GalleryImageCardStateless: View {
     let action: () -> Void
     let onFavoriteToggle: (GeneratedImage) async -> Void
     let onLongPress: () -> Void
-    
+
     // MARK: - Overlay Components
     private var creatorNameOverlay: some View {
         Group {
@@ -1453,7 +1455,7 @@ struct GalleryImageCardStateless: View {
                                         .stroke(Color.white.opacity(0.4), lineWidth: 1)
                                 )
                                 .shadow(color: AppColors.primaryPurple.opacity(0.3), radius: 2, x: 0, y: 1)
-                            
+
                             Spacer()
                         }
                     }
@@ -1462,7 +1464,7 @@ struct GalleryImageCardStateless: View {
             }
         }
     }
-    
+
     private var favoriteButtonOverlay: some View {
         HStack {
             Spacer()
@@ -1480,7 +1482,7 @@ struct GalleryImageCardStateless: View {
             }
         }
     }
-    
+
     private var selectionModeOverlay: some View {
         Group {
             if isSelectionMode {
@@ -1495,17 +1497,17 @@ struct GalleryImageCardStateless: View {
                                     .frame(width: 28, height: 28)
                             )
                             .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                        
+
                         Spacer()
                     }
-                    
+
                     Spacer()
                 }
                 .padding(AppSpacing.xs)
             }
         }
     }
-    
+
     private var selectionDimOverlay: some View {
         Group {
             if isSelectionMode && !isSelected {
@@ -1514,7 +1516,7 @@ struct GalleryImageCardStateless: View {
             }
         }
     }
-    
+
     var body: some View {
         Button(action: action) {
             GeometryReader { geometry in
@@ -1560,14 +1562,14 @@ struct GalleryImageCardStateless: View {
         }
         .childSafeTouchTarget()
     }
-    
+
     // MARK: - Helper Methods
     private func shouldShowCreatorBadge(for createdBy: CreatedByProfile) -> Bool {
         // Don't show badge for unknown/legacy profiles (null profileId)
         guard let creatorProfileId = createdBy.profileId else {
             return false
         }
-        
+
         // Show badge if profile ID is different from current user
         return creatorProfileId != currentProfileId
     }
@@ -1583,9 +1585,9 @@ struct GalleryImageCard: View {
     let action: () -> Void
     let onFavoriteToggle: (GeneratedImage) async -> Void
     let onLongPress: () -> Void
-    
+
     // Backend handles search filtering, no client-side matching needed
-    
+
     // MARK: - Overlay Components
     private var creatorNameOverlay: some View {
         Group {
@@ -1617,7 +1619,7 @@ struct GalleryImageCard: View {
                                         .stroke(Color.white.opacity(0.4), lineWidth: 1)
                                 )
                                 .shadow(color: AppColors.primaryPurple.opacity(0.3), radius: 2, x: 0, y: 1)
-                            
+
                             Spacer()
                         }
                     }
@@ -1626,7 +1628,7 @@ struct GalleryImageCard: View {
             }
         }
     }
-    
+
     private var favoriteButtonOverlay: some View {
         HStack {
             Spacer()
@@ -1644,7 +1646,7 @@ struct GalleryImageCard: View {
             }
         }
     }
-    
+
     private var selectionModeOverlay: some View {
         Group {
             if isSelectionMode {
@@ -1659,17 +1661,17 @@ struct GalleryImageCard: View {
                                     .frame(width: 28, height: 28)
                             )
                             .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                        
+
                         Spacer()
                     }
-                    
+
                     Spacer()
                 }
                 .padding(AppSpacing.xs)
             }
         }
     }
-    
+
     private var selectionDimOverlay: some View {
         Group {
             if isSelectionMode && !isSelected {
@@ -1678,7 +1680,7 @@ struct GalleryImageCard: View {
             }
         }
     }
-    
+
     var body: some View {
         Button(action: action) {
             GeometryReader { geometry in
@@ -1728,14 +1730,14 @@ struct GalleryImageCard: View {
         }
         .childSafeTouchTarget()
     }
-    
+
     // MARK: - Helper Methods
     private func shouldShowCreatorBadge(for createdBy: CreatedByProfile) -> Bool {
         // Don't show badge for unknown/legacy profiles (null profileId)
         guard let creatorProfileId = createdBy.profileId else {
             return false
         }
-        
+
         // Show badge if profile ID is different from current user
         return creatorProfileId != currentProfileId
     }
@@ -1743,7 +1745,7 @@ struct GalleryImageCard: View {
 
 // MARK: - Image Detail View (Simple)
 struct ImageDetailView: View {
-    @State private var image: GeneratedImage
+    @Binding var image: GeneratedImage
     @StateObject private var generationService = GenerationService.shared
     @State private var isTogglingFavorite = false
     @State private var isDeleting = false
@@ -1752,20 +1754,20 @@ struct ImageDetailView: View {
     @State private var showingDownloadView = false
     @State private var showingDeleteConfirmation = false
     @Environment(\.dismiss) private var dismiss
-    
+
     let searchTerm: String
     let onImageDeleted: ((String) -> Void)?  // Callback with deleted image ID
-    
-    init(image: GeneratedImage, searchTerm: String = "", onImageDeleted: ((String) -> Void)? = nil) {
-        self._image = State(initialValue: image)
+
+    init(image: Binding<GeneratedImage>, searchTerm: String = "", onImageDeleted: ((String) -> Void)? = nil) {
+        self._image = image
         self.searchTerm = searchTerm
         self.onImageDeleted = onImageDeleted
     }
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: AppSpacing.lg) {
-                
+
                 // Full size image with favorite button overlay
                 AsyncImage(url: URL(string: image.imageUrl)) { imagePhase in
                     switch imagePhase {
@@ -1801,30 +1803,30 @@ struct ImageDetailView: View {
                         EmptyView()
                     }
                 }
-                
+
                 // Image info
                 VStack(alignment: .leading, spacing: AppSpacing.md) {
                     Text("Details")
                         .font(AppTypography.headlineMedium)
                         .foregroundColor(AppColors.textPrimary)
-                    
+
                     VStack(spacing: AppSpacing.sm) {
                         DetailRowHighlighted(label: "Title", value: image.generation?.title ?? image.originalUserPrompt ?? "Unknown", searchTerm: searchTerm)
                         DetailRowHighlighted(label: "Category", value: image.generation?.category ?? "Unknown", searchTerm: searchTerm)
                         DetailRowHighlighted(label: "Style", value: image.generation?.option ?? "Unknown", searchTerm: searchTerm)
-                        
+
                         // Show creator info for main users (only if created by someone else)
                         if let createdBy = image.createdBy,
                            let creatorProfileId = createdBy.profileId,
                            creatorProfileId != ProfileService.shared.currentProfile?.id {
                             DetailRowHighlighted(label: "Created by", value: createdBy.profileName, searchTerm: searchTerm)
                         }
-                        
+
                         DetailRow(label: "Created", value: formatDate(image.createdAt))
                     }
                 }
                 .cardStyle()
-                
+
                 // Action buttons row
                 HStack(spacing: AppSpacing.md) {
                     // Download button (left side)
@@ -1840,7 +1842,7 @@ struct ImageDetailView: View {
                     }
                     .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
                     .childSafeTouchTarget()
-                    
+
                     // Delete button (right side)
                     Button {
                         showingDeleteConfirmation = true
@@ -1897,15 +1899,15 @@ struct ImageDetailView: View {
             Text("Are you sure you want to delete this image? This action cannot be undone.")
         }
     }
-    
+
     // MARK: - Favorite Management
     private func toggleFavorite() async {
         isTogglingFavorite = true
-        
+
         do {
             // Call API to toggle favorite
             try await generationService.toggleImageFavorite(imageId: image.id)
-            
+
             // Update local state
             await MainActor.run {
                 image.isFavorite.toggle()
@@ -1919,15 +1921,15 @@ struct ImageDetailView: View {
             }
         }
     }
-    
+
     // MARK: - Delete Image
     private func deleteImage() async {
         isDeleting = true
-        
+
         do {
             // Call API to delete image
             try await generationService.deleteImage(imageId: image.id)
-            
+
             // If successful, notify parent and dismiss
             await MainActor.run {
                 isDeleting = false
@@ -1942,13 +1944,13 @@ struct ImageDetailView: View {
             }
         }
     }
-    
+
     private func formatDate(_ dateString: String) -> String {
         let formatter = ISO8601DateFormatter()
         guard let date = formatter.date(from: dateString) else {
             return dateString
         }
-        
+
         let displayFormatter = DateFormatter()
         displayFormatter.dateStyle = .medium
         displayFormatter.timeStyle = .short
@@ -1959,15 +1961,15 @@ struct ImageDetailView: View {
 struct DetailRow: View {
     let label: String
     let value: String
-    
+
     var body: some View {
         HStack {
             Text(label + ":")
                 .font(AppTypography.titleSmall)
                 .foregroundColor(AppColors.textSecondary)
-            
+
             Spacer()
-            
+
             Text(value)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
@@ -1981,15 +1983,15 @@ struct DetailRowHighlighted: View {
     let label: String
     let value: String
     let searchTerm: String
-    
+
     var body: some View {
         HStack {
             Text(label + ":")
                 .font(AppTypography.titleSmall)
                 .foregroundColor(AppColors.textSecondary)
-            
+
             Spacer()
-            
+
             HighlightedText.caseInsensitive(
                 value,
                 searchTerm: searchTerm,
@@ -2007,7 +2009,7 @@ struct ModernCategoryChip: View {
     let category: GenerationCategory
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: AppSpacing.xs) {
@@ -2033,7 +2035,7 @@ struct ModernCategoryChip: View {
                     Text(category.icon ?? "📂")
                         .font(.system(size: 14))
                 }
-                
+
                 Text(category.name)
                     .font(AppTypography.captionLarge)
                     .fontWeight(.medium)
@@ -2041,8 +2043,8 @@ struct ModernCategoryChip: View {
             .padding(.horizontal, AppSpacing.md)
             .padding(.vertical, AppSpacing.sm)
             .background(
-                isSelected ? 
-                (GalleryView.parseColor(category.color) ?? AppColors.primaryBlue) : 
+                isSelected ?
+                (GalleryView.parseColor(category.color) ?? AppColors.primaryBlue) :
                 Color.clear,
                 in: Capsule()
             )
@@ -2050,16 +2052,16 @@ struct ModernCategoryChip: View {
             .overlay(
                 Capsule()
                     .stroke(
-                        isSelected ? 
-                        Color.clear : 
+                        isSelected ?
+                        Color.clear :
                         (GalleryView.parseColor(category.color)?.opacity(0.3) ?? AppColors.borderMedium),
                         lineWidth: 1.5
                     )
             )
             .scaleEffect(isSelected ? 1.05 : 1.0)
             .shadow(
-                color: isSelected ? 
-                (GalleryView.parseColor(category.color)?.opacity(0.3) ?? AppColors.primaryBlue.opacity(0.3)) : 
+                color: isSelected ?
+                (GalleryView.parseColor(category.color)?.opacity(0.3) ?? AppColors.primaryBlue.opacity(0.3)) :
                 Color.clear,
                 radius: isSelected ? 4 : 0,
                 x: 0,
@@ -2074,7 +2076,7 @@ struct ModernCategoryChip: View {
 // MARK: - Enhanced Skeleton Loading Card
 struct SkeletonImageCard: View {
     @State private var isAnimating = false
-    
+
     var body: some View {
         // Simple solid gray background like Books view
         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
@@ -2117,7 +2119,7 @@ struct ProfileFilterChip: View {
     let icon: String
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: AppSpacing.xs) {
@@ -2131,7 +2133,7 @@ struct ProfileFilterChip: View {
                     Image(systemName: icon)
                         .font(.system(size: 14, weight: .medium))
                 }
-                
+
                 Text(title)
                     .font(AppTypography.captionLarge)
                     .fontWeight(.medium)

@@ -210,16 +210,15 @@ struct FolderImagesView: View {
             }
             .sheet(item: $selectedImageForDetail) { folderImage in
                 NavigationView {
-                    FolderImageDetailView(
-                        folderImage: folderImage,
-                        searchTerm: searchText,
-                        onImageDeleted: { deletedImageId in
-                            removeImageFromLocalState(deletedImageId)
-                        },
-                        onImageUpdated: { updatedImage in
-                            updateImageInLocalState(updatedImage)
-                        }
-                    )
+                    if let imageIndex = images.firstIndex(where: { $0.id == folderImage.id }) {
+                        FolderImageDetailView(
+                            folderImage: $images[imageIndex],
+                            searchTerm: searchText,
+                            onImageDeleted: { deletedImageId in
+                                removeImageFromLocalState(deletedImageId)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -552,19 +551,6 @@ struct FolderImagesView: View {
         print("   - Remaining images: \(images.count)")
         print("   - Total count: \(totalImages)")
         #endif
-    }
-    
-    private func updateImageInLocalState(_ updatedImage: FolderImage) {
-        // Update the image in local state (e.g., favorite status changes)
-        if let index = images.firstIndex(where: { $0.id == updatedImage.id }) {
-            images[index] = updatedImage
-            
-            #if DEBUG
-            print("📝 FolderImagesView: Updated image in local state")
-            print("   - Image ID: \(updatedImage.id)")
-            print("   - Favorite status: \(updatedImage.isFavorite)")
-            #endif
-        }
     }
     
     // MARK: - Filter Chips Section (same as gallery)
@@ -915,7 +901,7 @@ struct FolderImageCard: View {
 
 // MARK: - Folder Image Detail View
 struct FolderImageDetailView: View {
-    @State private var folderImage: FolderImage
+    @Binding var folderImage: FolderImage
     @StateObject private var generationService = GenerationService.shared
     @StateObject private var profileService = ProfileService.shared
     @State private var isTogglingFavorite = false
@@ -925,16 +911,14 @@ struct FolderImageDetailView: View {
     @State private var showingDownloadView = false
     @State private var showingDeleteConfirmation = false
     @Environment(\.dismiss) private var dismiss
-    
+
     let searchTerm: String
     let onImageDeleted: ((String) -> Void)?
-    let onImageUpdated: ((FolderImage) -> Void)?
-    
-    init(folderImage: FolderImage, searchTerm: String = "", onImageDeleted: ((String) -> Void)? = nil, onImageUpdated: ((FolderImage) -> Void)? = nil) {
-        self._folderImage = State(initialValue: folderImage)
+
+    init(folderImage: Binding<FolderImage>, searchTerm: String = "", onImageDeleted: ((String) -> Void)? = nil) {
+        self._folderImage = folderImage
         self.searchTerm = searchTerm
         self.onImageDeleted = onImageDeleted
-        self.onImageUpdated = onImageUpdated
     }
     
     var body: some View {
@@ -1086,15 +1070,14 @@ struct FolderImageDetailView: View {
     // MARK: - Helper Methods
     private func toggleFavorite() async {
         isTogglingFavorite = true
-        
+
         do {
             // Call API to toggle favorite
             try await generationService.toggleImageFavorite(imageId: folderImage.id)
-            
-            // Update local state
+
+            // Update local state (binding will sync automatically)
             await MainActor.run {
                 folderImage.isFavorite.toggle()
-                onImageUpdated?(folderImage)
                 isTogglingFavorite = false
             }
         } catch {

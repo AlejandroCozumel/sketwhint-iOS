@@ -692,14 +692,30 @@ struct GenerationView: View {
     // MARK: - Generate Button
     private var generateButtonView: some View {
         VStack(spacing: AppSpacing.sm) {
-            Button("Create My \(selectedCategory?.category.name ?? "Art")") {
+            Button {
                 Task {
                     await generateColoring()
                 }
+            } label: {
+                HStack(spacing: AppSpacing.sm) {
+                    if case .loading = generationState {
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(0.9)
+                    }
+
+                    Text(generationState == .loading ? "Creating..." : "Create My \(selectedCategory?.category.name ?? "Art")")
+                        .font(AppTypography.titleMedium)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppSpacing.lg)
+                .background(canGenerate && generationState != .loading ? categoryColor : AppColors.buttonDisabled)
+                .clipShape(Capsule())
             }
-            .largeButtonStyle(backgroundColor: canGenerate ? categoryColor : AppColors.buttonDisabled)
-            .disabled(!canGenerate)
-            .opacity(canGenerate ? 1.0 : 0.6)
+            .disabled(!canGenerate || generationState == .loading)
+            .opacity(canGenerate && generationState != .loading ? 1.0 : 0.6)
             .childSafeTouchTarget()
 
             if !canGenerate {
@@ -974,11 +990,19 @@ struct GenerationView: View {
     }
 
     private func generateColoring() async {
+        // Prevent double-click - only proceed if idle
+        guard case .idle = generationState else {
+            return
+        }
+
         guard let selectedOption = selectedOption,
               let selectedCategory = selectedCategory else { return }
 
         // Validate input first
         guard validateImageInput() else { return }
+
+        // Set loading state
+        generationState = .loading
 
         // Create request based on input method
         let request: CreateGenerationRequest
@@ -1036,6 +1060,8 @@ struct GenerationView: View {
 
             generationState = .generating(generation)
         } catch {
+            // Reset to idle state on error so button becomes enabled again
+            generationState = .idle
             self.error = error
             showingError = true
         }

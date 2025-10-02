@@ -32,6 +32,8 @@ struct SketchWinkApp: App {
                 .onAppear {
                     // Configure app on launch
                     configureApp()
+                    // Setup global keyboard dismissal
+                    setupGlobalKeyboardDismissal()
                 }
         }
         .modelContainer(sharedModelContainer)
@@ -43,6 +45,37 @@ struct SketchWinkApp: App {
             print("🚀 SketchWink app launched - Version \(AppConfig.appVersion)")
             print("📱 Environment: \(AppConfig.environmentName)")
             print("🔗 API Base URL: \(AppConfig.API.baseURL)")
+        }
+    }
+
+    /// Setup global keyboard dismissal for the entire app
+    private func setupGlobalKeyboardDismissal() {
+        // 1. Add tap gesture to window to dismiss keyboard globally
+        DispatchQueue.main.async {
+            guard let window = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .flatMap({ $0.windows })
+                .first(where: { $0.isKeyWindow }) else {
+                return
+            }
+
+            let tapGesture = UITapGestureRecognizer(target: window, action: #selector(UIView.endEditing))
+            tapGesture.cancelsTouchesInView = false  // Don't block other touch events
+            tapGesture.requiresExclusiveTouchType = false
+            window.addGestureRecognizer(tapGesture)
+
+            if AppConfig.Debug.enableLogging {
+                print("⌨️ Global keyboard dismissal enabled (tap)")
+            }
+        }
+
+        // 2. Configure global scroll-to-dismiss for all ScrollViews (iOS 16+)
+        if #available(iOS 16.0, *) {
+            UIScrollView.appearance().keyboardDismissMode = .interactive
+
+            if AppConfig.Debug.enableLogging {
+                print("⌨️ Global keyboard dismissal enabled (scroll)")
+            }
         }
     }
 }
