@@ -125,7 +125,7 @@ extension EventSourceService: URLSessionDataDelegate {
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        guard let string = String(data: data, encoding: .utf8) else {
+        guard var string = String(data: data, encoding: .utf8) else {
             #if DEBUG
             print("🔗 EventSource: ❌ Failed to decode data as UTF-8")
             #endif
@@ -137,6 +137,23 @@ extension EventSourceService: URLSessionDataDelegate {
         print("🔗 EventSource: 📨 Chunk length: \(data.count) bytes")
         print("🔗 EventSource: 📨 Current buffer length: \(dataBuffer.count) chars")
         #endif
+
+        // CRITICAL FIX: Check if the chunk is JSON-encoded (happens with some tunnels/proxies)
+        // If it starts and ends with quotes, it's likely JSON-encoded
+        if string.hasPrefix("\"") && string.hasSuffix("\"") {
+            // Remove surrounding quotes and unescape
+            let trimmed = String(string.dropFirst().dropLast())
+            // Unescape JSON string (convert \n to actual newlines, \" to quotes)
+            string = trimmed
+                .replacingOccurrences(of: "\\n", with: "\n")
+                .replacingOccurrences(of: "\\\"", with: "\"")
+                .replacingOccurrences(of: "\\\\", with: "\\")
+
+            #if DEBUG
+            print("🔗 EventSource: 🔧 Decoded JSON-encoded SSE chunk")
+            print("🔗 EventSource: 🔧 Decoded chunk: '\(string.debugDescription)'")
+            #endif
+        }
 
         // Add new data to buffer
         dataBuffer += string
