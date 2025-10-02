@@ -161,6 +161,10 @@ struct GenerationView: View {
                         // Reset form on error
                         userPrompt = ""
                         selectedInputImage = nil
+                    },
+                    onCancel: {
+                        // Reset to idle when user cancels stuck generation
+                        generationState = .idle
                     }
                 )
             }

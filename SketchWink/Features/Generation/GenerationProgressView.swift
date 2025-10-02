@@ -4,7 +4,8 @@ struct GenerationProgressView: View {
     let generation: Generation
     let onComplete: (Generation) -> Void
     let onError: (String) -> Void
-    
+    let onCancel: (() -> Void)?
+
     @StateObject private var generationService = GenerationService.shared
     @StateObject private var progressSSEService = GenerationProgressSSEService.shared
     @State private var currentGeneration: Generation
@@ -13,11 +14,12 @@ struct GenerationProgressView: View {
     @State private var closeButtonCountdown = 60
     @State private var closeButtonTimer: Timer?
     @Environment(\.dismiss) private var dismiss
-    
-    init(generation: Generation, onComplete: @escaping (Generation) -> Void, onError: @escaping (String) -> Void) {
+
+    init(generation: Generation, onComplete: @escaping (Generation) -> Void, onError: @escaping (String) -> Void, onCancel: (() -> Void)? = nil) {
         self.generation = generation
         self.onComplete = onComplete
         self.onError = onError
+        self.onCancel = onCancel
         self._currentGeneration = State(initialValue: generation)
     }
     
@@ -185,6 +187,8 @@ struct GenerationProgressView: View {
     // MARK: - Close Button with Countdown
     private var cancelButtonView: some View {
         Button(closeButtonTitle) {
+            // Call onCancel to reset parent state
+            onCancel?()
             dismiss()
         }
         .largeButtonStyle(backgroundColor: closeButtonCountdown > 0 ? AppColors.buttonDisabled : AppColors.errorRed)
