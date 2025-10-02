@@ -29,9 +29,22 @@
 		5CB4374E2E7C832E002FC297 /* SketchWinkUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SketchWinkUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5C848FC92E8F285A00F2EF40 /* Exceptions for "SketchWink" folder in "SketchWink" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5CB437342E7C832D002FC297 /* SketchWink */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		5CB437372E7C832D002FC297 /* SketchWink */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5C848FC92E8F285A00F2EF40 /* Exceptions for "SketchWink" folder in "SketchWink" target */,
+			);
 			path = SketchWink;
 			sourceTree = "<group>";
 		};
@@ -400,6 +413,10 @@
 				DEVELOPMENT_TEAM = XVMB5B3F2Y;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SketchWink/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SketchWink;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSCameraUsageDescription = "SketchWink needs camera access to take photos that can be\n  converted into fun coloring pages for your family.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "SketchWink needs photo library access to select photos that can be\n   converted into fun coloring pages for your family.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -434,6 +451,10 @@
 				DEVELOPMENT_TEAM = XVMB5B3F2Y;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SketchWink/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SketchWink;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_NSCameraUsageDescription = "SketchWink needs camera access to take photos that can be\n  converted into fun coloring pages for your family.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "SketchWink needs photo library access to select photos that can be\n   converted into fun coloring pages for your family.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

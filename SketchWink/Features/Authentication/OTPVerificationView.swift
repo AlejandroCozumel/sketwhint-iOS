@@ -255,6 +255,7 @@ struct OTPVerificationView: View {
         .navigationBarHidden(true)
         .onAppear {
             viewModel.startResendTimer()
+            viewModel.onVerificationComplete = onVerificationComplete
         }
         .overlay(
             // Success Toast

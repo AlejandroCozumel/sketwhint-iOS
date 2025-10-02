@@ -1,6 +1,7 @@
 import Foundation
 import Security
 import Combine
+import SwiftUI
 
 // MARK: - Authentication Models
 struct SignInRequest: Codable {
@@ -482,16 +483,19 @@ class AuthService: ObservableObject {
     
     // MARK: - Sign Out
     func signOut() {
+        // Clear auth state FIRST (immediate, no delay for local operations)
+        DispatchQueue.main.async {
+            withAnimation(.easeInOut(duration: 0.5)) {
+                self.currentUser = nil
+                self.isAuthenticated = false
+            }
+        }
+
+        // Then clear keychain and profile state (can happen in background)
         KeychainManager.shared.deleteToken()
         KeychainManager.shared.deleteSelectedProfile()
-        
-        // Clear profile service state
         ProfileService.shared.clearSelectedProfile()
-        
-        DispatchQueue.main.async {
-            self.currentUser = nil
-            self.isAuthenticated = false
-        }
+        TokenBalanceManager.shared.clearState()
     }
     
     // MARK: - Check Authentication Status

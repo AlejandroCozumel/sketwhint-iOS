@@ -26,11 +26,10 @@ class LoginViewModel: ObservableObject {
         
         do {
             let user = try await authService.signIn(email: email, password: password)
-            
-            // Success - show alert
-            showSuccessAlert = true
+
+            // Success - AppCoordinator will handle navigation automatically
             isLoading = false
-            
+
             // Log success for debugging
             if AppConfig.Debug.enableLogging {
                 print("✅ Login successful for user: \(user.email)")

@@ -5,6 +5,7 @@ struct AppCoordinator: View {
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var tokenBalanceManager = TokenBalanceManager.shared
     @State private var isCheckingAuth = true
+    @State private var hasCheckedAuth = false
     
     // Global profile selection state
     @State private var showingProfileCreation = false
@@ -22,11 +23,16 @@ struct AppCoordinator: View {
             if isCheckingAuth {
                 // Loading screen while checking authentication
                 SplashView()
+                    .transition(.opacity)
             } else if !authService.isAuthenticated {
                 // User not logged in - show login
                 NavigationView {
                     LoginView()
                 }
+                .transition(.asymmetric(
+                    insertion: .move(edge: .leading).combined(with: .opacity),
+                    removal: .move(edge: .leading).combined(with: .opacity)
+                ))
             } else if case .serverDown = profileService.serverStatus {
                 // Only show full screen for actual server issues (not network/timeout)
                 #if DEBUG
@@ -52,7 +58,7 @@ struct AppCoordinator: View {
                         print("🎯 DEBUG: Profile selected from view: \(profile.name), hasPin: \(profile.hasPin)")
                         #endif
                         profileToSelect = profile
-                        
+
                         if profile.hasPin {
                             #if DEBUG
                             print("🔐 DEBUG: Profile has PIN, showing PIN entry")
@@ -74,13 +80,27 @@ struct AppCoordinator: View {
                         showingProfileCreation = true
                     }
                 )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .trailing).combined(with: .opacity)
+                ))
             } else {
                 // User authenticated AND has selected profile - show main app
                 MainAppView()
                     .environmentObject(tokenBalanceManager)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .trailing).combined(with: .opacity)
+                    ))
             }
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: authService.isAuthenticated)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: profileService.hasSelectedProfile)
         .onAppear {
+            // Only check authentication once on initial load
+            guard !hasCheckedAuth else { return }
+            hasCheckedAuth = true
+
             Task {
                 await checkAuthenticationStatus()
             }

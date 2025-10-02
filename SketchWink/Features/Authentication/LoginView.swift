@@ -282,14 +282,6 @@ struct LoginView: View {
         .fullScreenCover(isPresented: $showSignUp) {
             SignUpView()
         }
-        .alert("Welcome to SketchWink! 🎉", isPresented: $viewModel.showSuccessAlert) {
-            Button("Let's Create Magic! ✨") {
-                viewModel.navigateToMainApp()
-            }
-            .foregroundColor(AppColors.primaryBlue)
-        } message: {
-            Text("Get ready to create amazing art with your family!")
-        }
     }
 }
 

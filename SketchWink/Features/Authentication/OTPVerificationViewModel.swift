@@ -12,10 +12,13 @@ class OTPVerificationViewModel: ObservableObject {
     @Published var shouldNavigateToMainApp = false
     @Published var canResendOTP = false
     @Published var resendCountdown = 60
-    
+
     private let authService = AuthService.shared
     private var resendTimer: Timer?
-    
+
+    // Callback to notify parent view of successful verification
+    var onVerificationComplete: (() -> Void)?
+
     // MARK: - Verify OTP
     func verifyOTP(email: String, code: String) async {
         // Reset previous state
@@ -46,6 +49,15 @@ class OTPVerificationViewModel: ObservableObject {
                 // Store session token securely first
                 do {
                     try KeychainManager.shared.storeToken(session.token)
+                    if AppConfig.Debug.enableLogging {
+                        print("✅ Token stored in keychain successfully")
+                        // Verify token was stored
+                        if let storedToken = try? KeychainManager.shared.retrieveToken() {
+                            print("✅ Token verification: Token retrieved successfully (length: \(storedToken.count))")
+                        } else {
+                            print("❌ Token verification: Failed to retrieve token!")
+                        }
+                    }
                 } catch {
                     if AppConfig.Debug.enableLogging {
                         print("⚠️ Failed to store token in keychain: \(error)")
@@ -56,7 +68,13 @@ class OTPVerificationViewModel: ObservableObject {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     self.authService.currentUser = user
                     self.authService.isAuthenticated = true
-                    // This will trigger AppCoordinator to show MainAppView
+
+                    // Dismiss the OTP view to trigger AppCoordinator update
+                    self.onVerificationComplete?()
+
+                    if AppConfig.Debug.enableLogging {
+                        print("✅ OTP view dismissed, AppCoordinator should update")
+                    }
                 }
                 
             } else {
