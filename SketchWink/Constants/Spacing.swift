@@ -225,13 +225,20 @@ extension View {
     func cardStyle() -> some View {
         self
             .padding(AppSpacing.cardPadding.inner)
-            .background(AppColors.surfaceLight)
-            .cornerRadius(AppSizing.cornerRadius.md)
+            .background(
+                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                    .fill(AppColors.surfaceLight)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                            .stroke(AppColors.primaryBlue.opacity(0.1), lineWidth: 1)
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md))
             .shadow(
-                color: Color.black.opacity(AppSizing.shadows.small.opacity),
-                radius: AppSizing.shadows.small.radius,
-                x: AppSizing.shadows.small.x,
-                y: AppSizing.shadows.small.y
+                color: AppColors.primaryBlue.opacity(0.06),
+                radius: 6,
+                x: 0,
+                y: 3
             )
     }
     

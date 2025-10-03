@@ -20,22 +20,24 @@ struct CategorySelectionView: View {
     var body: some View {
         ScrollView {
                 VStack(spacing: AppSpacing.sectionSpacing) {
-                    
+                    // Token Balance at the top
+                    TokenBalanceView(showDetails: true, compact: false)
+
                     if isLoading {
                         loadingView
                     } else {
                         // Header
                         headerView
-                        
+
                         // Categories Grid
                         categoriesGridView
-                        
+
                         // Books Section (Separate Product Categories)
                         booksSection
                     }
                 }
                 .pageMargins()
-                .padding(.vertical, AppSpacing.sectionSpacing)
+                .padding(.bottom, AppSpacing.sectionSpacing)
         }
         .background(AppColors.backgroundLight)
         .navigationTitle("Create Art")
@@ -130,35 +132,30 @@ struct CategorySelectionView: View {
     
     // MARK: - Header
     private var headerView: some View {
-        VStack(spacing: AppSpacing.lg) {
-            // Token Balance Display
-            TokenBalanceView(showDetails: true, compact: false)
-            
-            Text("🎨")
-                .font(.system(size: AppSizing.iconSizes.xxl))
-            
-            VStack(spacing: AppSpacing.sm) {
-                Text("What would you like to create?")
-                    .headlineLarge()
-                    .foregroundColor(AppColors.textPrimary)
-                    .multilineTextAlignment(.center)
-                
-                Text("Choose from coloring pages, stickers, wallpapers, mandalas, and more! Story books are in the Books tab.")
-                    .bodyMedium()
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
+        VStack(spacing: AppSpacing.sm) {
+            // Title first
+            Text("What would you like to create?")
+                .headlineMedium()
+                .foregroundColor(AppColors.textPrimary)
+                .multilineTextAlignment(.center)
+
+            // Image below
+            Image("sketchwink-logo")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 120, height: 120)
+                .clipShape(Circle())
         }
-        .cardStyle()
     }
     
     // MARK: - Categories Grid
     private var categoriesGridView: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.md) {
+        VStack(alignment: .center, spacing: AppSpacing.md) {
             Text("Creative Categories")
-                .font(AppTypography.headlineMedium)
+                .headlineMedium()
                 .foregroundColor(AppColors.textPrimary)
-            
+                .frame(maxWidth: .infinity, alignment: .center)
+
             LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.itemSpacing) {
                 ForEach(categories) { category in
                     CategoryCard(category: category.category) {
@@ -173,7 +170,6 @@ struct CategorySelectionView: View {
                 }
             }
         }
-        .cardStyle()
     }
     
     // MARK: - Books Section
@@ -369,7 +365,7 @@ struct CategoryCard: View {
                     }
                 }
                 .frame(height: 80)
-                
+
                 // Title Section
                 VStack {
                     Text(category.name)
@@ -381,7 +377,7 @@ struct CategoryCard: View {
                         .frame(maxWidth: .infinity)
                 }
                 .frame(height: 44)
-                
+
                 // Description Section
                 VStack {
                     Text(category.description)
@@ -393,7 +389,7 @@ struct CategoryCard: View {
                         .frame(maxWidth: .infinity)
                 }
                 .frame(height: 54)
-                
+
                 Spacer()
             }
             .padding(AppSpacing.md)
