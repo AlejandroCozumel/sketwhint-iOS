@@ -243,9 +243,6 @@ struct GenerationView: View {
     private func generationFormView(category: CategoryWithOptions) -> some View {
         VStack(spacing: AppSpacing.sectionSpacing) {
 
-            // Category Header
-            categoryHeaderView(category: category.category)
-
             // Style Selection
             styleSelectionView(options: category.options)
 
@@ -305,10 +302,12 @@ struct GenerationView: View {
     // MARK: - Style Selection
     @ViewBuilder
     private func styleSelectionView(options: [GenerationOption]) -> some View {
-        VStack(alignment: .leading, spacing: AppSpacing.md) {
+        VStack(alignment: .center, spacing: AppSpacing.md) {
             Text("Choose Your Style")
-                .font(AppTypography.headlineMedium)
+                .font(AppTypography.categoryTitle)
                 .foregroundColor(AppColors.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, 10)
 
             LazyVGrid(columns: GridLayouts.styleGrid, spacing: AppSpacing.grid.itemSpacing) {
                 ForEach(options) { option in
@@ -322,7 +321,6 @@ struct GenerationView: View {
                 }
             }
         }
-        .cardStyle()
     }
 
     // MARK: - Prompt Input
@@ -1346,95 +1344,94 @@ struct StyleOptionCard: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 0) {  // No automatic spacing - we'll control it manually
-                // Icon/Image Section - Always starts at same position
-                VStack {
-                    if let imageUrl = option.imageUrl, let url = URL(string: imageUrl) {
-                        // Use backend image
-                        AsyncImage(url: url) { imagePhase in
-                            switch imagePhase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 44, height: 44)
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(optionColor.opacity(0.4), lineWidth: 1)
-                                    )
-                            case .failure(_), .empty:
-                                // Fallback to colored circle
-                                Circle()
-                                    .fill(optionColor.opacity(0.2))
-                                    .frame(width: 44, height: 44)
-                                    .overlay(
-                                        Text("🎨")
-                                            .font(.system(size: 20))
-                                    )
-                            @unknown default:
-                                Circle()
-                                    .fill(optionColor.opacity(0.2))
-                                    .frame(width: 44, height: 44)
-                                    .overlay(
-                                        Text("🎨")
-                                            .font(.system(size: 20))
-                                    )
-                            }
+            VStack(spacing: 0) {
+                // Top half - Image (no padding, rounded top corners only)
+                if let imageUrl = option.imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { imagePhase in
+                        switch imagePhase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 100)
+                                .clipped()
+                        case .failure(_):
+                            Rectangle()
+                                .fill(optionColor.opacity(0.2))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 100)
+                                .overlay(
+                                    Text("🎨")
+                                        .font(.system(size: 40))
+                                )
+                        case .empty:
+                            // Skeleton loading state
+                            Rectangle()
+                                .fill(AppColors.textSecondary.opacity(0.3))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 100)
+                                .shimmer()
+                        @unknown default:
+                            Rectangle()
+                                .fill(optionColor.opacity(0.2))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 100)
+                                .overlay(
+                                    Text("🎨")
+                                        .font(.system(size: 40))
+                                )
                         }
-                    } else {
-                        // Fallback to colored circle
-                        Circle()
-                            .fill(optionColor.opacity(0.2))
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Text("🎨")
-                                    .font(.system(size: 20))
-                            )
                     }
+                } else {
+                    Rectangle()
+                        .fill(optionColor.opacity(0.2))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 100)
+                        .overlay(
+                            Text("🎨")
+                                .font(.system(size: 40))
+                        )
                 }
-                .frame(height: 60)  // Fixed height for icon section
 
-                // Title Section - Always starts at same position
-                VStack {
+                // Bottom half - Text with padding
+                VStack(spacing: AppSpacing.xs) {
                     Text(option.displayName)
-                        .font(AppTypography.titleSmall)
+                        .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
-                        .minimumScaleFactor(0.8)
-                        .frame(maxWidth: .infinity)
-                }
-                .frame(height: 36)  // Fixed height for title (2 lines max)
 
-                // Description Section - Always starts at same position
-                VStack {
                     Text(option.displayDescription)
-                        .font(AppTypography.captionMedium)
+                        .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
-                        .lineLimit(3)
-                        .minimumScaleFactor(0.7)
-                        .frame(maxWidth: .infinity)
+                        .lineLimit(2)
                 }
-                .frame(height: 48)  // Fixed height for description (3 lines max)
-
-                Spacer()  // Any remaining space goes to bottom
+                .padding(AppSpacing.md)
+                .frame(maxWidth: .infinity)
+                .frame(height: 100)
             }
-            .padding(AppSpacing.sm)  // Less padding for more content space
-            .frame(height: 160)  // Taller height for better description fit
+            .frame(height: 200)
             .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                    .fill(isSelected ? optionColor.opacity(0.2) : optionColor.opacity(0.05))
+                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                    .fill(isSelected ? optionColor.opacity(0.15) : optionColor.opacity(0.08))
+                    .shadow(
+                        color: optionColor.opacity(0.1),
+                        radius: 10,
+                        x: 0,
+                        y: 5
+                    )
                     .overlay(
-                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
                             .stroke(
-                                isSelected ? optionColor : AppColors.textSecondary.opacity(0.2),
+                                isSelected ? optionColor : optionColor.opacity(0.3),
                                 lineWidth: isSelected ? 2 : 1
                             )
                     )
             )
+            .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
         }
         .childSafeTouchTarget()
     }

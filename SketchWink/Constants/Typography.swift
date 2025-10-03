@@ -50,7 +50,7 @@ struct AppTypography {
     static let appTitle = Font.system(size: 48, weight: .heavy, design: .rounded)       // Larger impact
     
     /// Font for category cards and main navigation (Baloo inspired)
-    static let categoryTitle = Font.system(size: 20, weight: .bold, design: .rounded)   // Increased visibility
+    static let categoryTitle = Font.system(size: 24, weight: .semibold, design: .rounded)   // Matches headlineMedium
     
     /// Font for generation prompts and user input (Open Sans inspired)
     static let promptText = Font.system(size: 18, weight: .medium, design: .default)    // Better readability

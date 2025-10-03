@@ -152,9 +152,10 @@ struct CategorySelectionView: View {
     private var categoriesGridView: some View {
         VStack(alignment: .center, spacing: AppSpacing.md) {
             Text("Creative Categories")
-                .headlineMedium()
+                .font(AppTypography.categoryTitle)
                 .foregroundColor(AppColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, 10)
 
             LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.itemSpacing) {
                 ForEach(categories) { category in
@@ -174,18 +175,20 @@ struct CategorySelectionView: View {
     
     // MARK: - Books Section
     private var booksSection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.md) {
+        VStack(alignment: .center, spacing: AppSpacing.md) {
             Text("Story Books")
-                .font(AppTypography.headlineMedium)
+                .font(AppTypography.categoryTitle)
                 .foregroundColor(AppColors.textPrimary)
-            
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, 10)
+
             if productCategories.isEmpty {
                 // Loading state or empty state for books
                 VStack(spacing: AppSpacing.sm) {
                     Image(systemName: "book.fill")
                         .font(.system(size: 48))
                         .foregroundColor(AppColors.textSecondary)
-                    
+
                     Text("Story books coming soon!")
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
@@ -211,7 +214,6 @@ struct CategorySelectionView: View {
                 }
             }
         }
-        .cardStyle()
     }
     
     // MARK: - Methods
@@ -318,81 +320,73 @@ struct CategoryCard: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {
-                // Icon/Image Section
-                VStack {
-                    if let imageUrl = category.imageUrl, let url = URL(string: imageUrl) {
-                        // Use backend image
-                        AsyncImage(url: url) { imagePhase in
-                            switch imagePhase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 60, height: 60)
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(categoryColor.opacity(0.3), lineWidth: 2)
-                                    )
-                            case .failure(_), .empty:
-                                // Fallback to colored circle with icon
-                                Circle()
-                                    .fill(categoryColor.opacity(0.2))
-                                    .frame(width: 60, height: 60)
-                                    .overlay(
-                                        Text(category.icon ?? "🎨")
-                                            .font(.system(size: 28))
-                                    )
-                            @unknown default:
-                                Circle()
-                                    .fill(categoryColor.opacity(0.2))
-                                    .frame(width: 60, height: 60)
-                                    .overlay(
-                                        Text(category.icon ?? "🎨")
-                                            .font(.system(size: 28))
-                                    )
-                            }
+                // Top half - Image (no padding, rounded top corners only)
+                if let imageUrl = category.imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { imagePhase in
+                        switch imagePhase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 100)
+                                .clipped()
+                        case .failure(_):
+                            Rectangle()
+                                .fill(categoryColor.opacity(0.2))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 100)
+                                .overlay(
+                                    Text(category.icon ?? "🎨")
+                                        .font(.system(size: 40))
+                                )
+                        case .empty:
+                            // Skeleton loading state
+                            Rectangle()
+                                .fill(AppColors.textSecondary.opacity(0.3))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 100)
+                                .shimmer()
+                        @unknown default:
+                            Rectangle()
+                                .fill(categoryColor.opacity(0.2))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 100)
+                                .overlay(
+                                    Text(category.icon ?? "🎨")
+                                        .font(.system(size: 40))
+                                )
                         }
-                    } else {
-                        // Fallback to icon or default
-                        Circle()
-                            .fill(categoryColor.opacity(0.2))
-                            .frame(width: 60, height: 60)
-                            .overlay(
-                                Text(category.icon ?? "🎨")
-                                    .font(.system(size: 28))
-                            )
                     }
+                } else {
+                    Rectangle()
+                        .fill(categoryColor.opacity(0.2))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 100)
+                        .overlay(
+                            Text(category.icon ?? "🎨")
+                                .font(.system(size: 40))
+                        )
                 }
-                .frame(height: 80)
 
-                // Title Section
-                VStack {
+                // Bottom half - Text with padding
+                VStack(spacing: AppSpacing.xs) {
                     Text(category.name)
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
-                        .minimumScaleFactor(0.8)
-                        .frame(maxWidth: .infinity)
-                }
-                .frame(height: 44)
 
-                // Description Section
-                VStack {
                     Text(category.description)
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
-                        .lineLimit(3)
-                        .minimumScaleFactor(0.7)
-                        .frame(maxWidth: .infinity)
+                        .lineLimit(2)
                 }
-                .frame(height: 54)
-
-                Spacer()
+                .padding(AppSpacing.md)
+                .frame(maxWidth: .infinity)
+                .frame(height: 100)
             }
-            .padding(AppSpacing.md)
             .frame(height: 200)
             .frame(maxWidth: .infinity)
             .background(
@@ -409,6 +403,7 @@ struct CategoryCard: View {
                             .stroke(categoryColor.opacity(0.3), lineWidth: 1)
                     )
             )
+            .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
         }
         .childSafeTouchTarget()
     }
