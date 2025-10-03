@@ -4,6 +4,8 @@ struct CategorySelectionView: View {
     @StateObject private var generationService = GenerationService.shared
     @StateObject private var productService = ProductCategoriesService.shared
     @StateObject private var draftService = DraftService.shared
+    @StateObject private var profileService = ProfileService.shared
+    @Binding var selectedTab: Int
     @State private var categories: [CategoryWithOptions] = []
     @State private var productCategories: [ProductCategory] = []
     @State private var isLoading = true
@@ -15,6 +17,8 @@ struct CategorySelectionView: View {
     @State private var activeProductCategoryForGeneration: ProductCategory?
     @State private var navigateToCreationMethod = false
     @State private var navigateToBookGeneration = false
+    @State private var showingProfileMenu = false
+    @State private var showPainting = false
     
     
     var body: some View {
@@ -44,6 +48,37 @@ struct CategorySelectionView: View {
         .navigationTitle("Create Art")
         .navigationBarTitleDisplayMode(.large)
         .navigationBarBackButtonHidden(false)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                if let currentProfile = profileService.currentProfile {
+                    Text(currentProfile.displayAvatar)
+                        .font(.system(size: 28))
+                        .onTapGesture {
+                            showingProfileMenu = true
+                        }
+                }
+            }
+
+            ToolbarItem(placement: .principal) {
+                if let currentProfile = profileService.currentProfile {
+                    Text(currentProfile.name)
+                        .font(AppTypography.titleMedium)
+                        .fontWeight(.bold)
+                        .foregroundColor(AppColors.textPrimary)
+                        .onTapGesture {
+                            showingProfileMenu = true
+                        }
+                }
+            }
+        }
+        .sheet(isPresented: $showingProfileMenu) {
+            ProfileMenuSheet(selectedTab: $selectedTab, showPainting: $showPainting)
+        }
+        .fullScreenCover(isPresented: $showPainting) {
+            NavigationView {
+                PaintingView()
+            }
+        }
         .task {
             await loadCategories()
         }
@@ -114,7 +149,7 @@ struct CategorySelectionView: View {
             }
         )
     }
-    
+
     // MARK: - Loading View
     private var loadingView: some View {
         VStack(spacing: AppSpacing.sectionSpacing) {

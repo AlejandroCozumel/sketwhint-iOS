@@ -14,7 +14,7 @@ struct MainAppView: View {
             TabView(selection: $selectedTab) {
             // Art tab with CategorySelectionView
             NavigationStack {
-                CategorySelectionView()
+                CategorySelectionView(selectedTab: $selectedTab)
             }
             .tabItem {
                 Label("Art", systemImage: "paintbrush.fill")
@@ -22,7 +22,7 @@ struct MainAppView: View {
             .tag(0)
 
             NavigationStack {
-                GalleryView()
+                GalleryView(selectedTab: $selectedTab)
             }
             .tabItem {
                 Label("Gallery", systemImage: "photo.fill")

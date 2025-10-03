@@ -112,24 +112,23 @@ struct TokenBalanceView: View {
                 
                 // Two-row aligned layout
                 VStack(spacing: 2) {
-                    // Top row: My Credits <-> Business
+                    // Top row: My Credits <-> Plan Name
                     HStack {
                         Text("My Credits")
                             .font(AppTypography.captionLarge)
                             .fontWeight(.medium)
                             .foregroundColor(AppColors.primaryBlue)
-                        
+
                         Spacer()
-                        
+
                         HStack(spacing: AppSpacing.sm) {
-                            if !balance.permissions.planName.lowercased().contains("free") {
-                                let parts = splitPlanName(balance.permissions.planName)
-                                Text(parts.0)
-                                    .font(AppTypography.captionLarge)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(AppColors.primaryBlue)
-                            }
-                            
+                            // Show plan name (including Free)
+                            let parts = splitPlanName(balance.permissions.planName)
+                            Text(parts.0)
+                                .font(AppTypography.captionLarge)
+                                .fontWeight(.semibold)
+                                .foregroundColor(AppColors.primaryBlue)
+
                             // Warning indicator for low tokens
                             if balance.totalTokens <= 5 && balance.totalTokens > 0 {
                                 Image(systemName: "exclamationmark.triangle.fill")

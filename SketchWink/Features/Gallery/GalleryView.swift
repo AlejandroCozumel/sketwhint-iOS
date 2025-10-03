@@ -5,6 +5,7 @@ import Combine
 struct GalleryView: View {
     @StateObject private var generationService = GenerationService.shared
     @StateObject private var profileService = ProfileService.shared
+    @Binding var selectedTab: Int
     @State private var images: [GeneratedImage] = []
     @State private var isLoading = true
     @State private var error: Error?
@@ -21,6 +22,7 @@ struct GalleryView: View {
     @State private var searchText = ""
     @State private var isSearchActive = false
     @State private var selectedProfileFilter: String? = nil  // NEW: Profile filter
+    @State private var showPainting = false
 
     // Auto-search with debouncing
     @State private var searchWorkItem: DispatchWorkItem?
@@ -32,6 +34,7 @@ struct GalleryView: View {
     @State private var isSelectionMode = false
     @State private var showingFolderPicker = false
     @State private var showingFilters = false
+    @State private var showingProfileMenu = false
 
     // Categories from backend
     @State private var availableCategories: [CategoryWithOptions] = []
@@ -186,6 +189,28 @@ struct GalleryView: View {
         .navigationTitle("My Gallery")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                if let currentProfile = profileService.currentProfile {
+                    Text(currentProfile.displayAvatar)
+                        .font(.system(size: 28))
+                        .onTapGesture {
+                            showingProfileMenu = true
+                        }
+                }
+            }
+
+            ToolbarItem(placement: .principal) {
+                if let currentProfile = profileService.currentProfile {
+                    Text(currentProfile.name)
+                        .font(AppTypography.titleMedium)
+                        .fontWeight(.bold)
+                        .foregroundColor(AppColors.textPrimary)
+                        .onTapGesture {
+                            showingProfileMenu = true
+                        }
+                }
+            }
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 if !images.isEmpty {
                     Button(action: toggleSelectionMode) {
@@ -195,6 +220,14 @@ struct GalleryView: View {
                     }
                     .childSafeTouchTarget()
                 }
+            }
+        }
+        .sheet(isPresented: $showingProfileMenu) {
+            ProfileMenuSheet(selectedTab: $selectedTab, showPainting: $showPainting)
+        }
+        .fullScreenCover(isPresented: $showPainting) {
+            NavigationView {
+                PaintingView()
             }
         }
         .task {
@@ -2188,7 +2221,7 @@ struct ProfileFilterChip: View {
 #if DEBUG
 struct GalleryView_Previews: PreviewProvider {
     static var previews: some View {
-        GalleryView()
+        GalleryView(selectedTab: .constant(1))
     }
 }
 #endif
