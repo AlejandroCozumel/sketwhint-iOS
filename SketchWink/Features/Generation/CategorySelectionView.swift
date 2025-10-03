@@ -22,6 +22,7 @@ struct CategorySelectionView: View {
                 VStack(spacing: AppSpacing.sectionSpacing) {
                     // Token Balance at the top
                     TokenBalanceView(showDetails: true, compact: false)
+                        .padding(.top, 10)
 
                     if isLoading {
                         loadingView
@@ -116,18 +117,67 @@ struct CategorySelectionView: View {
     
     // MARK: - Loading View
     private var loadingView: some View {
-        VStack(spacing: AppSpacing.xl) {
-            ProgressView()
-                .scaleEffect(1.5)
-                .tint(AppColors.primaryBlue)
-            
-            Text("Loading creative options...")
-                .font(AppTypography.bodyLarge)
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
+        VStack(spacing: AppSpacing.sectionSpacing) {
+            // Header skeleton
+            skeletonHeaderView
+
+            // Categories skeleton
+            skeletonCategoriesView
+
+            // Books skeleton
+            skeletonBooksView
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .frame(minHeight: 200)
+    }
+
+    // MARK: - Skeleton Header
+    private var skeletonHeaderView: some View {
+        VStack(spacing: AppSpacing.sm) {
+            // Title skeleton
+            RoundedRectangle(cornerRadius: 8)
+                .fill(AppColors.textSecondary.opacity(0.3))
+                .frame(width: 260, height: 28)
+                .shimmer()
+
+            // Logo skeleton
+            Circle()
+                .fill(AppColors.textSecondary.opacity(0.3))
+                .frame(width: 120, height: 120)
+                .shimmer()
+        }
+    }
+
+    // MARK: - Skeleton Categories
+    private var skeletonCategoriesView: some View {
+        VStack(alignment: .center, spacing: AppSpacing.md) {
+            // Section title skeleton
+            RoundedRectangle(cornerRadius: 8)
+                .fill(AppColors.textSecondary.opacity(0.3))
+                .frame(width: 180, height: 24)
+                .shimmer()
+                .padding(.bottom, 10)
+
+            // Grid of skeleton cards
+            LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.itemSpacing) {
+                ForEach(0..<4, id: \.self) { _ in
+                    SkeletonCategoryCard()
+                }
+            }
+        }
+    }
+
+    // MARK: - Skeleton Books
+    private var skeletonBooksView: some View {
+        VStack(alignment: .center, spacing: AppSpacing.md) {
+            // Section title skeleton
+            RoundedRectangle(cornerRadius: 8)
+                .fill(AppColors.textSecondary.opacity(0.3))
+                .frame(width: 120, height: 24)
+                .shimmer()
+                .padding(.bottom, 10)
+
+            // Book card skeleton
+            SkeletonBookCard()
+        }
     }
     
     // MARK: - Header
@@ -692,5 +742,99 @@ struct SimpleCreationMethodView: View {
         case "book": return Color(hex: "#D97706") // Amber-600
         default: return AppColors.primaryBlue
         }
+    }
+}
+
+// MARK: - Skeleton Category Card
+struct SkeletonCategoryCard: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            // Top half - Image skeleton (100pt only, with top corners rounded)
+            Rectangle()
+                .fill(AppColors.textSecondary.opacity(0.3))
+                .frame(maxWidth: .infinity)
+                .frame(height: 100)
+                .shimmer()
+
+            // Bottom half - Text skeleton
+            VStack(spacing: AppSpacing.xs) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(AppColors.textSecondary.opacity(0.3))
+                    .frame(width: 100, height: 16)
+                    .shimmer()
+
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(AppColors.textSecondary.opacity(0.2))
+                    .frame(width: 120, height: 12)
+                    .shimmer()
+            }
+            .padding(AppSpacing.md)
+            .frame(maxWidth: .infinity)
+            .frame(height: 100)
+        }
+        .frame(height: 200)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                .fill(AppColors.textSecondary.opacity(0.1))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
+    }
+}
+
+// MARK: - Skeleton Book Card
+struct SkeletonBookCard: View {
+    var body: some View {
+        HStack(spacing: AppSpacing.md) {
+            // Left: Icon skeleton
+            Circle()
+                .fill(AppColors.textSecondary.opacity(0.3))
+                .frame(width: 64, height: 64)
+                .shimmer()
+
+            // Center: Content skeleton
+            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                HStack {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(AppColors.textSecondary.opacity(0.3))
+                        .frame(width: 100, height: 16)
+                        .shimmer()
+
+                    Spacer()
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(AppColors.textSecondary.opacity(0.2))
+                        .frame(width: 50, height: 14)
+                        .shimmer()
+                }
+
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(AppColors.textSecondary.opacity(0.2))
+                    .frame(height: 14)
+                    .shimmer()
+
+                HStack {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(AppColors.textSecondary.opacity(0.2))
+                        .frame(width: 80, height: 12)
+                        .shimmer()
+
+                    Spacer()
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(AppColors.textSecondary.opacity(0.2))
+                        .frame(width: 60, height: 12)
+                        .shimmer()
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(AppSpacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                .fill(AppColors.textSecondary.opacity(0.1))
+        )
     }
 }
