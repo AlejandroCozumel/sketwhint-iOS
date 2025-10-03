@@ -14,76 +14,62 @@ struct LoginView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: AppSpacing.lg) {
+            let isIPad = geometry.size.width > 600
 
-                    // Spacer for better vertical centering
+            ZStack {
+                // Background for safe areas
+                VStack(spacing: 0) {
+                    AppColors.primaryBlue
+                        .ignoresSafeArea(edges: .top)
+
                     Spacer()
-                        .frame(minHeight: AppSpacing.lg)
 
-                    // Header Section - More playful and child-friendly
-                    VStack(spacing: AppSpacing.lg) {
-                        // Magical logo with gradient and animation
-                        ZStack {
-                            // Outer glow ring
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [AppColors.primaryBlue.opacity(0.3), AppColors.primaryPurple.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 140, height: 140)
+                    Color.white
+                        .ignoresSafeArea(edges: .bottom)
+                }
 
-                            // Main logo circle
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [AppColors.primaryBlue, AppColors.primaryPurple],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 100, height: 100)
-                                .overlay(
-                                    Text("🎨")
-                                        .font(.system(size: 50))
-                                )
-                                .shadow(
-                                    color: AppColors.primaryBlue.opacity(0.4),
-                                    radius: 20,
-                                    x: 0,
-                                    y: 8
-                                )
-                        }
+                ScrollView {
+                    VStack(spacing: 0) {
+                            // Logo and header section
+                            ZStack {
+                                // Solid blue background
+                                AppColors.primaryBlue
 
-                        // Welcome text with improved hierarchy
-                        VStack(spacing: AppSpacing.sm) {
-                            Text("Welcome to")
-                                .titleLarge()
-                                .foregroundColor(.white)
+                                VStack(spacing: 0) {
+                                    Spacer()
+                                        .frame(height: 5)
 
-                            Text("SketchWink")
-                                .font(AppTypography.appTitle)
-                                .foregroundColor(.white)
+                                    // App logo
+                                    Image("sketchwink-logo")
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 180, height: 180)
+                                        .clipShape(Circle())
 
-                            Text("Where families create magic together! ✨")
-                                .onboardingBody()
-                                .foregroundColor(.white)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, AppSpacing.md)
-                        }
-                    }
+                                    // Title
+                                    VStack(spacing: AppSpacing.sm) {
+                                        Text("SketchWink")
+                                            .font(AppTypography.displayLarge)
+                                            .foregroundColor(.white)
 
-                    // Login Form - Full width design
-                    VStack(spacing: AppSpacing.md) {
+                                        Text("Create, color, and imagine together")
+                                            .font(AppTypography.bodyMedium)
+                                            .foregroundColor(.white.opacity(0.9))
+                                            .multilineTextAlignment(.center)
+                                    }
+                                }
+                                .padding(.bottom, 32)
+                            }
+
+                // White card with form
+                VStack(spacing: AppSpacing.lg) {
+                        // Form fields
                         VStack(spacing: AppSpacing.md) {
-                            // Email Field - Consistent style
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                            // Email field
+                            VStack(alignment: .leading, spacing: 6) {
                                 Text("Email")
-                                    .captionLarge()
-                                    .foregroundColor(.white)
+                                    .font(AppTypography.captionLarge)
+                                    .foregroundColor(AppColors.textSecondary)
 
                                 TextField("Enter your email", text: $email)
                                     .keyboardType(.emailAddress)
@@ -93,25 +79,29 @@ struct LoginView: View {
                                     .onSubmit {
                                         focusedField = .password
                                     }
-                                    .padding(AppSpacing.sm)
-                                    .background(AppColors.surfaceLight)
-                                    .cornerRadius(AppSizing.cornerRadius.sm)
+                                    .font(AppTypography.bodyMedium)
+                                    .frame(height: 48)
+                                    .padding(.horizontal, AppSpacing.md)
+                                    .background(AppColors.backgroundLight)
+                                    .cornerRadius(12)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                        RoundedRectangle(cornerRadius: 12)
                                             .stroke(
-                                                focusedField == .email ? AppColors.primaryBlue : AppColors.primaryBlue.opacity(0.3),
+                                                focusedField == .email
+                                                    ? AppColors.primaryBlue
+                                                    : AppColors.borderLight,
                                                 lineWidth: focusedField == .email ? 2 : 1
                                             )
                                     )
                             }
 
-                            // Password Field - Consistent style
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                            // Password field
+                            VStack(alignment: .leading, spacing: 6) {
                                 Text("Password")
-                                    .captionLarge()
-                                    .foregroundColor(.white)
+                                    .font(AppTypography.captionLarge)
+                                    .foregroundColor(AppColors.textSecondary)
 
-                                HStack {
+                                HStack(spacing: 0) {
                                     Group {
                                         if showPassword {
                                             TextField("Enter your password", text: $password)
@@ -125,50 +115,48 @@ struct LoginView: View {
                                             await viewModel.signIn(email: email, password: password)
                                         }
                                     }
+                                    .font(AppTypography.bodyMedium)
 
                                     Button(action: { showPassword.toggle() }) {
                                         Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
-                                            .foregroundColor(.white)
-                                            .font(.body)
+                                            .foregroundColor(AppColors.textSecondary)
+                                            .font(.system(size: 16))
+                                            .padding(.horizontal, AppSpacing.md)
                                     }
                                 }
-                                .padding(AppSpacing.sm)
-                                .background(AppColors.surfaceLight)
-                                .cornerRadius(AppSizing.cornerRadius.sm)
+                                .frame(height: 48)
+                                .padding(.leading, AppSpacing.md)
+                                .background(AppColors.backgroundLight)
+                                .cornerRadius(12)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                    RoundedRectangle(cornerRadius: 12)
                                         .stroke(
-                                            focusedField == .password ? AppColors.primaryBlue : AppColors.primaryBlue.opacity(0.3),
+                                            focusedField == .password
+                                                ? AppColors.primaryBlue
+                                                : AppColors.borderLight,
                                             lineWidth: focusedField == .password ? 2 : 1
                                         )
                                 )
                             }
                         }
 
-                        // Error Message - More friendly design
+                        // Error message
                         if let errorMessage = viewModel.errorMessage {
                             HStack(spacing: AppSpacing.sm) {
-                                Image(systemName: "exclamationmark.triangle.fill")
+                                Image(systemName: "exclamationmark.circle.fill")
                                     .foregroundColor(AppColors.errorRed)
-                                    .font(.title3)
 
                                 Text(errorMessage)
-                                    .bodyMedium()
+                                    .font(AppTypography.captionLarge)
                                     .foregroundColor(AppColors.errorRed)
-                                    .multilineTextAlignment(.leading)
-
-                                Spacer()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
                             .padding(AppSpacing.md)
                             .background(AppColors.errorRed.opacity(0.1))
-                            .cornerRadius(AppSizing.cornerRadius.lg)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                                    .stroke(AppColors.errorRed.opacity(0.3), lineWidth: 1)
-                            )
+                            .cornerRadius(12)
                         }
 
-                        // Login Button - More prominent and friendly
+                        // Sign in button
                         Button(action: {
                             Task {
                                 await viewModel.signIn(email: email, password: password)
@@ -177,107 +165,119 @@ struct LoginView: View {
                             HStack(spacing: AppSpacing.sm) {
                                 if viewModel.isLoading {
                                     ProgressView()
-                                        .tint(AppColors.textOnColor)
-                                        .scaleEffect(0.9)
+                                        .tint(.white)
                                 } else {
-                                    Image(systemName: "sparkles")
-                                        .font(.title2)
-                                        .foregroundColor(viewModel.canSignIn(email: email, password: password) ? AppColors.textPrimary : AppColors.textSecondary)
+                                    Text("Sign In")
+                                        .font(AppTypography.buttonLarge)
                                 }
-
-                                Text(viewModel.isLoading ? "Creating Magic..." : "Start Creating!")
-                                    .font(.body)
-                                    .foregroundColor(viewModel.canSignIn(email: email, password: password) ? AppColors.textPrimary : AppColors.textSecondary)
                             }
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .padding(.horizontal, AppSpacing.sm)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
                         }
                         .background(
                             viewModel.canSignIn(email: email, password: password)
-                                ? AppColors.goldenYellow
+                                ? AppColors.primaryBlue
                                 : AppColors.buttonDisabled
                         )
-                        .cornerRadius(AppSizing.cornerRadius.sm)
+                        .cornerRadius(16)
                         .disabled(!viewModel.canSignIn(email: email, password: password) || viewModel.isLoading)
-                        .childSafeTouchTarget()
                         .shadow(
                             color: viewModel.canSignIn(email: email, password: password)
-                                ? AppColors.goldenYellow.opacity(0.3)
+                                ? AppColors.primaryBlue.opacity(0.3)
                                 : Color.clear,
-                            radius: 10,
-                            x: 0,
-                            y: 6
-                        )
-
-                        // OR Divider
-                        HStack {
-                            Rectangle()
-                                .fill(.white.opacity(0.3))
-                                .frame(height: 1)
-                            
-                            Text("OR")
-                                .captionLarge()
-                                .foregroundColor(.white.opacity(0.8))
-                                .padding(.horizontal, AppSpacing.md)
-                            
-                            Rectangle()
-                                .fill(.white.opacity(0.3))
-                                .frame(height: 1)
-                        }
-                        .padding(.vertical, AppSpacing.md)
-
-                        // Google Login Button
-                        Button(action: {
-                            // TODO: Implement Google login
-                            print("Google login tapped")
-                        }) {
-                            HStack(spacing: AppSpacing.sm) {
-                                // Google icon (using system image for now)
-                                Image(systemName: "globe")
-                                    .font(.title2)
-                                    .foregroundColor(AppColors.textPrimary)
-                                
-                                Text("Continue with Google")
-                                    .font(.body)
-                                    .foregroundColor(AppColors.textPrimary)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .padding(.horizontal, AppSpacing.sm)
-                        }
-                        .background(.white)
-                        .cornerRadius(AppSizing.cornerRadius.sm)
-                        .childSafeTouchTarget()
-                        .shadow(
-                            color: .black.opacity(0.1),
-                            radius: 8,
+                            radius: 12,
                             x: 0,
                             y: 4
                         )
 
-                        // Sign Up Link
-                        HStack(spacing: AppSpacing.xs) {
-                            Text("New to SketchWink?")
-                                .bodyMedium()
+                        // Divider
+                        HStack(spacing: AppSpacing.md) {
+                            Rectangle()
+                                .fill(AppColors.borderLight)
+                                .frame(height: 1)
+
+                            Text("or")
+                                .font(AppTypography.captionLarge)
+                                .foregroundColor(AppColors.textSecondary)
+
+                            Rectangle()
+                                .fill(AppColors.borderLight)
+                                .frame(height: 1)
+                        }
+
+                        // Social login buttons
+                        VStack(spacing: AppSpacing.md) {
+                            // Apple sign in button
+                            Button(action: {
+                                print("Apple login tapped")
+                            }) {
+                                HStack(spacing: AppSpacing.sm) {
+                                    Image(systemName: "apple.logo")
+                                        .font(.system(size: 20))
+
+                                    Text("Continue with Apple")
+                                        .font(AppTypography.buttonLarge)
+                                }
                                 .foregroundColor(.white)
-                            
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                            }
+                            .background(Color.black)
+                            .cornerRadius(16)
+
+                            // Google sign in button
+                            Button(action: {
+                                print("Google login tapped")
+                            }) {
+                                HStack(spacing: AppSpacing.sm) {
+                                    Image("google-logo")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 28, height: 28)
+
+                                    Text("Continue with Google")
+                                        .font(AppTypography.buttonLarge)
+                                        .foregroundColor(Color(red: 0.26, green: 0.52, blue: 0.96)) // Google Blue
+                                }
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                            }
+                            .background(Color.white)
+                            .cornerRadius(16)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color(red: 0.26, green: 0.52, blue: 0.96), lineWidth: 1) // Google Blue border
+                            )
+                        }
+
+                        // Sign up link
+                        HStack(spacing: 4) {
+                            Text("Don't have an account?")
+                                .font(AppTypography.bodyMedium)
+                                .foregroundColor(AppColors.textSecondary)
+
                             Button("Sign up") {
                                 showSignUp = true
                             }
-                            .font(.body)
-                            .foregroundColor(.white)
-                            .underline()
+                            .font(AppTypography.bodyMedium)
+                            .fontWeight(.semibold)
+                            .foregroundColor(AppColors.primaryBlue)
                         }
+                        .padding(.top, AppSpacing.xs)
                     }
-
-
-                    Spacer()
-                        .frame(minHeight: AppSpacing.md)
+                    .padding(.horizontal, AppSpacing.xl)
+                    .padding(.top, AppSpacing.xl)
+                    .background(Color.white)
+                    .cornerRadius(32, corners: [.topLeft, .topRight])
                 }
-                .pageMargins()
-                .frame(minHeight: geometry.size.height)
+                .padding(.horizontal, isIPad ? 200 : 0)
+                }
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollDismissesKeyboard(.interactively)
             }
         }
-        .background(AppColors.dreamyBlue)
         .navigationBarHidden(true)
         .fullScreenCover(isPresented: $showSignUp) {
             SignUpView()
