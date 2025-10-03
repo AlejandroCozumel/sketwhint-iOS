@@ -375,8 +375,8 @@ struct ProfileSelectionRequiredView: View {
                 }
             }
             .background(AppColors.backgroundLight)
-            .navigationTitle("Family Profile")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
         }
         .task {
@@ -451,21 +451,28 @@ struct ProfileSelectionRequiredView: View {
     
     // MARK: - Select Profile View
     private var selectProfileView: some View {
-        VStack(spacing: AppSpacing.xl) {
+        VStack(spacing: 0) {
             // Header
-            VStack(spacing: AppSpacing.lg) {
+            VStack(spacing: AppSpacing.sm) {
                 Text("Choose Your Profile")
-                    .headlineLarge()
+                    .displaySmaller()
                     .foregroundColor(AppColors.textPrimary)
                     .multilineTextAlignment(.center)
-                
+
+                Image("sketchwink-logo")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 180, height: 180)
+                    .clipShape(Circle())
+
                 Text("Select a profile to continue")
-                    .bodyMedium()
+                    .bodyLarge()
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .contentPadding()
-            
+            .padding(.bottom, AppSpacing.md)
+
             // Profiles Grid - Simplified for debugging
             VStack(spacing: AppSpacing.md) {
                 ForEach(profileService.availableProfiles) { profile in
@@ -503,14 +510,13 @@ struct ProfileSelectionRequiredView: View {
             .contentPadding()
             
             Spacer()
-            
-            // Create Another Profile Button
-            Button("Create Another Profile") {
-                onShowCreateProfile()
-            }
-            .font(AppTypography.titleMedium)
-            .foregroundColor(AppColors.primaryBlue)
-            .childSafeTouchTarget()
+
+            // Footer text
+            Text("Need help? Contact your family administrator")
+                .bodyMedium()
+                .foregroundColor(AppColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.bottom, AppSpacing.lg)
         }
     }
     

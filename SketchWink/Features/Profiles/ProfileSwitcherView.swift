@@ -322,12 +322,12 @@ struct ProfileSwitcherListView: View {
             Image(systemName: "person.2.circle.fill")
                 .font(.system(size: 48))
                 .foregroundColor(AppColors.primaryBlue)
-            
+
             VStack(spacing: AppSpacing.sm) {
                 Text("Choose Profile")
                     .headlineLarge()
                     .foregroundColor(AppColors.textPrimary)
-                
+
                 Text("Select which family member you want to be")
                     .bodyMedium()
                     .foregroundColor(AppColors.textSecondary)

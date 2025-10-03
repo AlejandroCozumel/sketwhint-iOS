@@ -145,7 +145,7 @@ struct AppSizing {
         let md: CGFloat = 12        // Medium radius (default)
         let lg: CGFloat = 16        // Large radius
         let xl: CGFloat = 20        // Extra large radius
-        let round: CGFloat = 1000   // Fully rounded (for pills)
+        let round: CGFloat = 1000   // Fully rounded (for pills/capsule)
     }
     
     // MARK: - Border Widths

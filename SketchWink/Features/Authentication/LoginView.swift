@@ -180,7 +180,7 @@ struct LoginView: View {
                                 ? AppColors.primaryBlue
                                 : AppColors.buttonDisabled
                         )
-                        .cornerRadius(16)
+                        .cornerRadius(AppSizing.cornerRadius.round)
                         .disabled(!viewModel.canSignIn(email: email, password: password) || viewModel.isLoading)
                         .shadow(
                             color: viewModel.canSignIn(email: email, password: password)
@@ -224,7 +224,7 @@ struct LoginView: View {
                                 .frame(height: 48)
                             }
                             .background(Color.black)
-                            .cornerRadius(16)
+                            .cornerRadius(AppSizing.cornerRadius.round)
 
                             // Google sign in button
                             Button(action: {
@@ -244,9 +244,9 @@ struct LoginView: View {
                                 .frame(height: 48)
                             }
                             .background(Color.white)
-                            .cornerRadius(16)
+                            .cornerRadius(AppSizing.cornerRadius.round)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 16)
+                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.round)
                                     .stroke(Color(red: 0.26, green: 0.52, blue: 0.96), lineWidth: 1) // Google Blue border
                             )
                         }

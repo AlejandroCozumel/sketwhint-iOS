@@ -15,7 +15,8 @@ struct AppTypography {
     
     // MARK: - Display Fonts (App headers - Rounded for friendliness)
     static let displayLarge = Font.system(size: 42, weight: .heavy, design: .rounded)    // Larger for visibility
-    static let displayMedium = Font.system(size: 36, weight: .bold, design: .rounded)    // Inspired by Baloo font
+    static let displayMedium = Font.system(size: 36, weight: .heavy, design: .rounded)   // Inspired by Baloo font
+    static let displaySmaller = Font.system(size: 32, weight: .heavy, design: .rounded)  // Between medium and small
     static let displaySmall = Font.system(size: 30, weight: .bold, design: .rounded)     // Child-friendly sizing
     
     // MARK: - Headline Fonts (Section headers - Clear hierarchy)
@@ -94,7 +95,12 @@ extension Text {
     func displayMedium() -> Text {
         self.font(AppTypography.displayMedium)
     }
-    
+
+    /// Apply display smaller style
+    func displaySmaller() -> Text {
+        self.font(AppTypography.displaySmaller)
+    }
+
     /// Apply display small style
     func displaySmall() -> Text {
         self.font(AppTypography.displaySmall)

@@ -29,7 +29,7 @@ struct ProfilesView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: AppSpacing.sectionSpacing) {
-                    
+
                     if isLoading {
                         loadingView
                     } else if profiles.isEmpty {

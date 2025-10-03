@@ -17,8 +17,7 @@ struct MainAppView: View {
                 CategorySelectionView()
             }
             .tabItem {
-                Image(systemName: "paintbrush.fill")
-                Text("Art")
+                Label("Art", systemImage: "paintbrush.fill")
             }
             .tag(0)
 
@@ -26,8 +25,7 @@ struct MainAppView: View {
                 GalleryView()
             }
             .tabItem {
-                Image(systemName: "photo.fill")
-                Text("Gallery")
+                Label("Gallery", systemImage: "photo.fill")
             }
             .tag(1)
 
@@ -35,8 +33,7 @@ struct MainAppView: View {
                 BooksView()
             }
             .tabItem {
-                Image(systemName: "book.fill")
-                Text("Books")
+                Label("Books", systemImage: "book.fill")
             }
             .tag(2)
 
@@ -44,8 +41,7 @@ struct MainAppView: View {
                 FolderView(selectedTab: $selectedTab)
             }
             .tabItem {
-                Image(systemName: "folder.fill")
-                Text("Folders")
+                Label("Folders", systemImage: "folder.fill")
             }
             .tag(3)
 
@@ -53,8 +49,7 @@ struct MainAppView: View {
                 ProfilesView()
             }
             .tabItem {
-                Image(systemName: "person.2.fill")
-                Text("Profiles")
+                Label("Profiles", systemImage: "person.2.fill")
             }
             .tag(4)
             }

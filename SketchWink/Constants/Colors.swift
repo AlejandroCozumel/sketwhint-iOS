@@ -41,7 +41,7 @@ struct AppColors {
     static let goldenYellow = Color(hex: "#FFD700")       // Golden Yellow - Bright and cheerful
     
     // MARK: - Neutral Colors
-    static let backgroundLight = Color(red: 0.98, green: 0.98, blue: 1.0)    // #FAFAFF - Very light blue
+    static let backgroundLight = Color(red: 0.96, green: 0.98, blue: 1.0)    // #F5F9FF - Soft sky blue
     static let backgroundDark = Color(red: 0.05, green: 0.05, blue: 0.1)     // #0D0D1A - Dark blue
     static let surfaceLight = Color.white                                     // #FFFFFF - Pure white
     static let surfaceDark = Color(red: 0.1, green: 0.1, blue: 0.15)         // #1A1A26 - Dark surface
