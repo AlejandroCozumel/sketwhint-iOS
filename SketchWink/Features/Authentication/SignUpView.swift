@@ -17,295 +17,376 @@ struct SignUpView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: AppSpacing.lg) {
+            let isIPad = geometry.size.width > 600
 
-                    // Header Section
-                    VStack(spacing: AppSpacing.lg) {
-                        // Back button
-                        HStack {
-                            Button(action: { dismiss() }) {
-                                HStack {
-                                    Image(systemName: "arrow.left")
-                                    Text("Back")
-                                }
-                                .foregroundColor(AppColors.primaryBlue)
-                            }
-                            Spacer()
-                        }
-
-                        // Magical logo with gradient
-                        ZStack {
-                            // Outer glow ring
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [AppColors.primaryPink.opacity(0.3), AppColors.primaryPurple.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 140, height: 140)
-
-                            // Main logo circle
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [AppColors.primaryPink, AppColors.primaryPurple],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 100, height: 100)
-                                .overlay(
-                                    Text("✨")
-                                        .font(.system(size: 50))
-                                )
-                                .shadow(
-                                    color: AppColors.primaryPink.opacity(0.4),
-                                    radius: 20,
-                                    x: 0,
-                                    y: 8
-                                )
-                        }
-
-                        // Welcome text
-                        VStack(spacing: AppSpacing.sm) {
-                            Text("Join the Magic!")
-                                .font(AppTypography.appTitle)
-                                .foregroundColor(.white)
-
-                            Text("Create your family account and start your creative journey! 🎨")
-                                .onboardingBody()
-                                .foregroundColor(.white)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, AppSpacing.md)
-                        }
-                    }
-
-                    // Signup Form
-                    VStack(spacing: AppSpacing.md) {
-                        VStack(spacing: AppSpacing.md) {
-                            // Name Field
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                                Text("Full Name")
-                                    .captionLarge()
-                                    .foregroundColor(.white)
-
-                                TextField("Enter your full name", text: $name)
-                                    .textInputAutocapitalization(.words)
-                                    .focused($focusedField, equals: .name)
-                                    .onSubmit {
-                                        focusedField = .email
-                                    }
-                                    .padding(AppSpacing.sm)
-                                    .background(AppColors.surfaceLight)
-                                    .cornerRadius(AppSizing.cornerRadius.sm)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                            .stroke(
-                                                focusedField == .name ? AppColors.primaryBlue : AppColors.primaryBlue.opacity(0.3),
-                                                lineWidth: focusedField == .name ? 2 : 1
-                                            )
-                                    )
-                            }
-
-                            // Email Field
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                                Text("Email")
-                                    .captionLarge()
-                                    .foregroundColor(.white)
-
-                                TextField("Enter your email", text: $email)
-                                    .keyboardType(.emailAddress)
-                                    .textInputAutocapitalization(.never)
-                                    .autocorrectionDisabled()
-                                    .focused($focusedField, equals: .email)
-                                    .onSubmit {
-                                        focusedField = .password
-                                    }
-                                    .padding(AppSpacing.sm)
-                                    .background(AppColors.surfaceLight)
-                                    .cornerRadius(AppSizing.cornerRadius.sm)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                            .stroke(
-                                                focusedField == .email ? AppColors.primaryBlue : AppColors.primaryBlue.opacity(0.3),
-                                                lineWidth: focusedField == .email ? 2 : 1
-                                            )
-                                    )
-                            }
-
-                            // Password Field
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                                Text("Password")
-                                    .captionLarge()
-                                    .foregroundColor(.white)
-
-                                HStack {
-                                    Group {
-                                        if showPassword {
-                                            TextField("Create a password", text: $password)
-                                        } else {
-                                            SecureField("Create a password", text: $password)
-                                        }
-                                    }
-                                    .focused($focusedField, equals: .password)
-                                    .onSubmit {
-                                        focusedField = .confirmPassword
-                                    }
-
-                                    Button(action: { showPassword.toggle() }) {
-                                        Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
-                                            .foregroundColor(AppColors.textSecondary)
-                                            .font(.body)
-                                    }
-                                }
-                                .padding(AppSpacing.sm)
-                                .background(AppColors.surfaceLight)
-                                .cornerRadius(AppSizing.cornerRadius.sm)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                        .stroke(
-                                            focusedField == .password ? AppColors.primaryBlue : AppColors.primaryBlue.opacity(0.3),
-                                            lineWidth: focusedField == .password ? 2 : 1
-                                        )
-                                )
-                            }
-
-                            // Confirm Password Field
-                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                                Text("Confirm Password")
-                                    .captionLarge()
-                                    .foregroundColor(.white)
-
-                                HStack {
-                                    Group {
-                                        if showConfirmPassword {
-                                            TextField("Confirm your password", text: $confirmPassword)
-                                        } else {
-                                            SecureField("Confirm your password", text: $confirmPassword)
-                                        }
-                                    }
-                                    .focused($focusedField, equals: .confirmPassword)
-                                    .onSubmit {
-                                        Task {
-                                            await viewModel.signUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
-                                        }
-                                    }
-
-                                    Button(action: { showConfirmPassword.toggle() }) {
-                                        Image(systemName: showConfirmPassword ? "eye.slash.fill" : "eye.fill")
-                                            .foregroundColor(AppColors.textSecondary)
-                                            .font(.body)
-                                    }
-                                }
-                                .padding(AppSpacing.sm)
-                                .background(AppColors.surfaceLight)
-                                .cornerRadius(AppSizing.cornerRadius.sm)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                        .stroke(
-                                            focusedField == .confirmPassword ? AppColors.primaryBlue : AppColors.primaryBlue.opacity(0.3),
-                                            lineWidth: focusedField == .confirmPassword ? 2 : 1
-                                        )
-                                )
-                            }
-                        }
-
-                        // Error Message
-                        if let errorMessage = viewModel.errorMessage {
-                            HStack(spacing: AppSpacing.sm) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(AppColors.errorRed)
-                                    .font(.title3)
-
-                                Text(errorMessage)
-                                    .bodyMedium()
-                                    .foregroundColor(AppColors.errorRed)
-                                    .multilineTextAlignment(.leading)
-
-                                Spacer()
-                            }
-                            .padding(AppSpacing.md)
-                            .background(AppColors.errorRed.opacity(0.1))
-                            .cornerRadius(AppSizing.cornerRadius.lg)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                                    .stroke(AppColors.errorRed.opacity(0.3), lineWidth: 1)
-                            )
-                        }
-
-                        // Sign Up Button
-                        Button(action: {
-                            Task {
-                                await viewModel.signUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
-                            }
-                        }) {
-                            HStack(spacing: AppSpacing.sm) {
-                                if viewModel.isLoading {
-                                    ProgressView()
-                                        .tint(AppColors.textOnColor)
-                                        .scaleEffect(0.9)
-                                } else {
-                                    Image(systemName: "star.fill")
-                                        .font(.title2)
-                                        .foregroundColor(viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword) ? AppColors.textPrimary : AppColors.textSecondary)
-                                }
-
-                                Text(viewModel.isLoading ? "Creating Account..." : "Create Account")
-                                    .font(.body)
-                                    .foregroundColor(viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword) ? AppColors.textPrimary : AppColors.textSecondary)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .padding(.horizontal, AppSpacing.sm)
-                        }
-                        .background(
-                            viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
-                                ? AppColors.rosyPink
-                                : AppColors.buttonDisabled
-                        )
-                        .cornerRadius(AppSizing.cornerRadius.sm)
-                        .disabled(!viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword) || viewModel.isLoading)
-                        .childSafeTouchTarget()
-                        .shadow(
-                            color: viewModel.canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword)
-                                ? AppColors.rosyPink.opacity(0.3)
-                                : Color.clear,
-                            radius: 10,
-                            x: 0,
-                            y: 6
-                        )
-
-                        // Already have account link
-                        HStack(spacing: AppSpacing.xs) {
-                            Text("Already have an account?")
-                                .bodyMedium()
-                                .foregroundColor(.white)
-                            
-                            Button("Sign in") {
-                                dismiss()
-                            }
-                            .font(.body)
-                            .foregroundColor(.white)
-                            .underline()
-                        }
-                    }
+            ZStack(alignment: .topLeading) {
+                // Background for safe areas
+                VStack(spacing: 0) {
+                    AppColors.primaryPurple
+                        .ignoresSafeArea(edges: .top)
 
                     Spacer()
-                        .frame(minHeight: AppSpacing.md)
+
+                    Color.white
+                        .ignoresSafeArea(edges: .bottom)
                 }
-                .pageMargins()
-                .frame(minHeight: geometry.size.height)
+
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Logo and header section
+                        ZStack {
+                            // Solid purple background
+                            AppColors.primaryPurple
+
+                            VStack(spacing: 0) {
+                                Spacer()
+                                    .frame(height: 5)
+
+                                // App logo
+                                Image("sketchwink-logo")
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 180, height: 180)
+                                    .clipShape(Circle())
+
+                                // Title
+                                VStack(spacing: AppSpacing.sm) {
+                                    Text("Join SketchWink")
+                                        .font(AppTypography.displayLarge)
+                                        .foregroundColor(.white)
+
+                                    Text("Create your family account")
+                                        .font(AppTypography.bodyMedium)
+                                        .foregroundColor(.white.opacity(0.9))
+                                        .multilineTextAlignment(.center)
+                                }
+                            }
+                            .padding(.bottom, 32)
+                        }
+
+                        // White card with form
+                        VStack(spacing: AppSpacing.lg) {
+                            // Form fields
+                            VStack(spacing: AppSpacing.md) {
+                                // Name Field
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Full Name")
+                                        .font(AppTypography.captionLarge)
+                                        .foregroundColor(AppColors.textSecondary)
+
+                                    TextField("Enter your full name", text: $name)
+                                        .textInputAutocapitalization(.words)
+                                        .focused($focusedField, equals: .name)
+                                        .onSubmit {
+                                            focusedField = .email
+                                        }
+                                        .font(AppTypography.bodyMedium)
+                                        .frame(height: 48)
+                                        .padding(.horizontal, AppSpacing.md)
+                                        .background(AppColors.backgroundLight)
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(
+                                                    focusedField == .name
+                                                        ? AppColors.primaryPurple
+                                                        : AppColors.borderLight,
+                                                    lineWidth: focusedField == .name ? 2 : 1
+                                                )
+                                        )
+                                }
+
+                                // Email Field
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Email")
+                                        .font(AppTypography.captionLarge)
+                                        .foregroundColor(AppColors.textSecondary)
+
+                                    TextField("Enter your email", text: $email)
+                                        .keyboardType(.emailAddress)
+                                        .textInputAutocapitalization(.never)
+                                        .autocorrectionDisabled()
+                                        .focused($focusedField, equals: .email)
+                                        .onSubmit {
+                                            focusedField = .password
+                                        }
+                                        .font(AppTypography.bodyMedium)
+                                        .frame(height: 48)
+                                        .padding(.horizontal, AppSpacing.md)
+                                        .background(AppColors.backgroundLight)
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(
+                                                    focusedField == .email
+                                                        ? AppColors.primaryPurple
+                                                        : AppColors.borderLight,
+                                                    lineWidth: focusedField == .email ? 2 : 1
+                                                )
+                                        )
+                                }
+
+                                // Password Field
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Password")
+                                        .font(AppTypography.captionLarge)
+                                        .foregroundColor(AppColors.textSecondary)
+
+                                    HStack(spacing: 0) {
+                                        Group {
+                                            if showPassword {
+                                                TextField("Enter your password", text: $password)
+                                            } else {
+                                                SecureField("Enter your password", text: $password)
+                                            }
+                                        }
+                                        .focused($focusedField, equals: .password)
+                                        .onSubmit {
+                                            focusedField = .confirmPassword
+                                        }
+                                        .font(AppTypography.bodyMedium)
+
+                                        Button(action: { showPassword.toggle() }) {
+                                            Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
+                                                .foregroundColor(AppColors.textSecondary)
+                                                .font(.system(size: 16))
+                                                .padding(.horizontal, AppSpacing.md)
+                                        }
+                                    }
+                                    .frame(height: 48)
+                                    .padding(.leading, AppSpacing.md)
+                                    .background(AppColors.backgroundLight)
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(
+                                                focusedField == .password
+                                                    ? AppColors.primaryPurple
+                                                    : AppColors.borderLight,
+                                                lineWidth: focusedField == .password ? 2 : 1
+                                            )
+                                    )
+                                }
+
+                                // Confirm Password Field
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Confirm Password")
+                                        .font(AppTypography.captionLarge)
+                                        .foregroundColor(AppColors.textSecondary)
+
+                                    HStack(spacing: 0) {
+                                        Group {
+                                            if showConfirmPassword {
+                                                TextField("Confirm your password", text: $confirmPassword)
+                                            } else {
+                                                SecureField("Confirm your password", text: $confirmPassword)
+                                            }
+                                        }
+                                        .focused($focusedField, equals: .confirmPassword)
+                                        .onSubmit {
+                                            Task {
+                                                await viewModel.signUp(
+                                                    name: name,
+                                                    email: email,
+                                                    password: password,
+                                                    confirmPassword: confirmPassword
+                                                )
+                                            }
+                                        }
+                                        .font(AppTypography.bodyMedium)
+
+                                        Button(action: { showConfirmPassword.toggle() }) {
+                                            Image(systemName: showConfirmPassword ? "eye.slash.fill" : "eye.fill")
+                                                .foregroundColor(AppColors.textSecondary)
+                                                .font(.system(size: 16))
+                                                .padding(.horizontal, AppSpacing.md)
+                                        }
+                                    }
+                                    .frame(height: 48)
+                                    .padding(.leading, AppSpacing.md)
+                                    .background(AppColors.backgroundLight)
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(
+                                                focusedField == .confirmPassword
+                                                    ? AppColors.primaryPurple
+                                                    : AppColors.borderLight,
+                                                lineWidth: focusedField == .confirmPassword ? 2 : 1
+                                            )
+                                    )
+                                }
+                            }
+
+                            // Error Message
+                            if let errorMessage = viewModel.errorMessage {
+                                HStack(spacing: AppSpacing.sm) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .foregroundColor(AppColors.errorRed)
+
+                                    Text(errorMessage)
+                                        .font(AppTypography.captionLarge)
+                                        .foregroundColor(AppColors.errorRed)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .padding(AppSpacing.md)
+                                .background(AppColors.errorRed.opacity(0.1))
+                                .cornerRadius(12)
+                            }
+
+                            // Sign Up Button
+                            Button(action: {
+                                Task {
+                                    await viewModel.signUp(
+                                        name: name,
+                                        email: email,
+                                        password: password,
+                                        confirmPassword: confirmPassword
+                                    )
+                                }
+                            }) {
+                                HStack(spacing: AppSpacing.sm) {
+                                    if viewModel.isLoading {
+                                        ProgressView()
+                                            .tint(.white)
+                                    } else {
+                                        Text("Create Account")
+                                            .font(AppTypography.buttonLarge)
+                                    }
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                            }
+                            .background(
+                                viewModel.canSignUp(
+                                    name: name,
+                                    email: email,
+                                    password: password,
+                                    confirmPassword: confirmPassword
+                                ) ? AppColors.primaryPurple : AppColors.buttonDisabled
+                            )
+                            .cornerRadius(16)
+                            .disabled(!viewModel.canSignUp(
+                                name: name,
+                                email: email,
+                                password: password,
+                                confirmPassword: confirmPassword
+                            ) || viewModel.isLoading)
+                            .shadow(
+                                color: viewModel.canSignUp(
+                                    name: name,
+                                    email: email,
+                                    password: password,
+                                    confirmPassword: confirmPassword
+                                ) ? AppColors.primaryPurple.opacity(0.3) : Color.clear,
+                                radius: 12,
+                                x: 0,
+                                y: 4
+                            )
+
+                            // Divider
+                            HStack(spacing: AppSpacing.md) {
+                                Rectangle()
+                                    .fill(AppColors.borderLight)
+                                    .frame(height: 1)
+
+                                Text("or")
+                                    .font(AppTypography.captionLarge)
+                                    .foregroundColor(AppColors.textSecondary)
+
+                                Rectangle()
+                                    .fill(AppColors.borderLight)
+                                    .frame(height: 1)
+                            }
+
+                            // Social login buttons
+                            VStack(spacing: AppSpacing.md) {
+                                // Apple sign in button
+                                Button(action: {
+                                    print("Apple login tapped")
+                                }) {
+                                    HStack(spacing: AppSpacing.sm) {
+                                        Image(systemName: "apple.logo")
+                                            .font(.system(size: 20))
+
+                                        Text("Continue with Apple")
+                                            .font(AppTypography.buttonLarge)
+                                    }
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 48)
+                                }
+                                .background(Color.black)
+                                .cornerRadius(16)
+
+                                // Google sign in button
+                                Button(action: {
+                                    print("Google login tapped")
+                                }) {
+                                    HStack(spacing: AppSpacing.sm) {
+                                        Image("google-logo")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 28, height: 28)
+
+                                        Text("Continue with Google")
+                                            .font(AppTypography.buttonLarge)
+                                            .foregroundColor(Color(red: 0.26, green: 0.52, blue: 0.96)) // Google Blue
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 48)
+                                }
+                                .background(Color.white)
+                                .cornerRadius(16)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(Color(red: 0.26, green: 0.52, blue: 0.96), lineWidth: 1) // Google Blue border
+                                )
+                            }
+
+                            // Sign in link
+                            HStack(spacing: 4) {
+                                Text("Already have an account?")
+                                    .font(AppTypography.bodyMedium)
+                                    .foregroundColor(AppColors.textSecondary)
+
+                                Button("Sign in") {
+                                    dismiss()
+                                }
+                                .font(AppTypography.bodyMedium)
+                                .fontWeight(.semibold)
+                                .foregroundColor(AppColors.primaryPurple)
+                            }
+                            .padding(.top, AppSpacing.xs)
+                        }
+                        .padding(.horizontal, AppSpacing.xl)
+                        .padding(.top, AppSpacing.xl)
+                        .background(Color.white)
+                        .cornerRadius(32, corners: [.topLeft, .topRight])
+                    }
+                    .padding(.horizontal, isIPad ? 200 : 0)
+                }
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollDismissesKeyboard(.interactively)
+
+                // Back button overlay (absolute position)
+                Button(action: { dismiss() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
+                .padding(.leading, AppSpacing.md)
+                .padding(0)
             }
         }
-        .background(AppColors.lavenderPurple)
         .navigationBarHidden(true)
-        .fullScreenCover(isPresented: $viewModel.showOTPVerification) {
-            OTPVerificationView(email: email) {
-                // When OTP verification is complete, dismiss the entire signup flow
-                dismiss()
-            }
+        .navigationDestination(isPresented: $viewModel.showOTPVerification) {
+            OTPVerificationView(email: email)
         }
     }
 }
@@ -315,11 +396,6 @@ struct SignUpView: View {
 struct SignUpView_Previews: PreviewProvider {
     static var previews: some View {
         SignUpView()
-            .previewDisplayName("Sign Up View")
-
-        SignUpView()
-            .preferredColorScheme(.dark)
-            .previewDisplayName("Sign Up View (Dark)")
     }
 }
 #endif
