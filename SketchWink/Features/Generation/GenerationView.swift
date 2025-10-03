@@ -1354,7 +1354,7 @@ struct StyleOptionCard: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 100)
+                                .frame(height: 100, alignment: .top)
                                 .clipped()
                         case .failure(_):
                             Rectangle()
@@ -1414,24 +1414,18 @@ struct StyleOptionCard: View {
             }
             .frame(height: 200)
             .frame(maxWidth: .infinity)
-            .background(
+            .background(isSelected ? categoryColor.opacity(0.15) : categoryColor.opacity(0.08))
+            .overlay(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                    .fill(isSelected ? optionColor.opacity(0.15) : optionColor.opacity(0.08))
-                    .shadow(
-                        color: optionColor.opacity(0.1),
-                        radius: 10,
-                        x: 0,
-                        y: 5
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                            .stroke(
-                                isSelected ? optionColor : optionColor.opacity(0.3),
-                                lineWidth: isSelected ? 2 : 1
-                            )
-                    )
+                    .stroke(isSelected ? AppColors.primaryBlue : categoryColor.opacity(0.3), lineWidth: isSelected ? 3 : 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
+            .shadow(
+                color: categoryColor.opacity(0.3),
+                radius: 10,
+                x: 0,
+                y: 10
+            )
         }
         .childSafeTouchTarget()
     }

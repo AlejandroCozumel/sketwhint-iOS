@@ -414,7 +414,7 @@ struct CategoryCard: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 100)
+                                .frame(height: 100, alignment: .top)
                                 .clipped()
                         case .failure(_):
                             Rectangle()
@@ -474,21 +474,18 @@ struct CategoryCard: View {
             }
             .frame(height: 200)
             .frame(maxWidth: .infinity)
-            .background(
+            .background(categoryColor.opacity(0.08))
+            .overlay(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                    .fill(categoryColor.opacity(0.08))
-                    .shadow(
-                        color: categoryColor.opacity(0.1),
-                        radius: 10,
-                        x: 0,
-                        y: 5
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                            .stroke(categoryColor.opacity(0.3), lineWidth: 1)
-                    )
+                    .stroke(categoryColor.opacity(0.3), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
+            .shadow(
+                color: categoryColor.opacity(0.3),
+                radius: 10,
+                x: 0,
+                y: 10
+            )
         }
         .childSafeTouchTarget()
     }
