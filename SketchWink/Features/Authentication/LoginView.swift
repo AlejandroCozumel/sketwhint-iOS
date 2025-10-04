@@ -6,6 +6,7 @@ struct LoginView: View {
     @State private var password = ""
     @State private var showPassword = false
     @State private var showSignUp = false
+    @State private var showForgotPassword = false
     @FocusState private var focusedField: Field?
 
     enum Field {
@@ -138,6 +139,14 @@ struct LoginView: View {
                                         )
                                 )
                             }
+
+                            // Forgot password button
+                            Button("Forgot Password?") {
+                                showForgotPassword = true
+                            }
+                            .font(AppTypography.captionLarge)
+                            .foregroundColor(AppColors.primaryBlue)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                         }
 
                         // Error message
@@ -281,6 +290,9 @@ struct LoginView: View {
         .navigationBarHidden(true)
         .fullScreenCover(isPresented: $showSignUp) {
             SignUpView()
+        }
+        .fullScreenCover(isPresented: $showForgotPassword) {
+            ForgotPasswordView(prefilledEmail: email)
         }
     }
 }

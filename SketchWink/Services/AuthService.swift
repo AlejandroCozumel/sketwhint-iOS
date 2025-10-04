@@ -53,6 +53,26 @@ struct ResendOTPResponse: Codable {
     let message: String
 }
 
+struct ForgotPasswordRequest: Codable {
+    let email: String
+}
+
+struct ForgotPasswordResponse: Codable {
+    let message: String
+    let success: Bool
+}
+
+struct ResetPasswordRequest: Codable {
+    let email: String
+    let code: String
+    let newPassword: String
+}
+
+struct ResetPasswordResponse: Codable {
+    let message: String
+    let success: Bool
+}
+
 struct SignInResponse: Codable {
     let user: User
     let session: Session
@@ -118,6 +138,9 @@ enum AuthError: LocalizedError {
     case decodingError
     case serverUnavailable
     case networkTimeout
+    case userNotFound
+    case rateLimited(retryAfter: Int?)
+    case invalidOrExpiredCode
     
     var errorDescription: String? {
         switch self {
@@ -139,7 +162,21 @@ enum AuthError: LocalizedError {
             return "Server is temporarily unavailable. Your content will be available when connection is restored."
         case .networkTimeout:
             return "Connection timed out. Please check your internet connection and try again."
+        case .userNotFound:
+            return "No account found with this email address."
+        case .rateLimited(let retryAfter):
+            if let seconds = retryAfter {
+                let minutes = seconds / 60
+                return "Too many requests. Please try again in \(minutes) minute\(minutes == 1 ? "" : "s")."
+            }
+            return "Too many requests. Please try again later."
+        case .invalidOrExpiredCode:
+            return "Invalid or expired reset code. Please request a new one."
         }
+    }
+
+    var userFriendlyMessage: String {
+        return errorDescription ?? "An error occurred. Please try again."
     }
 }
 
@@ -659,6 +696,96 @@ class AuthService: ObservableObject {
     /// Check if current network status allows normal app operation
     var isNetworkAvailable: Bool {
         return networkStatus == .connected && lastAuthCheckError == nil
+    }
+    // MARK: - Password Reset
+
+    /// Request password reset code
+    func requestPasswordReset(email: String) async throws {
+        let endpoint = "\(AppConfig.API.baseURL)/auth/forgot-password"
+
+        guard let url = URL(string: endpoint) else {
+            throw AuthError.invalidResponse
+        }
+
+        let request = ForgotPasswordRequest(email: email)
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.invalidResponse
+        }
+
+        #if DEBUG
+        print("📧 AuthService: Password reset request - Status: \(httpResponse.statusCode)")
+        #endif
+
+        // Handle different status codes
+        switch httpResponse.statusCode {
+        case 200:
+            // Success
+            return
+        case 404:
+            throw AuthError.userNotFound
+        case 429:
+            // Parse retry-after from response if available
+            if let errorResponse = try? JSONDecoder().decode(APIError.self, from: data),
+               let retryAfter = errorResponse.retryAfter {
+                throw AuthError.rateLimited(retryAfter: retryAfter)
+            }
+            throw AuthError.rateLimited(retryAfter: 900) // 15 minutes default
+        default:
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw AuthError.networkError(apiError.error)
+            }
+            throw AuthError.networkError("Failed to send reset code")
+        }
+    }
+
+    /// Reset password with code
+    func resetPassword(email: String, code: String, newPassword: String) async throws {
+        let endpoint = "\(AppConfig.API.baseURL)/auth/reset-password"
+
+        guard let url = URL(string: endpoint) else {
+            throw AuthError.invalidResponse
+        }
+
+        let request = ResetPasswordRequest(email: email, code: code, newPassword: newPassword)
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.invalidResponse
+        }
+
+        #if DEBUG
+        print("🔐 AuthService: Password reset - Status: \(httpResponse.statusCode)")
+        #endif
+
+        // Handle different status codes
+        switch httpResponse.statusCode {
+        case 200:
+            // Success
+            return
+        case 400:
+            throw AuthError.invalidOrExpiredCode
+        case 404:
+            throw AuthError.userNotFound
+        default:
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw AuthError.networkError(apiError.error)
+            }
+            throw AuthError.networkError("Failed to reset password")
+        }
     }
 }
 

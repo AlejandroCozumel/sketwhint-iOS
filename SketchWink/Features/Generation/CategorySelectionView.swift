@@ -31,9 +31,6 @@ struct CategorySelectionView: View {
                     if isLoading {
                         loadingView
                     } else {
-                        // Header
-                        headerView
-
                         // Categories Grid
                         categoriesGridView
 
@@ -153,31 +150,12 @@ struct CategorySelectionView: View {
     // MARK: - Loading View
     private var loadingView: some View {
         VStack(spacing: AppSpacing.sectionSpacing) {
-            // Header skeleton
-            skeletonHeaderView
 
             // Categories skeleton
             skeletonCategoriesView
 
             // Books skeleton
             skeletonBooksView
-        }
-    }
-
-    // MARK: - Skeleton Header
-    private var skeletonHeaderView: some View {
-        VStack(spacing: AppSpacing.sm) {
-            // Title skeleton
-            RoundedRectangle(cornerRadius: 8)
-                .fill(AppColors.textSecondary.opacity(0.3))
-                .frame(width: 260, height: 28)
-                .shimmer()
-
-            // Logo skeleton
-            Circle()
-                .fill(AppColors.textSecondary.opacity(0.3))
-                .frame(width: 120, height: 120)
-                .shimmer()
         }
     }
 
@@ -212,24 +190,6 @@ struct CategorySelectionView: View {
 
             // Book card skeleton
             SkeletonBookCard()
-        }
-    }
-    
-    // MARK: - Header
-    private var headerView: some View {
-        VStack(spacing: AppSpacing.sm) {
-            // Title first
-            Text("What would you like to create?")
-                .headlineMedium()
-                .foregroundColor(AppColors.textPrimary)
-                .multilineTextAlignment(.center)
-
-            // Image below
-            Image("sketchwink-logo")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 120, height: 120)
-                .clipShape(Circle())
         }
     }
     

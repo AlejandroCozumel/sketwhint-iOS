@@ -1,6 +1,7 @@
 import SwiftUI
 import PencilKit
 import PhotosUI
+import Photos
 
 struct PaintingView: View {
     @Environment(\.dismiss) private var dismiss
@@ -12,8 +13,11 @@ struct PaintingView: View {
     @State private var selectedTool: DrawingTool = .marker
     @State private var selectedColor: Color = .black
     @State private var brushWidth: CGFloat = 15
-    @State private var drawingHistory: [PKDrawing] = []
-    @State private var currentHistoryIndex: Int = -1
+    @State private var drawingHistory: [PKDrawing] = [PKDrawing()] // Start with empty drawing
+    @State private var currentHistoryIndex: Int = 0 // Start at index 0
+    @State private var showingSaveAlert = false
+    @State private var saveSuccessMessage: String?
+    @State private var isSaving = false
 
     var body: some View {
         ZStack {
@@ -46,8 +50,9 @@ struct PaintingView: View {
                         selectedColor: $selectedColor,
                         brushWidth: $brushWidth,
                         canUndo: currentHistoryIndex > 0,
+                        isSaving: isSaving,
                         onUndo: undo,
-                        onClear: clearCanvas
+                        onSave: saveToGallery
                     )
                 }
             } else {
@@ -121,6 +126,21 @@ struct PaintingView: View {
                 selectedImage: $selectedImage
             )
         }
+        .alert("Save to Gallery", isPresented: $showingSaveAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Save") {
+                performSave()
+            }
+        } message: {
+            Text("Do you want to save this artwork to your photo library?")
+        }
+        .alert("Success", isPresented: .constant(saveSuccessMessage != nil)) {
+            Button("OK") {
+                saveSuccessMessage = nil
+            }
+        } message: {
+            Text(saveSuccessMessage ?? "")
+        }
     }
 
     private func clearCanvas() {
@@ -155,6 +175,48 @@ struct PaintingView: View {
         guard currentHistoryIndex < drawingHistory.count - 1 else { return }
         currentHistoryIndex += 1
         canvasView.drawing = drawingHistory[currentHistoryIndex]
+    }
+
+    private func saveToGallery() {
+        showingSaveAlert = true
+    }
+
+    private func performSave() {
+        guard let image = selectedImage else { return }
+
+        isSaving = true
+
+        // Get the canvas bounds
+        let canvasBounds = canvasView.bounds
+
+        // Create a renderer with the canvas size
+        let renderer = UIGraphicsImageRenderer(size: canvasBounds.size)
+        let finalImage = renderer.image { context in
+            // Fill with white background first
+            UIColor.white.setFill()
+            context.fill(canvasBounds)
+
+            // Draw the background image scaled to fit canvas
+            image.draw(in: canvasBounds)
+
+            // Draw the canvas drawing on top
+            let drawing = canvasView.drawing
+            drawing.image(from: canvasBounds, scale: UIScreen.main.scale).draw(in: canvasBounds)
+        }
+
+        // Save to photo library using Photos framework
+        PHPhotoLibrary.shared().performChanges({
+            PHAssetChangeRequest.creationRequestForAsset(from: finalImage)
+        }) { success, error in
+            DispatchQueue.main.async {
+                self.isSaving = false
+                if let error = error {
+                    self.saveSuccessMessage = "Failed to save: \(error.localizedDescription)"
+                } else if success {
+                    self.saveSuccessMessage = "Your artwork has been saved to Photos!"
+                }
+            }
+        }
     }
 }
 
@@ -203,8 +265,9 @@ struct DrawingToolsBar: View {
     @Binding var selectedColor: Color
     @Binding var brushWidth: CGFloat
     let canUndo: Bool
+    let isSaving: Bool
     let onUndo: () -> Void
-    let onClear: () -> Void
+    let onSave: () -> Void
 
     // Kid-friendly bright colors (24 colors)
     let colors: [(Color, String)] = [
@@ -358,30 +421,37 @@ struct DrawingToolsBar: View {
                             .font(AppTypography.bodyMedium)
                             .fontWeight(.semibold)
                     }
-                    .foregroundColor(canUndo ? AppColors.primaryBlue : AppColors.textSecondary.opacity(0.3))
+                    .foregroundColor(canUndo && !isSaving ? AppColors.primaryBlue : AppColors.textSecondary.opacity(0.3))
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
-                    .background(canUndo ? AppColors.primaryBlue.opacity(0.1) : AppColors.surfaceLight)
+                    .background(canUndo && !isSaving ? AppColors.primaryBlue.opacity(0.1) : AppColors.surfaceLight)
                     .cornerRadius(12)
                 }
-                .disabled(!canUndo)
+                .disabled(!canUndo || isSaving)
                 .childSafeTouchTarget()
 
-                // Clear Button
-                Button(action: onClear) {
+                // Save Button
+                Button(action: onSave) {
                     HStack(spacing: 8) {
-                        Image(systemName: "trash.circle.fill")
-                            .font(.system(size: 28))
-                        Text("Clear")
+                        if isSaving {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: AppColors.successGreen))
+                                .scaleEffect(1.2)
+                        } else {
+                            Image(systemName: "square.and.arrow.down.fill")
+                                .font(.system(size: 28))
+                        }
+                        Text(isSaving ? "Saving..." : "Save")
                             .font(AppTypography.bodyMedium)
                             .fontWeight(.semibold)
                     }
-                    .foregroundColor(AppColors.errorRed)
+                    .foregroundColor(isSaving ? AppColors.textSecondary : AppColors.successGreen)
                     .frame(maxWidth: .infinity)
                     .frame(height: 56)
-                    .background(AppColors.errorRed.opacity(0.1))
+                    .background(isSaving ? AppColors.surfaceLight : AppColors.successGreen.opacity(0.1))
                     .cornerRadius(12)
                 }
+                .disabled(isSaving)
                 .childSafeTouchTarget()
             }
             .padding(.horizontal, AppSpacing.md)

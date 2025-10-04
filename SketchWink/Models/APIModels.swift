@@ -7,7 +7,8 @@ struct APIError: Codable {
     let error: String
     let message: String?
     let statusCode: Int?
-    
+    let retryAfter: Int?  // For rate limiting (seconds until retry allowed)
+
     /// Use error message if available, fallback to message field
     var userMessage: String {
         return error
