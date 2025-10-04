@@ -5,6 +5,7 @@ struct CategorySelectionView: View {
     @StateObject private var productService = ProductCategoriesService.shared
     @StateObject private var draftService = DraftService.shared
     @StateObject private var profileService = ProfileService.shared
+    @StateObject private var tokenManager = TokenBalanceManager.shared
     @Binding var selectedTab: Int
     @State private var categories: [CategoryWithOptions] = []
     @State private var productCategories: [ProductCategory] = []
@@ -19,6 +20,7 @@ struct CategorySelectionView: View {
     @State private var navigateToBookGeneration = false
     @State private var showingProfileMenu = false
     @State private var showPainting = false
+    @State private var showSubscriptionPlans = false
     
     
     var body: some View {
@@ -67,9 +69,87 @@ struct CategorySelectionView: View {
                         }
                 }
             }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 8) {
+                    // Credits button (purchase more credits)
+                    Button(action: {
+                        // TODO: Show purchase credits modal
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("0")
+                                .font(AppTypography.captionLarge)
+                                .fontWeight(.bold)
+                        }
+                        .foregroundColor(planBadgeColor)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(planBadgeColor.opacity(0.1))
+                        .overlay(
+                            Capsule()
+                                .stroke(planBadgeColor.opacity(0.3), lineWidth: 1.5)
+                        )
+                        .clipShape(Capsule())
+                    }
+
+                    if tokenManager.accountType == "free" {
+                        // Free user - show upgrade button
+                        Button(action: {
+                            showSubscriptionPlans = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 12, weight: .semibold))
+                                Text("Upgrade")
+                                    .font(AppTypography.captionLarge)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                LinearGradient(
+                                    colors: [AppColors.primaryPurple, AppColors.primaryBlue],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                in: Capsule()
+                            )
+                            .shadow(color: AppColors.primaryPurple.opacity(0.3), radius: 4, x: 0, y: 2)
+                        }
+                    } else {
+                        // Paid user - show plan badge
+                        Button(action: {
+                            showSubscriptionPlans = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text(planBadgeText)
+                                    .font(AppTypography.captionLarge)
+                                    .fontWeight(.bold)
+                            }
+                            .foregroundColor(planBadgeColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(planBadgeColor.opacity(0.1))
+                            .overlay(
+                                Capsule()
+                                    .stroke(planBadgeColor.opacity(0.3), lineWidth: 1.5)
+                            )
+                            .clipShape(Capsule())
+                        }
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showingProfileMenu) {
             ProfileMenuSheet(selectedTab: $selectedTab, showPainting: $showPainting)
+        }
+        .sheet(isPresented: $showSubscriptionPlans) {
+            SubscriptionPlansView()
         }
         .fullScreenCover(isPresented: $showPainting) {
             NavigationView {
@@ -304,6 +384,41 @@ struct CategorySelectionView: View {
             }
         }
     }
+
+    // MARK: - Helper Properties
+
+    /// Extract short plan name for badge (e.g., "Pro (Yearly)" -> "PRO")
+    private var planBadgeText: String {
+        let planName = tokenManager.planName
+
+        // Extract first word before parenthesis
+        if let firstWord = planName.components(separatedBy: " ").first {
+            return firstWord.uppercased()
+        }
+
+        return "PRO"
+    }
+
+    /// Get color for plan badge matching subscription plans view
+    private var planBadgeColor: Color {
+        let planName = tokenManager.planName.lowercased()
+
+        // Match colors from SubscriptionPlansView
+        if planName.contains("basic") {
+            return AppColors.primaryBlue
+        } else if planName.contains("pro") {
+            return AppColors.primaryPurple
+        } else if planName.contains("max") {
+            return AppColors.primaryPink
+        } else if planName.contains("business") {
+            return AppColors.primaryTeal
+        }
+
+        // Default fallback
+        return AppColors.primaryPurple
+    }
+
+    // MARK: - Methods
 
     private func loadCategories() async {
         isLoading = true

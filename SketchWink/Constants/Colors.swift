@@ -9,6 +9,7 @@ struct AppColors {
     static let primaryBlue = Color(hex: "#37B6F6")        // Picton Blue - Bright, friendly blue
     static let primaryPurple = Color(hex: "#882FF6")      // Blue-Violet - Creative and magical
     static let primaryPink = Color(hex: "#FF6B9D")        // Bubblegum Pink - Playful and warm
+    static let primaryTeal = Color(hex: "#06B6D4")        // Cyan Teal - Professional and modern (Business tier)
     
     // MARK: - Content Category Colors (Vibrant & Safe)
     static let coloringPagesColor = Color(hex: "#F99D07")  // RYB Orange - Warm and creative

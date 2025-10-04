@@ -2,722 +2,442 @@ import SwiftUI
 
 struct SubscriptionPlansView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedBillingCycle: BillingCycle = .monthly
-    @State private var selectedPlan: SubscriptionPlan?
+    @StateObject private var tokenManager = TokenBalanceManager.shared
+    @State private var currentPlanIndex = 1 // Start at Basic plan
+    @State private var isYearly = true // Default to yearly for better value
     @State private var isLoading = false
     @State private var showingError = false
     @State private var errorMessage = ""
-    
-    let highlightedFeature: String?
-    let currentPlan: String?
-    
-    init(highlightedFeature: String? = nil, currentPlan: String? = nil) {
-        self.highlightedFeature = highlightedFeature
-        self.currentPlan = currentPlan
-    }
-    
-    enum BillingCycle: String, CaseIterable {
-        case monthly = "Monthly"
-        case yearly = "Yearly"
-    }
-    
+
+    // Plan data - from backend seed database
+    private let plans = [
+        PlanCard(
+            id: "basic",
+            name: "Basic",
+            monthlyTokens: 50,
+            monthlyPrice: 9,
+            yearlyPrice: 90,
+            color: AppColors.primaryBlue,
+            icon: "paintbrush.fill",
+            features: [
+                "50 credits every month",
+                "All art categories",
+                "3-month credit rollover",
+                "Cancel anytime"
+            ]
+        ),
+        PlanCard(
+            id: "pro",
+            name: "Pro",
+            monthlyTokens: 120,
+            monthlyPrice: 18,
+            yearlyPrice: 180,
+            color: AppColors.primaryPurple,
+            icon: "star.fill",
+            features: [
+                "120 credits every month",
+                "Up to 5 family profiles",
+                "PIN protection",
+                "All Basic features"
+            ],
+            badge: "POPULAR"
+        ),
+        PlanCard(
+            id: "max",
+            name: "Max",
+            monthlyTokens: 250,
+            monthlyPrice: 29,
+            yearlyPrice: 290,
+            color: AppColors.primaryPink,
+            icon: "crown.fill",
+            features: [
+                "250 credits every month",
+                "1K/2K quality selector",
+                "Commercial license",
+                "All Pro features"
+            ]
+        ),
+        PlanCard(
+            id: "business",
+            name: "Business",
+            monthlyTokens: 1000,
+            monthlyPrice: 99,
+            yearlyPrice: 990,
+            color: AppColors.primaryTeal, // Cyan Teal - Professional and modern
+            icon: "briefcase.fill",
+            features: [
+                "1000 credits every month",
+                "Multiple AI models",
+                "Priority support",
+                "All Max features"
+            ],
+            badge: "ENTERPRISE"
+        )
+    ]
+
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: AppSpacing.sectionSpacing) {
-                    
-                    // Header Section
-                    headerSection
-                    
-                    // Billing Cycle Toggle
-                    billingCycleToggle
-                    
-                    // Plans Grid
-                    plansGrid
-                    
-                    // Selected Plan Features (Dynamic)
-                    selectedPlanFeatures
-                    
-                    // Bottom Information
-                    bottomInfo
+        NavigationView {
+            VStack(spacing: 0) {
+                // Yearly/Monthly toggle
+                billingToggle
+                    .padding(.top, AppSpacing.md)
+                    .padding(.bottom, AppSpacing.md)
+
+                // Swipeable plan cards
+                TabView(selection: $currentPlanIndex) {
+                    ForEach(plans.indices, id: \.self) { index in
+                        CompactPlanCard(
+                            plan: plans[index],
+                            isYearly: isYearly
+                        )
+                        .tag(index)
+                    }
                 }
-                .pageMargins()
-                .padding(.vertical, AppSpacing.sectionSpacing)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(maxHeight: .infinity)
+
+                // Page indicator dots
+                HStack(spacing: 8) {
+                    ForEach(plans.indices, id: \.self) { index in
+                        Circle()
+                            .fill(currentPlanIndex == index ? currentPlan.color : AppColors.borderLight)
+                            .frame(width: currentPlanIndex == index ? 10 : 8, height: currentPlanIndex == index ? 10 : 8)
+                            .animation(.spring(response: 0.3), value: currentPlanIndex)
+                    }
+                }
+                .padding(.vertical, AppSpacing.sm)
+
+                // Fixed bottom CTA
+                fixedBottomCTA
             }
-            .background(AppColors.backgroundLight)
-            .navigationTitle("Upgrade Plan")
+            .background(
+                LinearGradient(
+                    colors: [
+                        AppColors.backgroundLight,
+                        currentPlan.color.opacity(0.05)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+            )
+            .navigationTitle("Unlock Premium")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Close") {
-                        dismiss()
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.textSecondary)
                     }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.primaryBlue)
                 }
             }
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
-        } message: {
-            Text(errorMessage)
-        }
     }
-    
-    // MARK: - Header Section
-    private var headerSection: some View {
-        VStack(spacing: AppSpacing.lg) {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [AppColors.primaryPurple, AppColors.primaryBlue],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 120, height: 120)
-                    .shadow(
-                        color: AppColors.primaryPurple.opacity(0.3),
-                        radius: AppSizing.shadows.large.radius,
-                        x: AppSizing.shadows.large.x,
-                        y: AppSizing.shadows.large.y
-                    )
-                
-                Text("✨")
-                    .font(.system(size: 60))
+
+    // MARK: - Components
+
+    private var currentPlan: PlanCard {
+        plans[currentPlanIndex]
+    }
+
+    private var compactHeader: some View {
+        HStack(spacing: AppSpacing.sm) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 24))
+                .foregroundColor(currentPlan.color)
+                .symbolEffect(.bounce, value: currentPlanIndex)
+
+            Text("Unlock Premium")
+                .font(AppTypography.headlineMedium)
+                .foregroundColor(AppColors.textPrimary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var billingToggle: some View {
+        HStack(spacing: 0) {
+            // Monthly button
+            Button(action: { withAnimation(.spring(response: 0.3)) { isYearly = false } }) {
+                Text("Monthly")
+                    .font(AppTypography.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(isYearly ? AppColors.textSecondary : .white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppSpacing.sm)
+                    .background(isYearly ? Color.clear : currentPlan.color)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            
-            VStack(spacing: AppSpacing.sm) {
-                Text("Unlock Premium Features")
-                    .displayMedium()
-                    .foregroundColor(AppColors.textPrimary)
-                    .multilineTextAlignment(.center)
-                
-                if let feature = highlightedFeature {
-                    Text("Get access to \(feature) and much more!")
-                        .bodyMedium()
-                        .foregroundColor(AppColors.primaryBlue)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, AppSpacing.md)
-                        .padding(.vertical, AppSpacing.sm)
-                        .background(AppColors.primaryBlue.opacity(0.1))
-                        .cornerRadius(AppSizing.cornerRadius.md)
-                } else {
-                    Text("Create unlimited art with AI and unlock advanced features")
-                        .bodyMedium()
-                        .foregroundColor(AppColors.textSecondary)
-                        .multilineTextAlignment(.center)
+
+            // Yearly button with savings badge
+            Button(action: { withAnimation(.spring(response: 0.3)) { isYearly = true } }) {
+                VStack(spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("Yearly")
+                            .font(AppTypography.bodyMedium)
+                            .fontWeight(.semibold)
+
+                        Text("SAVE 17%")
+                            .font(AppTypography.captionSmall)
+                            .fontWeight(.bold)
+                            .foregroundColor(isYearly ? currentPlan.color : AppColors.successGreen)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(isYearly ? .white : AppColors.successGreen.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
                 }
+                .foregroundColor(isYearly ? .white : AppColors.textSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppSpacing.sm)
+                .background(isYearly ? currentPlan.color : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
         }
-        .contentPadding()
+        .padding(4)
+        .background(AppColors.surfaceLight)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(AppColors.borderLight, lineWidth: 1)
+        )
+        .padding(.horizontal, AppSpacing.xl)
     }
-    
-    // MARK: - Billing Cycle Toggle
-    private var billingCycleToggle: some View {
-        VStack(spacing: AppSpacing.md) {
-            HStack(spacing: AppSpacing.sm) {
-                ForEach(BillingCycle.allCases, id: \.self) { cycle in
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            selectedBillingCycle = cycle
-                        }
-                    } label: {
-                        HStack(spacing: AppSpacing.xs) {
-                            Text(cycle.rawValue)
-                                .font(AppTypography.titleMedium)
-                                .foregroundColor(selectedBillingCycle == cycle ? .white : AppColors.textPrimary)
-                            
-                            if cycle == .yearly {
-                                Text("SAVE 20%")
-                                    .font(AppTypography.captionSmall)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(selectedBillingCycle == cycle ? .white : AppColors.successGreen)
-                                    .padding(.horizontal, AppSpacing.xs)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        selectedBillingCycle == cycle ? 
-                                        Color.white.opacity(0.3) : 
-                                        AppColors.successGreen.opacity(0.2)
-                                    )
-                                    .cornerRadius(4)
-                            }
-                        }
-                        .padding(.horizontal, AppSpacing.lg)
-                        .padding(.vertical, AppSpacing.md)
-                        .background(
-                            selectedBillingCycle == cycle ? 
-                            AppColors.primaryBlue : 
-                            AppColors.backgroundLight
-                        )
-                        .cornerRadius(AppSizing.cornerRadius.lg)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                                .stroke(
-                                    selectedBillingCycle == cycle ? 
-                                    AppColors.primaryBlue : 
-                                    AppColors.borderMedium,
-                                    lineWidth: 1
-                                )
-                        )
-                    }
-                    .childSafeTouchTarget()
-                }
-            }
-        }
-        .cardStyle()
-    }
-    
-    // MARK: - Plans Grid
-    private var plansGrid: some View {
-        LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.rowSpacing) {
-            ForEach(mockSubscriptionPlans) { plan in
-                SubscriptionPlanCard(
-                    plan: plan,
-                    billingCycle: selectedBillingCycle,
-                    isCurrentPlan: plan.id == currentPlan,
-                    isSelected: selectedPlan?.id == plan.id,
-                    isHighlighted: plan.isPopular,
-                    onSelect: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            selectedPlan = plan
-                        }
-                    },
-                    onPurchase: {
-                        purchasePlan(plan)
-                    }
-                )
-            }
-        }
-        .onAppear {
-            // Auto-select the popular plan by default
-            if selectedPlan == nil {
-                selectedPlan = mockSubscriptionPlans.first { $0.isPopular } ?? mockSubscriptionPlans.first
-            }
-        }
-    }
-    
-    // MARK: - Selected Plan Features
-    private var selectedPlanFeatures: some View {
-        Group {
-            if let plan = selectedPlan {
-                VStack(alignment: .leading, spacing: AppSpacing.lg) {
-                    // Header
-                    HStack {
-                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                            Text("\(plan.displayName) Plan")
-                                .headlineLarge()
-                                .foregroundColor(AppColors.textPrimary)
-                            
-                            Text("Everything you get with \(plan.displayName)")
-                                .bodyMedium()
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-                        
-                        Spacer()
-                        
-                        // Price display
-                        VStack(alignment: .trailing, spacing: AppSpacing.xs) {
-                            HStack(alignment: .firstTextBaseline, spacing: AppSpacing.xs) {
-                                Text(selectedBillingCycle == .monthly ? plan.monthlyPriceString : plan.yearlyPriceString)
-                                    .font(AppTypography.headlineLarge)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(planColor(for: plan))
-                                
-                                if !plan.isFree {
-                                    Text(selectedBillingCycle == .monthly ? "/month" : "/year")
-                                        .font(AppTypography.captionMedium)
-                                        .foregroundColor(AppColors.textSecondary)
-                                }
-                            }
-                            
-                            if selectedBillingCycle == .yearly && !plan.isFree, let savings = plan.monthlySavings {
-                                Text(savings)
-                                    .font(AppTypography.captionSmall)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(AppColors.successGreen)
-                                    .padding(.horizontal, AppSpacing.xs)
-                                    .padding(.vertical, 2)
-                                    .background(AppColors.successGreen.opacity(0.2))
-                                    .cornerRadius(4)
-                            }
-                        }
-                    }
-                    
-                    // Features Grid
-                    LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: AppSpacing.md) {
-                        PlanFeatureCard(
-                            icon: "photo.stack",
-                            title: "Monthly Images",
-                            value: "\(plan.monthlyTokens)",
-                            subtitle: "AI generations",
-                            color: planColor(for: plan)
-                        )
-                        
-                        PlanFeatureCard(
-                            icon: "rectangle.stack",
-                            title: "Images per Generation",
-                            value: "Up to \(plan.maxImagesPerGeneration)",
-                            subtitle: "variations",
-                            color: planColor(for: plan)
-                        )
-                        
-                        PlanFeatureCard(
-                            icon: "sparkles",
-                            title: "Quality Options",
-                            value: plan.hasQualitySelector ? "All Qualities" : "Standard",
-                            subtitle: plan.hasQualitySelector ? "standard, high, ultra" : "fast generation",
-                            color: planColor(for: plan)
-                        )
-                        
-                        PlanFeatureCard(
-                            icon: "brain.head.profile",
-                            title: "AI Models",
-                            value: plan.hasModelSelector ? "Multiple Models" : "Seedream",
-                            subtitle: plan.hasModelSelector ? "seedream, flux" : "family-friendly",
-                            color: planColor(for: plan)
-                        )
-                    }
-                    
-                    // Full features list
-                    VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                        Text("Complete Feature List")
-                            .titleMedium()
-                            .foregroundColor(AppColors.textPrimary)
-                        
-                        LazyVGrid(columns: [GridItem(.flexible())], spacing: AppSpacing.xs) {
-                            ForEach(plan.features, id: \.self) { feature in
-                                HStack(spacing: AppSpacing.sm) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(AppColors.successGreen)
-                                    
-                                    Text(feature)
-                                        .font(AppTypography.bodyMedium)
-                                        .foregroundColor(AppColors.textPrimary)
-                                    
-                                    Spacer()
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Purchase button
-                    Button {
-                        purchasePlan(plan)
-                    } label: {
-                        Group {
-                            if plan.id == currentPlan {
-                                Text("Current Plan")
-                            } else if plan.isFree {
-                                Text("Continue with Free")
-                            } else {
-                                Text("Upgrade to \(plan.displayName) - \(selectedBillingCycle == .monthly ? plan.monthlyPriceString : plan.yearlyPriceString)\(selectedBillingCycle == .monthly ? "/month" : "/year")")
-                            }
-                        }
-                        .font(AppTypography.titleMedium)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(
-                            plan.id == currentPlan ? 
-                            AppColors.textSecondary : 
-                            planColor(for: plan)
-                        )
-                        .cornerRadius(AppSizing.cornerRadius.lg)
-                    }
-                    .disabled(plan.id == currentPlan)
-                    .childSafeTouchTarget()
-                }
-                .cardStyle()
-            }
-        }
-    }
-    
-    private func planColor(for plan: SubscriptionPlan) -> Color {
-        if let colorHex = plan.color {
-            return Color(hex: colorHex)
-        }
-        switch plan.id {
-        case "free": return AppColors.textSecondary
-        case "basic": return AppColors.primaryBlue
-        case "pro": return AppColors.primaryPurple
-        case "max": return AppColors.primaryPink
-        default: return AppColors.primaryBlue
-        }
-    }
-    
-    // MARK: - Bottom Info
-    private var bottomInfo: some View {
-        VStack(spacing: AppSpacing.md) {
-            VStack(spacing: AppSpacing.xs) {
-                Text("🔒 Secure Payment")
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.textPrimary)
-                
-                Text("Powered by Apple In-App Purchase. Cancel anytime.")
-                    .font(AppTypography.captionMedium)
+
+    private var fixedBottomCTA: some View {
+        VStack(spacing: AppSpacing.sm) {
+            // Price per day callout
+            HStack(spacing: 4) {
+                Text("Just")
+                    .font(AppTypography.captionLarge)
                     .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
+
+                Text(pricePerDay)
+                    .font(AppTypography.titleMedium)
+                    .fontWeight(.bold)
+                    .foregroundColor(currentPlan.color)
+
+                Text("per day • Cancel anytime")
+                    .font(AppTypography.captionLarge)
+                    .foregroundColor(AppColors.textSecondary)
             }
-            
-            HStack(spacing: AppSpacing.lg) {
-                Button("Privacy Policy") {
-                    // TODO: Open privacy policy
+
+            // Subscribe button
+            Button(action: { selectPlan(currentPlan) }) {
+                HStack(spacing: AppSpacing.sm) {
+                    if isLoading {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Text("Start Free Trial")
+                            .font(AppTypography.buttonLarge)
+                            .fontWeight(.bold)
+                    }
                 }
-                .font(AppTypography.captionLarge)
-                .foregroundColor(AppColors.primaryBlue)
-                
-                Button("Terms of Service") {
-                    // TODO: Open terms of service
-                }
-                .font(AppTypography.captionLarge)
-                .foregroundColor(AppColors.primaryBlue)
-                
-                Button("Restore Purchases") {
-                    // TODO: Restore purchases
-                }
-                .font(AppTypography.captionLarge)
-                .foregroundColor(AppColors.primaryBlue)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(
+                    LinearGradient(
+                        colors: [currentPlan.color, currentPlan.color.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .clipShape(Capsule())
+                .shadow(color: currentPlan.color.opacity(0.4), radius: 12, x: 0, y: 6)
             }
+            .disabled(isLoading)
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.bottom, AppSpacing.md)
         }
-        .contentPadding()
+        .padding(.top, AppSpacing.sm)
+        .background(.ultraThinMaterial)
     }
-    
+
+    private var pricePerDay: String {
+        let price = isYearly ? currentPlan.yearlyPrice : currentPlan.monthlyPrice
+        let days = isYearly ? 365 : 30
+        let perDay = Double(price) / Double(days)
+        return String(format: "$%.2f", perDay)
+    }
+
     // MARK: - Actions
-    private func purchasePlan(_ plan: SubscriptionPlan) {
+
+    private func selectPlan(_ plan: PlanCard) {
+        print("🎯 SubscriptionPlans: Selected \(plan.name) - \(isYearly ? "Yearly" : "Monthly")")
+        // TODO: Implement Stripe checkout
         isLoading = true
-        
-        // TODO: Implement Apple In-App Purchase logic
-        #if DEBUG
-        print("🛒 Purchasing plan: \(plan.displayName)")
-        print("🛒 Billing cycle: \(selectedBillingCycle.rawValue)")
-        #endif
-        
-        // Simulate purchase process
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+
+        // Simulate API call
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             isLoading = false
-            // For now, just show success or error
-            errorMessage = "Purchase functionality will be implemented with Apple In-App Purchase"
+            errorMessage = "Stripe integration coming soon!"
             showingError = true
         }
     }
 }
 
-// MARK: - Plan Feature Card
-struct PlanFeatureCard: View {
-    let icon: String
-    let title: String
-    let value: String
-    let subtitle: String
+// MARK: - Plan Card Data Model
+
+struct PlanCard: Identifiable {
+    let id: String
+    let name: String
+    let monthlyTokens: Int
+    let monthlyPrice: Int
+    let yearlyPrice: Int
     let color: Color
-    
-    var body: some View {
-        VStack(spacing: AppSpacing.sm) {
-            Image(systemName: icon)
-                .font(.system(size: 24, weight: .medium))
-                .foregroundColor(color)
-            
-            VStack(spacing: AppSpacing.xs) {
-                Text(value)
-                    .font(AppTypography.titleMedium)
-                    .fontWeight(.semibold)
-                    .foregroundColor(AppColors.textPrimary)
-                    .multilineTextAlignment(.center)
-                
-                Text(title)
-                    .font(AppTypography.captionMedium)
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                
-                Text(subtitle)
-                    .font(AppTypography.captionSmall)
-                    .foregroundColor(color.opacity(0.8))
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .padding(AppSpacing.md)
-        .frame(maxWidth: .infinity)
-        .frame(height: 120)
-        .background(color.opacity(0.05))
-        .cornerRadius(AppSizing.cornerRadius.md)
-        .overlay(
-            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                .stroke(color.opacity(0.2), lineWidth: 1)
-        )
+    let icon: String
+    let features: [String]
+    let badge: String?
+
+    init(id: String, name: String, monthlyTokens: Int, monthlyPrice: Int, yearlyPrice: Int, color: Color, icon: String, features: [String], badge: String? = nil) {
+        self.id = id
+        self.name = name
+        self.monthlyTokens = monthlyTokens
+        self.monthlyPrice = monthlyPrice
+        self.yearlyPrice = yearlyPrice
+        self.color = color
+        self.icon = icon
+        self.features = features
+        self.badge = badge
     }
 }
 
-// MARK: - Subscription Plan Card
-struct SubscriptionPlanCard: View {
-    let plan: SubscriptionPlan
-    let billingCycle: SubscriptionPlansView.BillingCycle
-    let isCurrentPlan: Bool
-    let isSelected: Bool
-    let isHighlighted: Bool
-    let onSelect: () -> Void
-    let onPurchase: () -> Void
-    
-    private var displayPrice: String {
-        switch billingCycle {
-        case .monthly:
-            return plan.monthlyPriceString
-        case .yearly:
-            return plan.yearlyPriceString
-        }
+// MARK: - Compact Plan Card
+
+struct CompactPlanCard: View {
+    let plan: PlanCard
+    let isYearly: Bool
+
+    private var price: Int {
+        isYearly ? plan.yearlyPrice : plan.monthlyPrice
     }
-    
-    private var priceSubtext: String {
-        switch billingCycle {
-        case .monthly:
-            return "/month"
-        case .yearly:
-            if let savings = plan.monthlySavings {
-                return "/year • \(savings)"
-            } else {
-                return "/year"
-            }
-        }
+
+    private var priceText: String {
+        "$\(price)"
     }
-    
-    private var cardColor: Color {
-        if let colorHex = plan.color {
-            return Color(hex: colorHex)
-        }
-        switch plan.id {
-        case "free": return AppColors.textSecondary
-        case "basic": return AppColors.primaryBlue
-        case "pro": return AppColors.primaryPurple
-        case "max": return AppColors.primaryPink
-        default: return AppColors.primaryBlue
-        }
+
+    private var periodText: String {
+        isYearly ? "/year" : "/mo"
     }
-    
+
+    private var savingsText: String? {
+        guard isYearly else { return nil }
+        let monthlyTotal = plan.monthlyPrice * 12
+        let savings = monthlyTotal - plan.yearlyPrice
+        return "Save $\(savings)"
+    }
+
     var body: some View {
-        Button(action: onSelect) {
-            VStack(spacing: AppSpacing.md) {
-            // Header
-            VStack(spacing: AppSpacing.sm) {
-                if isHighlighted {
-                    Text("MOST POPULAR")
+        VStack(spacing: AppSpacing.md) {
+            // Top: Logo image with badge
+            ZStack(alignment: .topTrailing) {
+                // Centered logo
+                Image("sketchwink-logo")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 100, height: 100)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(plan.color.opacity(0.3), lineWidth: 3)
+                    )
+                    .shadow(color: plan.color.opacity(0.2), radius: 8, x: 0, y: 4)
+                    .frame(maxWidth: .infinity)
+
+                if let badge = plan.badge {
+                    Text(badge)
                         .font(AppTypography.captionSmall)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
-                        .padding(.horizontal, AppSpacing.sm)
-                        .padding(.vertical, AppSpacing.xs)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
                         .background(AppColors.successGreen)
-                        .cornerRadius(AppSizing.cornerRadius.sm)
-                }
-                
-                Text(plan.displayName)
-                    .font(AppTypography.headlineMedium)
-                    .foregroundColor(AppColors.textPrimary)
-                    .multilineTextAlignment(.center)
-                
-                VStack(spacing: AppSpacing.xxxs) {
-                    HStack(alignment: .firstTextBaseline, spacing: AppSpacing.xs) {
-                        Text(displayPrice)
-                            .font(AppTypography.displaySmall)
-                            .fontWeight(.bold)
-                            .foregroundColor(cardColor)
-                        
-                        if !plan.isFree {
-                            Text(priceSubtext)
-                                .font(AppTypography.captionMedium)
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-                    }
-                    
-                    Text("\(plan.monthlyTokens) images/month")
-                        .font(AppTypography.captionMedium)
-                        .foregroundColor(AppColors.textSecondary)
+                        .clipShape(Capsule())
+                        .offset(x: -8, y: 0)
                 }
             }
-            
-            // Features
+
+            // Middle: Plan name and price
+            VStack(spacing: 4) {
+                Text(plan.name)
+                    .font(AppTypography.headlineMedium)
+                    .fontWeight(.bold)
+                    .foregroundColor(AppColors.textPrimary)
+
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(priceText)
+                        .font(.system(size: 38, weight: .heavy, design: .rounded))
+                        .foregroundColor(plan.color)
+
+                    Text(periodText)
+                        .font(AppTypography.bodyMedium)
+                        .foregroundColor(AppColors.textSecondary)
+                }
+
+                if let savings = savingsText {
+                    Text(savings)
+                        .font(AppTypography.captionLarge)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.successGreen)
+                }
+            }
+
+            // Credits badge
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 14))
+                    .foregroundColor(plan.color)
+
+                Text("\(plan.monthlyTokens) credits/month")
+                    .font(AppTypography.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppColors.textPrimary)
+            }
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.vertical, AppSpacing.xs)
+            .background(plan.color.opacity(0.1))
+            .clipShape(Capsule())
+
+            // Features list
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                ForEach(plan.features.prefix(4), id: \.self) { feature in
+                ForEach(plan.features, id: \.self) { feature in
                     HStack(spacing: AppSpacing.xs) {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(AppColors.successGreen)
-                        
+                            .font(.system(size: 16))
+                            .foregroundColor(plan.color)
+
                         Text(feature)
-                            .font(AppTypography.captionMedium)
+                            .font(AppTypography.bodyMedium)
                             .foregroundColor(AppColors.textPrimary)
-                            .multilineTextAlignment(.leading)
-                        
+
                         Spacer()
                     }
                 }
             }
-            
-            Spacer()
-            
-            // Action Button
-            Button(action: onPurchase) {
-                Group {
-                    if isCurrentPlan {
-                        Text("Current Plan")
-                    } else if plan.isFree {
-                        Text("Continue with Free")
-                    } else {
-                        Text("Upgrade to \(plan.displayName)")
-                    }
-                }
-                .font(AppTypography.titleMedium)
-                .foregroundColor(isCurrentPlan ? AppColors.textSecondary : .white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(
-                    isCurrentPlan ? 
-                    AppColors.backgroundLight : 
-                    cardColor
-                )
-                .cornerRadius(AppSizing.cornerRadius.md)
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                        .stroke(
-                            isCurrentPlan ? AppColors.borderMedium : Color.clear,
-                            lineWidth: 1
-                        )
-                )
-            }
-            .disabled(isCurrentPlan)
-            .childSafeTouchTarget()
+            .padding(.horizontal, AppSpacing.md)
         }
-        .padding(AppSpacing.md)
-        .frame(height: 280)
-        .background(AppColors.backgroundLight)
-        .cornerRadius(AppSizing.cornerRadius.lg)
+        .frame(maxWidth: .infinity)
+        .padding(AppSpacing.lg)
+        .background(AppColors.surfaceLight)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
-            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                .stroke(
-                    isSelected ? cardColor : (isHighlighted ? cardColor.opacity(0.5) : AppColors.borderLight),
-                    lineWidth: isSelected ? 3 : (isHighlighted ? 2 : 1)
-                )
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(plan.color.opacity(0.3), lineWidth: 2)
         )
         .shadow(
-            color: isSelected ? cardColor.opacity(0.3) : (isHighlighted ? cardColor.opacity(0.2) : Color.black.opacity(0.05)),
-            radius: isSelected ? 12 : (isHighlighted ? 8 : 4),
+            color: plan.color.opacity(0.15),
+            radius: 16,
             x: 0,
-            y: isSelected ? 4 : 2
+            y: 8
         )
-        .scaleEffect(isSelected ? 1.05 : (isHighlighted ? 1.02 : 1.0))
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .childSafeTouchTarget()
+        .padding(.horizontal, AppSpacing.lg)
     }
 }
 
+// MARK: - Preview
 
-// MARK: - Mock Data
-private let mockSubscriptionPlans: [SubscriptionPlan] = [
-    SubscriptionPlan(
-        id: "free",
-        name: "free",
-        displayName: "Free",
-        description: "Perfect for trying out SketchWink",
-        monthlyPrice: 0,
-        yearlyPrice: 0,
-        monthlyTokens: 3,
-        features: [
-            "3 AI images per month",
-            "Standard quality",
-            "1 image per generation",
-            "Basic support"
-        ],
-        isPopular: false,
-        color: nil,
-        maxImagesPerGeneration: 1,
-        hasQualitySelector: false,
-        hasModelSelector: false,
-        availableModels: ["seedream"],
-        availableQuality: ["standard"]
-    ),
-    SubscriptionPlan(
-        id: "basic",
-        name: "basic",
-        displayName: "Basic",
-        description: "Great for regular creative projects",
-        monthlyPrice: 9.99,
-        yearlyPrice: 95.99,
-        monthlyTokens: 100,
-        features: [
-            "100 AI images per month",
-            "Standard quality",
-            "Up to 4 images per generation",
-            "3 family profiles",
-            "Priority support"
-        ],
-        isPopular: true,
-        color: "#37B6F6",
-        maxImagesPerGeneration: 4,
-        hasQualitySelector: false,
-        hasModelSelector: false,
-        availableModels: ["seedream"],
-        availableQuality: ["standard"]
-    ),
-    SubscriptionPlan(
-        id: "pro",
-        name: "pro",
-        displayName: "Pro",
-        description: "Perfect for families and educators",
-        monthlyPrice: 19.99,
-        yearlyPrice: 191.99,
-        monthlyTokens: 300,
-        features: [
-            "300 AI images per month",
-            "Standard quality",
-            "Up to 4 images per generation",
-            "5 family profiles",
-            "Premium support"
-        ],
-        isPopular: false,
-        color: "#882FF6",
-        maxImagesPerGeneration: 4,
-        hasQualitySelector: false,
-        hasModelSelector: false,
-        availableModels: ["seedream"],
-        availableQuality: ["standard"]
-    ),
-    SubscriptionPlan(
-        id: "max",
-        name: "max",
-        displayName: "Max",
-        description: "Ultimate creative freedom",
-        monthlyPrice: 39.99,
-        yearlyPrice: 383.99,
-        monthlyTokens: 600,
-        features: [
-            "600 AI images per month",
-            "All quality options",
-            "Up to 4 images per generation",
-            "6 family profiles",
-            "Premium support"
-        ],
-        isPopular: false,
-        color: "#FF6B9D",
-        maxImagesPerGeneration: 4,
-        hasQualitySelector: true,
-        hasModelSelector: false,
-        availableModels: ["seedream"],
-        availableQuality: ["standard", "high", "ultra"]
-    )
-]
-
-#if DEBUG
-struct SubscriptionPlansView_Previews: PreviewProvider {
-    static var previews: some View {
-        SubscriptionPlansView(
-            highlightedFeature: "Multiple Images",
-            currentPlan: "free"
-        )
-    }
+#Preview {
+    SubscriptionPlansView()
 }
-#endif

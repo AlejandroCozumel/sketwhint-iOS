@@ -95,7 +95,7 @@ class TokenBalanceManager: ObservableObject {
         guard let permissions = permissions else { return false }
         return permissions.hasQualitySelector || permissions.hasModelSelector
     }
-    
+
     /// Is currently loading token balance
     var isLoading: Bool {
         return loadingState.isLoading

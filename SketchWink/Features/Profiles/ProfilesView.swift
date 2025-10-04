@@ -128,10 +128,7 @@ struct ProfilesView: View {
             )
         }
         .sheet(isPresented: $showingSubscriptionPlans) {
-            SubscriptionPlansView(
-                highlightedFeature: highlightedFeature,
-                currentPlan: userPermissions?.planName.lowercased()
-            )
+            SubscriptionPlansView()
         }
         .sheet(isPresented: $showingProfileSelection) {
             if let profile = profileToSelect {
@@ -439,11 +436,16 @@ struct ProfilesView: View {
                 }
 
                 // Sign Out Button
-                Button("Sign Out") {
-                    showingSignOutAlert = true
+                Button(action: { showingSignOutAlert = true }) {
+                    Text("Sign Out")
+                        .font(AppTypography.bodyMedium)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, AppSpacing.md)
+                        .background(AppColors.errorRed)
+                        .clipShape(Capsule())
                 }
-                .largeButtonStyle(backgroundColor: AppColors.buttonSecondary)
-                .foregroundColor(AppColors.errorRed)
                 .childSafeTouchTarget()
 
                 Text("You can always sign back in anytime")

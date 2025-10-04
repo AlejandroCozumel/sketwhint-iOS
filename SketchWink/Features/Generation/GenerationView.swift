@@ -87,139 +87,155 @@ struct GenerationView: View {
     }
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: AppSpacing.sectionSpacing) {
+        mainContent
+            .task {
+                await loadData()
+                await establishSSEConnection()
+            }
+            .onAppear(perform: handleOnAppear)
+            .onDisappear(perform: handleOnDisappear)
+            .alert("Error", isPresented: $showingError) {
+                Button("OK") { }
+            } message: {
+                Text(error?.localizedDescription ?? "An unknown error occurred")
+            }
+            .alert("Success", isPresented: $showingSuccess) {
+                Button("OK") { }
+            } message: {
+                Text(successMessage ?? "Settings updated successfully")
+            }
+            .fullScreenCover(isPresented: .constant(generationState.isGenerating)) {
+                progressCover
+            }
+            .sheet(isPresented: .constant(generationState.isCompleted)) {
+                resultSheet
+            }
+            .sheet(isPresented: $showingPhotoSourceSelection) {
+                PhotoSourceSelectionView(
+                    showingImagePicker: $showingImagePicker,
+                    showingCamera: $showingCamera,
+                    selectedImage: $selectedInputImage
+                )
+            }
+            .sheet(isPresented: $showingImagePreview) {
+                if let selectedImage = selectedInputImage,
+                   let selectedCategory = selectedCategory,
+                   let selectedOption = selectedOption {
+                    ImagePreviewView(
+                        selectedImage: selectedImage,
+                        selectedCategory: selectedCategory,
+                        selectedOption: selectedOption,
+                        onConfirm: { confirmedImage in
+                            selectedInputImage = confirmedImage
+                        }
+                    )
+                }
+            }
+            .onChange(of: selectedInputImage) { oldValue, newValue in
+                if newValue != nil {
+                    showingPhotoSourceSelection = false
+                }
+            }
+    }
 
-                    if isLoading {
-                        loadingView
-                    } else if let category = selectedCategory {
-                        generationFormView(category: category)
-                    } else {
-                        errorStateView
+    // MARK: - View Components
+
+    private var mainContent: some View {
+        NavigationView {
+            scrollContent
+                .background(AppColors.backgroundLight)
+                .navigationTitle(selectedCategory?.category.name ?? "Create Art")
+                .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        doneButton
                     }
                 }
-                .pageMargins()
-                .padding(.vertical, AppSpacing.sectionSpacing)
-            }
-            .background(AppColors.backgroundLight)
-            .navigationTitle(selectedCategory?.category.name ?? "Create Art")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        #if DEBUG
-                        print("🔗 GenerationView: User tapped Done, disconnecting SSE and dismissing")
-                        #endif
-                        GenerationProgressSSEService.shared.disconnect()
-                        onDismiss()
-                    }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.primaryBlue)
+        }
+    }
+
+    private var scrollContent: some View {
+        ScrollView {
+            VStack(spacing: AppSpacing.sectionSpacing) {
+                if isLoading {
+                    loadingView
+                } else if let category = selectedCategory {
+                    generationFormView(category: category)
+                } else {
+                    errorStateView
                 }
             }
+            .pageMargins()
+            .padding(.vertical, AppSpacing.sectionSpacing)
         }
-        .task {
-            await loadData()
-            await establishSSEConnection()
-        }
-        .onAppear {
-            // Reset success state when view appears
-            showingSuccess = false
-            successMessage = nil
-            hasLoadedPromptSetting = false
-        }
-        .onDisappear {
+    }
+
+    private var doneButton: some View {
+        Button("Done") {
             #if DEBUG
-            print("🔗 GenerationView: onDisappear called - but NOT disconnecting SSE")
-            print("🔗 GenerationView: SSE will disconnect when onDismiss is called or view is truly deallocated")
+            print("🔗 GenerationView: User tapped Done, disconnecting SSE and dismissing")
             #endif
-            // Don't disconnect SSE here because fullScreenCover incorrectly triggers onDisappear
-            // SSE will be cleaned up via onDismiss callback instead
+            GenerationProgressSSEService.shared.disconnect()
+            onDismiss()
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
-        } message: {
-            Text(error?.localizedDescription ?? "An unknown error occurred")
-        }
-        .alert("Success", isPresented: $showingSuccess) {
-            Button("OK") { }
-        } message: {
-            Text(successMessage ?? "Settings updated successfully")
-        }
-        .fullScreenCover(isPresented: .constant(generationState.isGenerating)) {
-            if case .generating(let generation) = generationState {
-                GenerationProgressView(
-                    generation: generation,
-                    onComplete: { completedGeneration in
-                        generationState = .completed(completedGeneration)
-                    },
-                    onError: { errorMessage in
-                        generationState = .failed(errorMessage)
-                        error = GenerationError.generationFailed(errorMessage)
-                        showingError = true
-                        // Reset form on error
-                        userPrompt = ""
-                        selectedInputImage = nil
-                    },
-                    onCancel: {
-                        // Reset to idle when user cancels stuck generation
-                        generationState = .idle
-                    }
-                )
-            }
-        }
-        .sheet(isPresented: .constant(generationState.isCompleted)) {
-            if case .completed(let generation) = generationState {
-                GenerationResultView(
-                    generation: generation,
-                    onDismiss: {
-                        generationState = .idle
-                        userPrompt = ""
-                        selectedInputImage = nil
-                    },
-                    onGenerateAnother: {
-                        generationState = .idle
-                        userPrompt = ""
-                        selectedInputImage = nil
-                    }
-                )
-            }
-        }
-        .sheet(isPresented: $showingSubscriptionPlans) {
-            SubscriptionPlansView(
-                highlightedFeature: highlightedFeature,
-                currentPlan: userPermissions?.planName.lowercased()
+        .font(AppTypography.titleMedium)
+        .foregroundColor(AppColors.primaryBlue)
+    }
+
+    @ViewBuilder
+    private var progressCover: some View {
+        if case .generating(let generation) = generationState {
+            GenerationProgressView(
+                generation: generation,
+                onComplete: { completedGeneration in
+                    generationState = .completed(completedGeneration)
+                },
+                onError: { errorMessage in
+                    generationState = .failed(errorMessage)
+                    error = GenerationError.generationFailed(errorMessage)
+                    showingError = true
+                    userPrompt = ""
+                    selectedInputImage = nil
+                },
+                onCancel: {
+                    generationState = .idle
+                }
             )
         }
-        .sheet(isPresented: $showingPhotoSourceSelection) {
-            PhotoSourceSelectionView(
-                showingImagePicker: $showingImagePicker,
-                showingCamera: $showingCamera,
-                selectedImage: $selectedInputImage
+    }
+
+    @ViewBuilder
+    private var resultSheet: some View {
+        if case .completed(let generation) = generationState {
+            GenerationResultView(
+                generation: generation,
+                onDismiss: {
+                    generationState = .idle
+                    userPrompt = ""
+                    selectedInputImage = nil
+                },
+                onGenerateAnother: {
+                    generationState = .idle
+                    userPrompt = ""
+                    selectedInputImage = nil
+                }
             )
         }
-        .sheet(isPresented: $showingImagePreview) {
-            if let selectedImage = selectedInputImage,
-               let selectedCategory = selectedCategory,
-               let selectedOption = selectedOption {
-                ImagePreviewView(
-                    selectedImage: selectedImage,
-                    selectedCategory: selectedCategory,
-                    selectedOption: selectedOption,
-                    onConfirm: { confirmedImage in
-                        selectedInputImage = confirmedImage
-                    }
-                )
-            }
-        }
-        .onChange(of: selectedInputImage) { oldValue, newValue in
-            if newValue != nil {
-                // Close photo source selection when image is selected
-                showingPhotoSourceSelection = false
-            }
-        }
-        // Note: Removed redundant image preview modal - photo now shows directly in form
+    }
+
+    // MARK: - Lifecycle Methods
+
+    private func handleOnAppear() {
+        showingSuccess = false
+        successMessage = nil
+        hasLoadedPromptSetting = false
+    }
+
+    private func handleOnDisappear() {
+        #if DEBUG
+        print("🔗 GenerationView: onDisappear called - but NOT disconnecting SSE")
+        print("🔗 GenerationView: SSE will disconnect when onDismiss is called or view is truly deallocated")
+        #endif
     }
 
     // MARK: - Loading View

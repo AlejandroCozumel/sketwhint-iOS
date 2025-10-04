@@ -132,14 +132,18 @@ struct SettingsView: View {
                     
                     // Sign Out Section
                     VStack(spacing: AppSpacing.sm) {
-                        Button("Sign Out") {
-                            showingSignOutAlert = true
+                        Button(action: { showingSignOutAlert = true }) {
+                            Text("Sign Out")
+                                .font(AppTypography.bodyMedium)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, AppSpacing.md)
+                                .background(AppColors.errorRed)
+                                .clipShape(Capsule())
                         }
-                        .buttonStyle(
-                            backgroundColor: AppColors.buttonSecondary,
-                            foregroundColor: AppColors.errorRed
-                        )
-                        
+                        .childSafeTouchTarget()
+
                         Text("You can always sign back in anytime")
                             .captionLarge()
                             .foregroundColor(AppColors.textSecondary)
