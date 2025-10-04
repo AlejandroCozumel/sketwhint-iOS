@@ -5,12 +5,15 @@ struct BooksView: View {
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var folderService = FolderService.shared
     @StateObject private var generationService = GenerationService.shared
+    @StateObject private var tokenManager = TokenBalanceManager.shared
     
     @State private var selectedBook: StoryBook?
     @State private var showingBookReader = false
     @State private var showingFilters = false
     @State private var showingMoveToFolder = false
     @State private var bookToMove: StoryBook?
+    @State private var showSubscriptionPlans = false
+    @State private var showingProfileMenu = false
     
     // Filter states
     @State private var showFavoritesOnly = false
@@ -83,7 +86,7 @@ struct BooksView: View {
             return "Create Story Book"
         }
     }
-    
+
     private func emptyStateButtonAction() {
         if hasActiveFilters {
             clearAllFilters()
@@ -104,16 +107,13 @@ struct BooksView: View {
         .navigationTitle("📚 Story Books")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            // Only show toolbar filter button when profile chips are not shown
-            if !(isMainProfile && profileService.availableProfiles.count > 1) {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Filters") {
-                        showingFilters = true
-                    }
-                    .font(AppTypography.bodyMedium)
-                    .foregroundColor(AppColors.primaryBlue)
-                }
-            }
+            AppToolbarContent(
+                profileService: profileService,
+                tokenManager: tokenManager,
+                onProfileTap: { showingProfileMenu = true },
+                onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                onUpgradeTap: { showSubscriptionPlans = true }
+            )
         }
         .onAppear {
             loadInitialBooks()
@@ -140,6 +140,12 @@ struct BooksView: View {
                     }
                 )
             }
+        }
+        .sheet(isPresented: $showSubscriptionPlans) {
+            SubscriptionPlansView()
+        }
+        .sheet(isPresented: $showingProfileMenu) {
+            ProfileMenuSheet(selectedTab: .constant(2), showPainting: .constant(false))
         }
     }
     
