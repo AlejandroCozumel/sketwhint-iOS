@@ -194,14 +194,11 @@ class GenerationService: ObservableObject {
             throw GenerationError.invalidURL
         }
         
-        guard let token = try KeychainManager.shared.retrieveToken() else {
-            throw GenerationError.noToken
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Use APIRequestHelper to automatically include X-Profile-ID header for access control
+        let request = try APIRequestHelper.shared.createGETRequest(
+            url: url,
+            includeProfileHeader: true // CRITICAL: Include profile for access control
+        )
         
         let (data, response) = try await URLSession.shared.data(for: request)
         

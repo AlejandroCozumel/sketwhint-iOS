@@ -73,6 +73,20 @@ struct GalleryView: View {
         }
     }
 
+    private var emptyStateSFSymbol: String {
+        if showFavoritesOnly {
+            return "heart.slash"
+        } else if selectedCategory != nil {
+            return "photo.on.rectangle.angled"
+        } else if selectedProfileFilter != nil {
+            return "person.crop.circle.badge.questionmark"
+        } else if !searchText.isEmpty {
+            return "magnifyingglass"
+        } else {
+            return "photo.on.rectangle.angled"
+        }
+    }
+
     private var emptyStateTitle: String {
         if showFavoritesOnly {
             return "No Favorite Images"
@@ -190,24 +204,18 @@ struct GalleryView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                if let currentProfile = profileService.currentProfile {
-                    Text(currentProfile.displayAvatar)
-                        .font(.system(size: 28))
-                        .onTapGesture {
-                            showingProfileMenu = true
-                        }
-                }
-            }
+                Button(action: { showingProfileMenu = true }) {
+                    HStack(spacing: 6) {
+                        if let currentProfile = profileService.currentProfile {
+                            Text(currentProfile.displayAvatar)
+                                .font(.system(size: 24))
 
-            ToolbarItem(placement: .principal) {
-                if let currentProfile = profileService.currentProfile {
-                    Text(currentProfile.name)
-                        .font(AppTypography.titleMedium)
-                        .fontWeight(.bold)
-                        .foregroundColor(AppColors.textPrimary)
-                        .onTapGesture {
-                            showingProfileMenu = true
+                            Text(currentProfile.name)
+                                .font(AppTypography.bodyMedium)
+                                .fontWeight(.semibold)
+                                .foregroundColor(AppColors.textPrimary)
                         }
+                    }
                 }
             }
 
@@ -563,29 +571,16 @@ struct GalleryView: View {
                     }
                 )
             } else {
-                // Regular empty state
-                VStack(spacing: AppSpacing.xl) {
-                    // Enhanced icon design similar to folder empty state
-                    if showFavoritesOnly {
-                        // Special design for favorites with circle background
-                        ZStack {
-                            Circle()
-                                .fill(AppColors.errorRed.opacity(0.15))
-                                .frame(width: 120, height: 120)
+                // Regular empty state (matching Folders UI)
+                VStack(spacing: AppSpacing.lg) {
+                    // SF Symbol icon (matching Folders pattern)
+                    Image(systemName: emptyStateSFSymbol)
+                        .font(.system(size: 60))
+                        .foregroundColor(AppColors.primaryBlue.opacity(0.6))
 
-                            Image(systemName: "heart.fill")
-                                .font(.system(size: 60, weight: .medium))
-                                .foregroundColor(AppColors.errorRed)
-                        }
-                    } else {
-                        // Regular emoji for other states
-                        Text(emptyStateIcon)
-                            .font(.system(size: 80))
-                    }
-
-                    VStack(spacing: AppSpacing.md) {
+                    VStack(spacing: AppSpacing.sm) {
                         Text(emptyStateTitle)
-                            .font(AppTypography.headlineLarge)
+                            .font(AppTypography.headlineMedium)
                             .foregroundColor(AppColors.textPrimary)
 
                         Text(emptyStateMessage)
@@ -593,21 +588,33 @@ struct GalleryView: View {
                             .foregroundColor(AppColors.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, AppSpacing.xl)
-
-                        Button(emptyStateButtonTitle) {
-                            // Clear filters if any are active
-                            if hasActiveFilters {
-                                clearAllFilters()
-                            }
-                            // Note: For no creations, user can tap the Art tab
-                        }
-                        .largeButtonStyle(backgroundColor: AppColors.coloringPagesColor)
-                        .childSafeTouchTarget()
                     }
+
+                    Button(action: {
+                        // Clear filters if any are active
+                        if hasActiveFilters {
+                            clearAllFilters()
+                        }
+                        // Note: For no creations, user can tap the Art tab
+                    }) {
+                        HStack(spacing: AppSpacing.sm) {
+                            Image(systemName: hasActiveFilters ? "xmark.circle" : "paintbrush.fill")
+                                .font(.system(size: 16, weight: .semibold))
+
+                            Text(emptyStateButtonTitle)
+                                .font(AppTypography.titleMedium)
+                                .fontWeight(.semibold)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, AppSpacing.lg)
+                        .padding(.vertical, AppSpacing.md)
+                        .background(AppColors.primaryBlue)
+                        .clipShape(Capsule())
+                    }
+                    .childSafeTouchTarget()
                 }
-                .cardStyle()
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: 300)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.horizontal, AppSpacing.xl)
             }
         }
     }

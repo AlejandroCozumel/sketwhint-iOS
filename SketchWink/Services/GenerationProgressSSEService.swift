@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 // MARK: - Generation Progress SSE Service
 class GenerationProgressSSEService: ObservableObject {
@@ -15,6 +16,14 @@ class GenerationProgressSSEService: ObservableObject {
     private var watchdogTimer: Timer?
     private var hasOpened = false
 
+    // Polling fallback mechanism
+    private var pollingTimer: Timer?
+    private var isPolling = false
+    private let pollingInterval: TimeInterval = 5.0 // Poll every 5 seconds
+
+    // App lifecycle tracking
+    private var isAppInBackground = false
+
     // Current generation progress state
     @Published var currentProgress: GenerationProgress?
     @Published var isConnected = false
@@ -25,10 +34,211 @@ class GenerationProgressSSEService: ObservableObject {
     var onGenerationComplete: ((String) -> Void)?
     var onError: ((Error) -> Void)?
 
-    private init() {}
+    private init() {
+        setupAppLifecycleObservers()
+    }
 
     // Current generation ID we're tracking
     var trackingGenerationId: String?
+
+    // MARK: - App Lifecycle Management
+    private func setupAppLifecycleObservers() {
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: Setting up app lifecycle observers")
+        #endif
+
+        // App will resign active (backgrounding, screen lock, control center, etc.)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillResignActive),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
+
+        // App did become active (foregrounding, unlocking, returning from control center)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+
+        // App entered background (fully backgrounded)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+
+        // App will enter foreground (about to become active)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+    }
+
+    @objc private func appWillResignActive() {
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: 📱 App will resign active (backgrounding, control center, or screen lock)")
+        print("🔗 GenerationProgressSSE: 📱   Current tracking ID: \(trackingGenerationId ?? "none")")
+        print("🔗 GenerationProgressSSE: 📱   SSE connected: \(isConnected)")
+        print("🔗 GenerationProgressSSE: 📱   Current status: \(currentProgress?.status.rawValue ?? "none")")
+        #endif
+
+        // Don't disconnect SSE - let iOS handle suspension
+        // Just mark that we're about to go to background
+    }
+
+    @objc private func appDidEnterBackground() {
+        isAppInBackground = true
+
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: 📱 App entered background")
+        print("🔗 GenerationProgressSSE: 📱   iOS will suspend SSE connection in ~30 seconds")
+        print("🔗 GenerationProgressSSE: 📱   Tracking generation: \(trackingGenerationId ?? "none")")
+        #endif
+
+        // iOS will automatically suspend URLSession after ~30 seconds
+        // We'll handle reconnection when app returns to foreground
+    }
+
+    @objc private func appWillEnterForeground() {
+        isAppInBackground = false
+
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: 📱 App will enter foreground")
+        #endif
+    }
+
+    @objc private func appDidBecomeActive() {
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: 📱 App became active (foregrounded)")
+        print("🔗 GenerationProgressSSE: 📱   Checking if reconnection needed...")
+        print("🔗 GenerationProgressSSE: 📱   Tracking generation: \(trackingGenerationId ?? "none")")
+        print("🔗 GenerationProgressSSE: 📱   SSE connected: \(isConnected)")
+        print("🔗 GenerationProgressSSE: 📱   Is polling: \(isPolling)")
+        #endif
+
+        isAppInBackground = false
+
+        // EDGE CASE 1: No active generation - nothing to do
+        guard let trackingId = trackingGenerationId, !trackingId.isEmpty else {
+            #if DEBUG
+            print("🔗 GenerationProgressSSE: 📱   ✅ No active generation, no action needed")
+            #endif
+            return
+        }
+
+        // EDGE CASE 2: Already connected - SSE survived backgrounding (rare but possible)
+        guard !isConnected else {
+            #if DEBUG
+            print("🔗 GenerationProgressSSE: 📱   ✅ SSE still connected, no reconnection needed")
+            #endif
+            return
+        }
+
+        // EDGE CASE 3: Generation already finished - no need to reconnect
+        if let status = currentProgress?.status, status == .completed || status == .failed {
+            #if DEBUG
+            print("🔗 GenerationProgressSSE: 📱   ✅ Generation already finished (\(status.rawValue)), no reconnection needed")
+            #endif
+            return
+        }
+
+        guard lastAuthToken != nil else {
+            #if DEBUG
+            print("🔗 GenerationProgressSSE: 📱   ❌ No auth token available for reconnection")
+            #endif
+            return
+        }
+
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: 📱   🔄 Reconnection needed - checking generation status first...")
+        #endif
+
+        // CRITICAL: Poll generation status first before reconnecting SSE
+        // This avoids reconnecting if generation completed while backgrounded
+        Task { @MainActor in
+            do {
+                let generation = try await GenerationService.shared.getGeneration(id: trackingId)
+
+                #if DEBUG
+                print("🔗 GenerationProgressSSE: 📱   📊 Generation status check:")
+                print("🔗 GenerationProgressSSE: 📱      Status: \(generation.status)")
+                print("🔗 GenerationProgressSSE: 📱      Images: \(generation.images?.count ?? 0)")
+                #endif
+
+                // Update current progress with polled status
+                let progress = GenerationProgress(
+                    generationId: generation.id,
+                    status: self.parseGenerationStatus(generation.status),
+                    progress: self.calculateProgress(status: self.parseGenerationStatus(generation.status)),
+                    imageCount: generation.images?.count ?? 0,
+                    error: nil
+                )
+
+                self.currentProgress = progress
+                self.onProgressUpdate?(progress)
+
+                // EDGE CASE 4: Generation completed while backgrounded
+                if self.parseGenerationStatus(generation.status) == .completed {
+                    #if DEBUG
+                    print("🔗 GenerationProgressSSE: 📱   🎉 Generation completed while backgrounded!")
+                    #endif
+
+                    self.stopPollingFallback()
+                    await TokenBalanceManager.shared.refresh()
+                    self.onGenerationComplete?(generation.id)
+                    return
+                }
+
+                // EDGE CASE 5: Generation failed while backgrounded
+                if self.parseGenerationStatus(generation.status) == .failed {
+                    #if DEBUG
+                    print("🔗 GenerationProgressSSE: 📱   ❌ Generation failed while backgrounded")
+                    #endif
+
+                    self.stopPollingFallback()
+                    let error = GenerationProgressError.generationFailed("Generation failed")
+                    self.onError?(error)
+                    return
+                }
+
+                // EDGE CASE 6: Generation still in progress - reconnect SSE
+                #if DEBUG
+                print("🔗 GenerationProgressSSE: 📱   ♻️ Generation still in progress, reconnecting SSE...")
+                #endif
+
+                // Stop polling if it was active
+                self.stopPollingFallback()
+
+                // Reconnect SSE with force flag
+                self.scheduleReconnect(force: true)
+
+            } catch {
+                #if DEBUG
+                print("🔗 GenerationProgressSSE: 📱   ⚠️ Failed to check generation status: \(error.localizedDescription)")
+                print("🔗 GenerationProgressSSE: 📱   ♻️ Attempting SSE reconnection anyway...")
+                #endif
+
+                // Even if polling fails, try to reconnect SSE
+                self.scheduleReconnect(force: true)
+            }
+        }
+    }
+
+    deinit {
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: Cleaning up and removing lifecycle observers")
+        #endif
+
+        NotificationCenter.default.removeObserver(self)
+        stopPollingFallback()
+        stopWatchdog()
+    }
 
     // MARK: - Connection Management
     func connectToUserProgress(authToken: String, trackingGenerationId: String? = nil) {
@@ -92,6 +302,7 @@ class GenerationProgressSSEService: ObservableObject {
         print("🔗 GenerationProgressSSE: Disconnecting SSE connection")
         print("🔗 GenerationProgressSSE: Current tracking ID: \(trackingGenerationId ?? "nil")")
         print("🔗 GenerationProgressSSE: Connection status before disconnect: \(isConnected)")
+        print("🔗 GenerationProgressSSE: Is polling: \(isPolling)")
         #endif
 
         eventSource?.disconnect()
@@ -102,13 +313,14 @@ class GenerationProgressSSEService: ObservableObject {
         reconnectAttempt = 0
         hasOpened = false
         stopWatchdog()
+        stopPollingFallback()  // Also stop polling if active
 
         DispatchQueue.main.async {
             self.isConnected = false
             // Clear current progress when disconnecting
             self.currentProgress = nil
         }
-        
+
         #if DEBUG
         print("🔗 GenerationProgressSSE: Disconnection complete")
         #endif
@@ -417,10 +629,16 @@ class GenerationProgressSSEService: ObservableObject {
         guard !self.isReconnecting, !finished else { return }
         guard let token = self.lastAuthToken else { return }
         guard let trackingId = self.trackingGenerationId, !trackingId.isEmpty else { return }
+
+        // EDGE CASE 7: Max reconnect attempts reached - fall back to polling
         guard self.reconnectAttempt < self.maxReconnectAttempts else {
             #if DEBUG
-            print("🔗 GenerationProgressSSE: ❌ Max reconnect attempts reached. Giving up.")
+            print("🔗 GenerationProgressSSE: ❌ Max reconnect attempts (\(self.maxReconnectAttempts)) reached")
+            print("🔗 GenerationProgressSSE: ⚡ Falling back to polling mode...")
             #endif
+
+            // Start polling fallback
+            self.startPollingFallback()
             return
         }
 
@@ -462,6 +680,141 @@ class GenerationProgressSSEService: ObservableObject {
 
             // Allow subsequent retries if still not connected
             self.isReconnecting = false
+        }
+    }
+
+    // MARK: - Polling Fallback Mechanism
+    private func startPollingFallback() {
+        // Don't start polling if already polling
+        guard !isPolling else {
+            #if DEBUG
+            print("🔗 GenerationProgressSSE: ⚡ Already in polling mode")
+            #endif
+            return
+        }
+
+        guard let trackingId = trackingGenerationId, !trackingId.isEmpty else {
+            #if DEBUG
+            print("🔗 GenerationProgressSSE: ⚡ Cannot start polling - no tracking ID")
+            #endif
+            return
+        }
+
+        isPolling = true
+
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: ⚡ Starting polling fallback (interval: \(pollingInterval)s)")
+        print("🔗 GenerationProgressSSE: ⚡   Reason: SSE reconnection failed after \(maxReconnectAttempts) attempts")
+        print("🔗 GenerationProgressSSE: ⚡   Tracking: \(trackingId)")
+        #endif
+
+        // Immediate first poll
+        pollGenerationStatus()
+
+        // Schedule repeating polls
+        pollingTimer = Timer.scheduledTimer(withTimeInterval: pollingInterval, repeats: true) { [weak self] _ in
+            self?.pollGenerationStatus()
+        }
+    }
+
+    private func pollGenerationStatus() {
+        guard let trackingId = trackingGenerationId, !trackingId.isEmpty else {
+            stopPollingFallback()
+            return
+        }
+
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: ⚡ Polling generation status...")
+        #endif
+
+        Task { @MainActor in
+            do {
+                let generation = try await GenerationService.shared.getGeneration(id: trackingId)
+
+                #if DEBUG
+                print("🔗 GenerationProgressSSE: ⚡ Poll result: \(generation.status) (\(self.calculateProgress(status: self.parseGenerationStatus(generation.status)))%)")
+                #endif
+
+                // Update progress
+                let progress = GenerationProgress(
+                    generationId: generation.id,
+                    status: self.parseGenerationStatus(generation.status),
+                    progress: self.calculateProgress(status: self.parseGenerationStatus(generation.status)),
+                    imageCount: generation.images?.count ?? 0,
+                    error: nil
+                )
+
+                self.currentProgress = progress
+                self.onProgressUpdate?(progress)
+
+                // EDGE CASE 8: Polling detected completion
+                if self.parseGenerationStatus(generation.status) == .completed {
+                    #if DEBUG
+                    print("🔗 GenerationProgressSSE: ⚡ ✅ Polling detected completion!")
+                    #endif
+
+                    self.stopPollingFallback()
+                    await TokenBalanceManager.shared.refresh()
+                    self.onGenerationComplete?(generation.id)
+                    return
+                }
+
+                // EDGE CASE 9: Polling detected failure
+                if self.parseGenerationStatus(generation.status) == .failed {
+                    #if DEBUG
+                    print("🔗 GenerationProgressSSE: ⚡ ❌ Polling detected failure")
+                    #endif
+
+                    self.stopPollingFallback()
+                    let error = GenerationProgressError.generationFailed("Generation failed")
+                    self.onError?(error)
+                    return
+                }
+
+            } catch {
+                #if DEBUG
+                print("🔗 GenerationProgressSSE: ⚡ ⚠️ Polling error: \(error.localizedDescription)")
+                #endif
+
+                // EDGE CASE 10: Polling encountered error - keep trying
+                // Don't stop polling on transient errors (network issues, etc.)
+                // Only stop if generation is explicitly finished
+            }
+        }
+    }
+
+    private func stopPollingFallback() {
+        guard isPolling else { return }
+
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: ⚡ Stopping polling fallback")
+        #endif
+
+        pollingTimer?.invalidate()
+        pollingTimer = nil
+        isPolling = false
+    }
+
+    // MARK: - Helper Methods
+    
+    private func parseGenerationStatus(_ statusString: String) -> GenerationStatus {
+        return GenerationStatus(rawValue: statusString) ?? .queued
+    }
+    
+    private func calculateProgress(status: GenerationStatus) -> Int {
+        switch status {
+        case .queued:
+            return 0
+        case .starting:
+            return 10
+        case .processing:
+            return 50
+        case .completing:
+            return 90
+        case .completed:
+            return 100
+        case .failed:
+            return 0
         }
     }
 }

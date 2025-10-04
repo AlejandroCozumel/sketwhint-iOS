@@ -54,6 +54,18 @@ struct BooksView: View {
             return "📚"
         }
     }
+
+    private var emptyStateSFSymbol: String {
+        if showFavoritesOnly {
+            return "heart.slash"
+        } else if selectedCategory != nil {
+            return "book.closed"
+        } else if selectedProfileFilter != nil {
+            return "person.crop.circle.badge.questionmark"
+        } else {
+            return "book.closed"
+        }
+    }
     
     private var emptyStateTitle: String {
         if showFavoritesOnly {
@@ -104,7 +116,7 @@ struct BooksView: View {
             // Books grid
             booksGridSection
         }
-        .navigationTitle("📚 Story Books")
+        .navigationTitle("Story Books")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             AppToolbarContent(
@@ -256,31 +268,47 @@ struct BooksView: View {
     
     private var emptyStateView: some View {
         VStack(spacing: AppSpacing.lg) {
-            Text(emptyStateIcon)
-                .font(.system(size: 64))
-            
-            Text(emptyStateTitle)
-                .font(AppTypography.headlineMedium)
-                .foregroundColor(AppColors.textPrimary)
-                .multilineTextAlignment(.center)
-            
-            Text(emptyStateMessage)
-                .font(AppTypography.bodyMedium)
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
-            
-            if emptyStateButtonTitle != nil {
-                Button(emptyStateButtonTitle!) {
+            // SF Symbol icon (matching Folders pattern)
+            Image(systemName: emptyStateSFSymbol)
+                .font(.system(size: 60))
+                .foregroundColor(AppColors.primaryBlue.opacity(0.6))
+
+            VStack(spacing: AppSpacing.sm) {
+                Text(emptyStateTitle)
+                    .font(AppTypography.headlineMedium)
+                    .foregroundColor(AppColors.textPrimary)
+                    .multilineTextAlignment(.center)
+
+                Text(emptyStateMessage)
+                    .font(AppTypography.bodyMedium)
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppSpacing.xl)
+            }
+
+            if let buttonTitle = emptyStateButtonTitle {
+                Button(action: {
                     emptyStateButtonAction()
+                }) {
+                    HStack(spacing: AppSpacing.sm) {
+                        Image(systemName: hasActiveFilters ? "xmark.circle" : "book.fill")
+                            .font(.system(size: 16, weight: .semibold))
+
+                        Text(buttonTitle)
+                            .font(AppTypography.titleMedium)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, AppSpacing.lg)
+                    .padding(.vertical, AppSpacing.md)
+                    .background(AppColors.primaryBlue)
+                    .clipShape(Capsule())
                 }
-                .largeButtonStyle(backgroundColor: AppColors.primaryBlue)
                 .childSafeTouchTarget()
-                .padding(.top, AppSpacing.md)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, AppSpacing.xl)
-        .padding(.bottom, AppSpacing.xl)
     }
     
     private var loadMoreView: some View {

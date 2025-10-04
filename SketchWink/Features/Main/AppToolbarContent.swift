@@ -11,27 +11,20 @@ struct AppToolbarContent: ToolbarContent {
     let onUpgradeTap: () -> Void
 
     var body: some ToolbarContent {
-        // Left: Profile avatar
+        // Left: Profile avatar + name together
         ToolbarItem(placement: .navigationBarLeading) {
-            if let currentProfile = profileService.currentProfile {
-                Text(currentProfile.displayAvatar)
-                    .font(.system(size: 28))
-                    .onTapGesture {
-                        onProfileTap()
-                    }
-            }
-        }
+            Button(action: onProfileTap) {
+                HStack(spacing: 6) {
+                    if let currentProfile = profileService.currentProfile {
+                        Text(currentProfile.displayAvatar)
+                            .font(.system(size: 24))
 
-        // Center: Profile name
-        ToolbarItem(placement: .principal) {
-            if let currentProfile = profileService.currentProfile {
-                Text(currentProfile.name)
-                    .font(AppTypography.titleMedium)
-                    .fontWeight(.bold)
-                    .foregroundColor(AppColors.textPrimary)
-                    .onTapGesture {
-                        onProfileTap()
+                        Text(currentProfile.name)
+                            .font(AppTypography.bodyMedium)
+                            .fontWeight(.semibold)
+                            .foregroundColor(AppColors.textPrimary)
                     }
+                }
             }
         }
 
