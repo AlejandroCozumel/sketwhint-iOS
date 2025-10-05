@@ -42,6 +42,7 @@ class TokenBalanceManager: ObservableObject {
     
     // MARK: - Published Properties
     @Published private(set) var loadingState: TokenBalanceLoadingState = .idle
+    @Published private(set) var lastKnownBalance: TokenBalanceResponse?
     @Published private(set) var lastUpdated: Date?
     
     // MARK: - Private Properties
@@ -57,7 +58,10 @@ class TokenBalanceManager: ObservableObject {
     
     /// Current token balance response (nil if not loaded)
     var tokenBalance: TokenBalanceResponse? {
-        return loadingState.tokenBalance
+        if let balance = loadingState.tokenBalance {
+            return balance
+        }
+        return lastKnownBalance
     }
     
     /// Current total tokens available
@@ -128,6 +132,11 @@ class TokenBalanceManager: ObservableObject {
         
         isInitialized = true
         await fetchTokenBalance()
+
+        // If the initial fetch failed, allow re-initialization later
+        if case .error = loadingState {
+            isInitialized = false
+        }
     }
     
     /// Fetch current token balance from API
@@ -162,6 +171,7 @@ class TokenBalanceManager: ObservableObject {
                 }
                 
                 loadingState = .loaded(balance)
+                lastKnownBalance = balance
                 lastUpdated = Date()
                 
                 print("✅ TokenBalanceManager: Successfully loaded token balance")
@@ -220,6 +230,7 @@ class TokenBalanceManager: ObservableObject {
                 
                 // Only update if we successfully got data
                 loadingState = .loaded(tokenBalance)
+                lastKnownBalance = tokenBalance
                 lastUpdated = Date()
                 
                 print("✅ TokenBalanceManager: Silent refresh successful")
@@ -231,9 +242,9 @@ class TokenBalanceManager: ObservableObject {
                 // For silent refresh, don't override good data with errors
                 // Only set error state if we don't have any data
                 if case .idle = loadingState {
-                    loadingState = .error(error as? TokenBalanceError ?? .specificError("Silent refresh failed"))
-                }
+                loadingState = .error(error as? TokenBalanceError ?? .specificError("Silent refresh failed"))
             }
+        }
         }
         
         await currentTask?.value
@@ -317,6 +328,7 @@ class TokenBalanceManager: ObservableObject {
         
         // Reset state
         loadingState = .idle
+        lastKnownBalance = nil
         lastUpdated = nil
         isInitialized = false
         

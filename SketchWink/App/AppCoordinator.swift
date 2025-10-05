@@ -491,9 +491,13 @@ struct ProfileSelectionRequiredView: View {
                                     .font(AppTypography.titleMedium)
                                     .foregroundColor(AppColors.textPrimary)
                                 
-                                Text(profile.hasPin ? "🔒 Protected" : "🔓 Open")
-                                    .font(AppTypography.captionLarge)
-                                    .foregroundColor(AppColors.textSecondary)
+                                HStack(spacing: AppSpacing.xs) {
+                                    Image(systemName: profile.hasPin ? "lock.fill" : "lock.open.fill")
+                                        .font(.system(size: 14, weight: .semibold))
+                                    Text(profile.hasPin ? "Protected" : "Open")
+                                }
+                                .font(AppTypography.captionLarge)
+                                .foregroundColor(AppColors.textSecondary)
                             }
                             
                             Spacer()

@@ -25,23 +25,19 @@ struct CategorySelectionView: View {
     
     var body: some View {
         ScrollView {
-                VStack(spacing: AppSpacing.sectionSpacing) {
-                    // Token Balance at the top
-                    TokenBalanceView(showDetails: true, compact: false)
-                        .padding(.top, 10)
+            VStack(spacing: AppSpacing.sectionSpacing) {
+                if isLoading {
+                    loadingView
+                } else {
+                    // Categories Grid
+                    categoriesGridView
 
-                    if isLoading {
-                        loadingView
-                    } else {
-                        // Categories Grid
-                        categoriesGridView
-
-                        // Books Section (Separate Product Categories)
-                        booksSection
-                    }
+                    // Books Section (Separate Product Categories)
+                    booksSection
                 }
-                .pageMargins()
-                .padding(.bottom, AppSpacing.sectionSpacing)
+            }
+            .pageMargins()
+            .padding(.vertical, AppSpacing.sectionSpacing)
         }
         .background(AppColors.backgroundLight)
         .navigationTitle("Create Art")
@@ -68,6 +64,7 @@ struct CategorySelectionView: View {
             }
         }
         .task {
+            await tokenManager.initialize()
             await loadCategories()
         }
         .alert("Error", isPresented: $showingError) {

@@ -11,113 +11,169 @@ struct AppToolbarContent: ToolbarContent {
     let onUpgradeTap: () -> Void
 
     var body: some ToolbarContent {
-        // Left: Profile avatar + name together
         ToolbarItem(placement: .navigationBarLeading) {
-            Button(action: onProfileTap) {
-                HStack(spacing: 6) {
-                    if let currentProfile = profileService.currentProfile {
-                        Text(currentProfile.displayAvatar)
-                            .font(.system(size: 24))
-
-                        Text(currentProfile.name)
-                            .font(AppTypography.bodyMedium)
-                            .fontWeight(.semibold)
-                            .foregroundColor(AppColors.textPrimary)
-                    }
-                }
-            }
+            ToolbarProfileButton(profileService: profileService, onTap: onProfileTap)
         }
 
-        // Right: Credits + Plan badge
         ToolbarItem(placement: .navigationBarTrailing) {
-            HStack(spacing: 8) {
-                // Credits button (purchase more credits)
-                Button(action: onCreditsTap) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("0")
-                            .font(AppTypography.captionLarge)
-                            .fontWeight(.bold)
-                    }
-                    .foregroundColor(planBadgeColor)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(planBadgeColor.opacity(0.1))
-                    .overlay(
-                        Capsule()
-                            .stroke(planBadgeColor.opacity(0.3), lineWidth: 1.5)
-                    )
-                    .clipShape(Capsule())
-                }
+            ToolbarTokenButtons(
+                tokenManager: tokenManager,
+                onCreditsTap: onCreditsTap,
+                onUpgradeTap: onUpgradeTap
+            )
+        }
+    }
+}
 
-                if tokenManager.accountType == "free" {
-                    // Free user - show upgrade button
-                    Button(action: onUpgradeTap) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 12, weight: .semibold))
-                            Text("Upgrade")
-                                .font(AppTypography.captionLarge)
-                                .fontWeight(.semibold)
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            LinearGradient(
-                                colors: [AppColors.primaryPurple, AppColors.primaryBlue],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ),
-                            in: Capsule()
-                        )
-                        .shadow(color: AppColors.primaryPurple.opacity(0.3), radius: 4, x: 0, y: 2)
-                    }
-                } else {
-                    // Paid user - show plan badge
-                    Button(action: onUpgradeTap) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 11, weight: .semibold))
-                            Text(planBadgeText)
-                                .font(AppTypography.captionLarge)
-                                .fontWeight(.bold)
-                        }
-                        .foregroundColor(planBadgeColor)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(planBadgeColor.opacity(0.1))
-                        .overlay(
-                            Capsule()
-                                .stroke(planBadgeColor.opacity(0.3), lineWidth: 1.5)
-                        )
-                        .clipShape(Capsule())
-                    }
+// MARK: - Leading Profile Button
+private struct ToolbarProfileButton: View {
+    @ObservedObject var profileService: ProfileService
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 6) {
+                if let currentProfile = profileService.currentProfile {
+                    Text(currentProfile.displayAvatar)
+                        .font(.system(size: 24))
+
+                    Text(currentProfile.name)
+                        .font(AppTypography.bodyMedium)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.textPrimary)
                 }
             }
         }
     }
+}
 
-    // MARK: - Helper Properties
+// MARK: - Trailing Token / Plan Buttons
+private struct ToolbarTokenButtons: View {
+    @ObservedObject var tokenManager: TokenBalanceManager
 
-    /// Extract short plan name for badge (e.g., "Pro (Yearly)" -> "PRO")
-    private var planBadgeText: String {
-        let planName = tokenManager.planName
+    let onCreditsTap: () -> Void
+    let onUpgradeTap: () -> Void
 
-        // Extract first word before parenthesis
+    var body: some View {
+        HStack(spacing: 8) {
+            creditsButton
+
+            if shouldShowUpgradeButton {
+                upgradeButton
+            } else if let planLabel = planBadgeText {
+                planBadge(planLabel)
+            } else {
+                placeholderBadge
+            }
+        }
+    }
+
+    private var creditsButton: some View {
+        Button(action: onCreditsTap) {
+            HStack(spacing: 4) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                Text(creditsDisplayText)
+                    .font(AppTypography.captionLarge)
+                    .fontWeight(.bold)
+            }
+            .foregroundColor(currentPlanColor)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(currentPlanColor.opacity(0.1))
+            .overlay(
+                Capsule()
+                    .stroke(currentPlanColor.opacity(0.3), lineWidth: 1.5)
+            )
+            .clipShape(Capsule())
+        }
+        .disabled(tokenManager.isLoading)
+    }
+
+    private var upgradeButton: some View {
+        Button(action: onUpgradeTap) {
+            HStack(spacing: 4) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Upgrade")
+                    .font(AppTypography.captionLarge)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                LinearGradient(
+                    colors: [AppColors.primaryPurple, AppColors.primaryBlue],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ),
+                in: Capsule()
+            )
+            .shadow(color: AppColors.primaryPurple.opacity(0.3), radius: 4, x: 0, y: 2)
+        }
+    }
+
+    private func planBadge(_ label: String) -> some View {
+        Button(action: onUpgradeTap) {
+            HStack(spacing: 4) {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                Text(label)
+                    .font(AppTypography.captionLarge)
+                    .fontWeight(.bold)
+            }
+            .foregroundColor(currentPlanColor)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(currentPlanColor.opacity(0.1))
+            .overlay(
+                Capsule()
+                    .stroke(currentPlanColor.opacity(0.3), lineWidth: 1.5)
+            )
+            .clipShape(Capsule())
+        }
+    }
+
+    private var placeholderBadge: some View {
+        Capsule()
+            .fill(AppColors.borderLight.opacity(0.2))
+            .frame(height: 28)
+            .overlay(
+                Text("…")
+                    .font(AppTypography.captionLarge)
+                    .foregroundColor(AppColors.textSecondary)
+            )
+    }
+
+    private var currentPlanName: String? {
+        tokenManager.tokenBalance?.permissions.planName
+    }
+
+    private var shouldShowUpgradeButton: Bool {
+        guard let accountType = tokenManager.tokenBalance?.permissions.accountType else {
+            return false
+        }
+        return accountType.lowercased() == "free"
+    }
+
+    private var planBadgeText: String? {
+        guard let planName = currentPlanName, !planName.isEmpty else {
+            return nil
+        }
+
         if let firstWord = planName.components(separatedBy: " ").first {
             return firstWord.uppercased()
         }
 
-        return "PRO"
+        return planName.uppercased()
     }
 
-    /// Get color for plan badge matching subscription plans view
-    private var planBadgeColor: Color {
-        let planName = tokenManager.planName.lowercased()
+    private var currentPlanColor: Color {
+        guard let planName = currentPlanName?.lowercased() else {
+            return AppColors.primaryPurple
+        }
 
-        // Match colors from SubscriptionPlansView
         if planName.contains("basic") {
             return AppColors.primaryBlue
         } else if planName.contains("pro") {
@@ -128,7 +184,22 @@ struct AppToolbarContent: ToolbarContent {
             return AppColors.primaryTeal
         }
 
-        // Default fallback
         return AppColors.primaryPurple
+    }
+
+    private var creditsDisplayText: String {
+        if tokenManager.isLoading {
+            return "…"
+        }
+
+        if let balance = tokenManager.tokenBalance {
+            return balance.displayTotalTokens
+        }
+
+        if tokenManager.error != nil {
+            return "!"
+        }
+
+        return "…"
     }
 }

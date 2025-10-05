@@ -41,7 +41,7 @@ struct BookGenerationView: View {
         print("📖 BookGenerationView: init() called for draft: \(draft.title)")
         #endif
     }
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -97,7 +97,7 @@ struct BookGenerationView: View {
                 )
             }
         }
-        .sheet(isPresented: .constant(bookGenerationState.isCompleted)) {
+        .sheet(isPresented: bookResultBinding) {
             if case .completed(let bookId) = bookGenerationState {
                 BookCompletedView(
                     bookId: bookId,
@@ -110,7 +110,24 @@ struct BookGenerationView: View {
             }
         }
     }
-    
+
+    private var bookResultBinding: Binding<Bool> {
+        Binding(
+            get: {
+                if case .completed = bookGenerationState {
+                    return true
+                }
+                return false
+            },
+            set: { presented in
+                if !presented, case .completed = bookGenerationState {
+                    bookGenerationState = .idle
+                    onDismiss()
+                }
+            }
+        )
+    }
+
     // MARK: - Loading View
     private var loadingView: some View {
         VStack(spacing: AppSpacing.xl) {

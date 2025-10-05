@@ -50,7 +50,7 @@ struct GenerationView: View {
     @State private var highlightedFeature: String?
     @State private var successMessage: String?
     @State private var showingSuccess = false
-    
+
     // Image Upload State
     @State private var selectedInputImage: UIImage?
     @State private var inputMethod: InputMethod = .text
@@ -58,7 +58,9 @@ struct GenerationView: View {
     @State private var showingImagePicker = false
     @State private var showingCamera = false
     @State private var showingImagePreview = false
-    
+
+    @FocusState private var isPromptFocused: Bool
+
     let preselectedCategory: CategoryWithOptions?
     let onDismiss: () -> Void
 
@@ -107,7 +109,7 @@ struct GenerationView: View {
             .fullScreenCover(isPresented: .constant(generationState.isGenerating)) {
                 progressCover
             }
-            .sheet(isPresented: .constant(generationState.isCompleted)) {
+            .sheet(isPresented: resultSheetBinding) {
                 resultSheet
             }
             .sheet(isPresented: $showingPhotoSourceSelection) {
@@ -168,6 +170,7 @@ struct GenerationView: View {
             .pageMargins()
             .padding(.vertical, AppSpacing.sectionSpacing)
         }
+        .dismissKeyboardOnScroll()
     }
 
     private var doneButton: some View {
@@ -204,6 +207,25 @@ struct GenerationView: View {
         }
     }
 
+    private var resultSheetBinding: Binding<Bool> {
+        Binding(
+            get: {
+                if case .completed = generationState {
+                    return true
+                }
+                return false
+            },
+            set: { presented in
+                if !presented {
+                    generationState = .idle
+                    userPrompt = ""
+                    selectedInputImage = nil
+                    isPromptFocused = false
+                }
+            }
+        )
+    }
+
     @ViewBuilder
     private var resultSheet: some View {
         if case .completed(let generation) = generationState {
@@ -213,11 +235,13 @@ struct GenerationView: View {
                     generationState = .idle
                     userPrompt = ""
                     selectedInputImage = nil
+                    isPromptFocused = false
                 },
                 onGenerateAnother: {
                     generationState = .idle
                     userPrompt = ""
                     selectedInputImage = nil
+                    isPromptFocused = false
                 }
             )
         }
@@ -354,9 +378,13 @@ struct GenerationView: View {
                     .padding(AppSpacing.md)
                     .background(AppColors.backgroundLight)
                     .cornerRadius(AppSizing.cornerRadius.md)
+                    .focused($isPromptFocused)
                     .overlay(
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                            .stroke(AppColors.primaryBlue.opacity(0.3), lineWidth: 1)
+                            .stroke(
+                                isPromptFocused ? AppColors.primaryBlue : AppColors.borderLight,
+                                lineWidth: isPromptFocused ? 2 : 1
+                            )
                     )
                     .lineLimit(3...6)
 

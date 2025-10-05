@@ -101,8 +101,8 @@ class GenerationProgressSSEService: ObservableObject {
         print("🔗 GenerationProgressSSE: 📱   Tracking generation: \(trackingGenerationId ?? "none")")
         #endif
 
-        // iOS will automatically suspend URLSession after ~30 seconds
-        // We'll handle reconnection when app returns to foreground
+        // Proactively suspend the SSE socket so the backend doesn't accumulate stale connections
+        suspendActiveConnection()
     }
 
     @objc private func appWillEnterForeground() {
@@ -620,6 +620,27 @@ class GenerationProgressSSEService: ObservableObject {
     private func stopWatchdog() {
         watchdogTimer?.invalidate()
         watchdogTimer = nil
+    }
+
+    /// Disconnect the underlying EventSource without clearing tracking state.
+    /// Used when the app backgrounds so we can reconnect cleanly later.
+    private func suspendActiveConnection() {
+        guard eventSource != nil else { return }
+
+        #if DEBUG
+        print("🔗 GenerationProgressSSE: ⏸️ Suspending active SSE connection for background")
+        #endif
+
+        eventSource?.disconnect()
+        eventSource = nil
+
+        DispatchQueue.main.async {
+            self.isConnected = false
+        }
+
+        // We intentionally keep trackingGenerationId and currentProgress so we can resume when foregrounded.
+        hasOpened = false
+        stopWatchdog()
     }
 
     // Auto-reconnect scheduler to keep SSE alive during active generation

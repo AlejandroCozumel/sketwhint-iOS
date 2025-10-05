@@ -296,18 +296,15 @@ struct GenerationProgressView: View {
         print("🔗 GenerationProgressView: Started tracking generation: \(currentGeneration.id)")
         #endif
         
-        // Set up a timeout fallback - if no progress after 10 seconds, start polling
+        // Set up a timeout fallback - if we aren't advancing after 10 seconds, start polling
         Task {
             do {
                 try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
                 
-                // Check if we're still stuck at the initial status
-                if let currentProgress = progressSSEService.currentProgress,
-                   currentProgress.status == .queued,
-                   currentProgress.generationId == currentGeneration.id {
+                if shouldTriggerPollingFallback() {
                     
                     #if DEBUG
-                    print("🔗 GenerationProgressView: ⚠️ No progress after 10s, starting polling fallback")
+                    print("🔗 GenerationProgressView: ⚠️ Progress has not advanced, starting polling fallback")
                     #endif
                     
                     await startPollingFallback()
@@ -365,8 +362,30 @@ struct GenerationProgressView: View {
             }
         }
     }
-    
+
     // MARK: - Helper Methods
+    private func shouldTriggerPollingFallback() -> Bool {
+        guard let currentProgress = progressSSEService.currentProgress else {
+            return true
+        }
+
+        // Only react to the generation we started
+        guard currentProgress.generationId == currentGeneration.id else {
+            return false
+        }
+
+        // Don't fallback once we reached a terminal state
+        switch currentProgress.status {
+        case .completed, .failed:
+            return false
+        default:
+            break
+        }
+
+        // If we haven't moved beyond the initial phase (<=10%) assume we are stale
+        return currentProgress.progress <= 10
+    }
+
     private func shouldUpdateToBackendStatus(currentSSE: GenerationStatus, backend: GenerationStatus) -> Bool {
         // Define status priority order
         let statusOrder: [GenerationStatus] = [.queued, .starting, .processing, .completing, .completed, .failed]

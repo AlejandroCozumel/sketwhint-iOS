@@ -4,6 +4,10 @@ struct MainAppView: View {
     @State private var selectedTab = 0
     @StateObject private var tokenManager = TokenBalanceManager.shared
 
+    init() {
+        Self.configureAppearance()
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Network status banner (only shows when there are issues)
@@ -63,43 +67,52 @@ struct MainAppView: View {
                 }
             }
         }
-        .onAppear {
-            // Configure tab bar appearance
-            let appearance = UITabBarAppearance()
-            appearance.configureWithOpaqueBackground()
-            appearance.backgroundColor = UIColor(AppColors.backgroundLight)
-
-            // Configure normal state
-            appearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColors.textSecondary)
-            appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-                .foregroundColor: UIColor(AppColors.textSecondary),
-                .font: UIFont.systemFont(ofSize: 12, weight: .medium)
-            ]
-
-            // Configure selected state
-            appearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppColors.primaryBlue)
-            appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-                .foregroundColor: UIColor(AppColors.primaryBlue),
-                .font: UIFont.systemFont(ofSize: 12, weight: .semibold)
-            ]
-
-            UITabBar.appearance().standardAppearance = appearance
-            UITabBar.appearance().scrollEdgeAppearance = appearance
-
-            // Configure navigation bar large title to use our rounded typography
-            let navBarAppearance = UINavigationBarAppearance()
-            navBarAppearance.configureWithDefaultBackground()
-
-            // 34pt bold rounded - same style as our app typography
-            if let descriptor = UIFont.systemFont(ofSize: 34, weight: .bold).fontDescriptor.withDesign(.rounded) {
-                navBarAppearance.largeTitleTextAttributes = [
-                    .font: UIFont(descriptor: descriptor, size: 34)
-                ]
-            }
-
-            UINavigationBar.appearance().standardAppearance = navBarAppearance
-            UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
+        .task {
+            await tokenManager.initialize()
         }
+    }
+}
+
+// MARK: - Appearance Configuration
+private extension MainAppView {
+    static func configureAppearance() {
+        // Configure tab bar appearance globally before the TabView renders
+        let tabAppearance = UITabBarAppearance()
+        tabAppearance.configureWithOpaqueBackground()
+        tabAppearance.backgroundColor = UIColor(AppColors.backgroundLight)
+
+        tabAppearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColors.textSecondary)
+        tabAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+            .foregroundColor: UIColor(AppColors.textSecondary),
+            .font: UIFont.systemFont(ofSize: 12, weight: .medium)
+        ]
+
+        tabAppearance.stackedLayoutAppearance.selected.iconColor = UIColor(AppColors.primaryBlue)
+        tabAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: UIColor(AppColors.primaryBlue),
+            .font: UIFont.systemFont(ofSize: 12, weight: .semibold)
+        ]
+
+        UITabBar.appearance().standardAppearance = tabAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabAppearance
+
+        // Configure navigation bar appearance for large titles
+        let navAppearance = UINavigationBarAppearance()
+        navAppearance.configureWithDefaultBackground()
+
+        if let descriptor = UIFont.systemFont(ofSize: 34, weight: .bold).fontDescriptor.withDesign(.rounded) {
+            navAppearance.largeTitleTextAttributes = [
+                .font: UIFont(descriptor: descriptor, size: 34)
+            ]
+        }
+
+        navAppearance.titleTextAttributes = [
+            .foregroundColor: UIColor(AppColors.textPrimary),
+            .font: UIFont.systemFont(ofSize: 17, weight: .semibold)
+        ]
+
+        UINavigationBar.appearance().standardAppearance = navAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
     }
 }
 
