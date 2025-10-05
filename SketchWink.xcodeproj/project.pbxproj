@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5C3584B12E9308EF00F7FE22 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5C3584B02E9308EF00F7FE22 /* GoogleService-Info.plist */; };
+		5C3584B52E930B0900F7FE22 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 5C3584B42E930B0900F7FE22 /* GoogleSignIn */; };
+		5C3584B72E930B0900F7FE22 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5C3584B62E930B0900F7FE22 /* GoogleSignInSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		5CB437452E7C832E002FC297 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +30,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		5C3584B02E9308EF00F7FE22 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		5CB437352E7C832D002FC297 /* SketchWink.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SketchWink.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB437442E7C832E002FC297 /* SketchWinkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SketchWinkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB4374E2E7C832E002FC297 /* SketchWinkUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SketchWinkUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -65,6 +72,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5C3584B52E930B0900F7FE22 /* GoogleSignIn in Frameworks */,
+				5C3584B72E930B0900F7FE22 /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -92,6 +101,7 @@
 				5CB437472E7C832E002FC297 /* SketchWinkTests */,
 				5CB437512E7C832E002FC297 /* SketchWinkUITests */,
 				5CB437362E7C832D002FC297 /* Products */,
+				5C3584B02E9308EF00F7FE22 /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -125,6 +135,8 @@
 			);
 			name = SketchWink;
 			packageProductDependencies = (
+				5C3584B42E930B0900F7FE22 /* GoogleSignIn */,
+				5C3584B62E930B0900F7FE22 /* GoogleSignInSwift */,
 			);
 			productName = SketchWink;
 			productReference = 5CB437352E7C832D002FC297 /* SketchWink.app */;
@@ -208,6 +220,9 @@
 			);
 			mainGroup = 5CB4372C2E7C832D002FC297;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5C3584AF2E9303DA00F7FE22 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5CB437362E7C832D002FC297 /* Products */;
 			projectDirPath = "";
@@ -225,6 +240,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5C3584B12E9308EF00F7FE22 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -605,6 +621,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5C3584AF2E9303DA00F7FE22 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5C3584B42E930B0900F7FE22 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5C3584AF2E9303DA00F7FE22 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		5C3584B62E930B0900F7FE22 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5C3584AF2E9303DA00F7FE22 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5CB4372D2E7C832D002FC297 /* Project object */;
 }

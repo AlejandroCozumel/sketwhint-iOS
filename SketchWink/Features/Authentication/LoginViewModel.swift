@@ -4,14 +4,16 @@ import Combine
 import AuthenticationServices
 import CryptoKit
 import Security
+import GoogleSignIn
 
 @MainActor
-class LoginViewModel: ObservableObject {
+class LoginViewModel: ObservableObject, AppleSignInViewModel {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showSuccessAlert = false
     @Published var shouldNavigateToMainApp = false
     @Published var isPerformingAppleSignIn = false
+    @Published var isPerformingGoogleSignIn = false
     
     private let authService = AuthService.shared
     private var currentAppleNonce: (raw: String, hashed: String)?
@@ -60,6 +62,88 @@ class LoginViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Sign In with Google
+    func signInWithGoogle() {
+        guard let topVC = UIApplication.shared.keyWindow?.rootViewController else {
+            errorMessage = "Could not find top view controller."
+            return
+        }
+
+        GIDSignIn.sharedInstance.signIn(withPresenting: topVC) { result, error in
+            if let error = error {
+                self.errorMessage = "Google Sign-In failed: \(error.localizedDescription)"
+                return
+            }
+
+            guard let result = result else {
+                self.errorMessage = "Google Sign-In failed: No result found."
+                return
+            }
+
+            let idToken = result.user.idToken?.tokenString
+            let accessToken = result.user.accessToken.tokenString
+            let givenName = result.user.profile?.givenName
+            let familyName = result.user.profile?.familyName
+            let email = result.user.profile?.email
+
+            Task {
+                await self.signInWithGoogle(
+                    idToken: idToken,
+                    accessToken: accessToken,
+                    givenName: givenName,
+                    familyName: familyName,
+                    email: email
+                )
+            }
+        }
+    }
+
+    func signInWithGoogle(idToken: String?, accessToken: String?, givenName: String?, familyName: String?, email: String?) async {
+        errorMessage = nil
+        isLoading = true
+        isPerformingGoogleSignIn = true
+
+        guard let idToken = idToken else {
+            errorMessage = "We couldn't verify your Google account. Please try again."
+            resetGoogleSignInState()
+            return
+        }
+
+        do {
+            let user = try await authService.signInWithGoogle(
+                identityToken: idToken,
+                accessToken: accessToken,
+                givenName: givenName,
+                familyName: familyName,
+                email: email,
+                requestSignUp: true
+            )
+
+            isLoading = false
+            isPerformingGoogleSignIn = false
+
+            if AppConfig.Debug.enableLogging {
+                print("✅ Google sign-in successful for user: \(user.email)")
+            }
+
+        } catch let error as AuthError {
+            errorMessage = error.errorDescription
+            resetGoogleSignInState()
+
+            if AppConfig.Debug.enableLogging {
+                print("❌ Google sign-in failed: \(error.errorDescription ?? "Unknown error")")
+            }
+
+        } catch {
+            errorMessage = "An unexpected error occurred. Please try again."
+            resetGoogleSignInState()
+
+            if AppConfig.Debug.enableLogging {
+                print("❌ Unexpected Google sign-in error: \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: - Sign In with Apple
     func prepareAppleSignInRequest(_ request: ASAuthorizationAppleIDRequest) {
         request.requestedScopes = [.fullName, .email]
@@ -213,6 +297,11 @@ private extension LoginViewModel {
         isLoading = false
         isPerformingAppleSignIn = false
         currentAppleNonce = nil
+    }
+
+    func resetGoogleSignInState() {
+        isLoading = false
+        isPerformingGoogleSignIn = false
     }
 
     func randomNonceString(length: Int = 32) -> String {

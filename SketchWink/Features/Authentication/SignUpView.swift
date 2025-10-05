@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 struct SignUpView: View {
     @StateObject private var viewModel = SignUpViewModel()
@@ -251,7 +252,7 @@ struct SignUpView: View {
                                             .tint(.white)
                                     } else {
                                         Text("Create Account")
-                                            .font(AppTypography.buttonLarge)
+                                            .font(AppTypography.buttonText)
                                     }
                                 }
                                 .foregroundColor(.white)
@@ -303,46 +304,12 @@ struct SignUpView: View {
                             // Social login buttons
                             VStack(spacing: AppSpacing.md) {
                                 // Apple sign in button
-                                Button(action: {
-                                    print("Apple login tapped")
-                                }) {
-                                    HStack(spacing: AppSpacing.sm) {
-                                        Image(systemName: "apple.logo")
-                                            .font(.system(size: 20))
-
-                                        Text("Continue with Apple")
-                                            .font(AppTypography.buttonLarge)
-                                    }
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 48)
-                                }
-                                .background(Color.black)
-                                .cornerRadius(AppSizing.cornerRadius.round)
+                                AppleSignInButton(viewModel: viewModel, buttonLabel: .signUp)
 
                                 // Google sign in button
-                                Button(action: {
-                                    print("Google login tapped")
-                                }) {
-                                    HStack(spacing: AppSpacing.sm) {
-                                        Image("google-logo")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 28, height: 28)
-
-                                        Text("Continue with Google")
-                                            .font(AppTypography.buttonLarge)
-                                            .foregroundColor(Color(red: 0.26, green: 0.52, blue: 0.96)) // Google Blue
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 48)
-                                }
-                                .background(Color.white)
-                                .cornerRadius(AppSizing.cornerRadius.round)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.round)
-                                        .stroke(Color(red: 0.26, green: 0.52, blue: 0.96), lineWidth: 1) // Google Blue border
-                                )
+                                GoogleSignInButton(action: {
+                                    viewModel.signInWithGoogle()
+                                })
                             }
 
                             // Sign in link

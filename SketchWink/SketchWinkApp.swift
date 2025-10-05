@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import GoogleSignIn
 
 @main
 struct SketchWinkApp: App {
@@ -34,6 +35,9 @@ struct SketchWinkApp: App {
                     configureApp()
                     // Setup global keyboard dismissal
                     setupGlobalKeyboardDismissal()
+                }
+                .onOpenURL { url in
+                    GIDSignIn.sharedInstance.handle(url)
                 }
         }
         .modelContainer(sharedModelContainer)

@@ -547,6 +547,92 @@ class AuthService: ObservableObject {
         }
     }
 
+    // MARK: - Sign In with Google
+    func signInWithGoogle(
+        identityToken: String,
+        accessToken: String?,
+        givenName: String?,
+        familyName: String?,
+        email: String?,
+        requestSignUp: Bool = true
+    ) async throws -> User {
+        let request = SocialSignInRequest(
+            provider: "google",
+            idToken: SocialIdToken(
+                token: identityToken,
+                nonce: nil,
+                accessToken: accessToken,
+                refreshToken: nil,
+                expiresAt: nil,
+                user: makeSocialUser(givenName: givenName, familyName: familyName, email: email)
+            ),
+            requestSignUp: requestSignUp
+        )
+
+        guard let url = URL(string: AppConfig.apiURL(for: AppConfig.API.Endpoints.signInApple)) else {
+            throw AuthError.invalidResponse
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.timeoutInterval = AppConfig.API.timeout
+
+        do {
+            urlRequest.httpBody = try encoder.encode(request)
+        } catch {
+            throw AuthError.decodingError
+        }
+
+        do {
+            if AppConfig.Debug.enableLogging {
+                print("🌐 Google sign-in request to: \(urlRequest.url?.absoluteString ?? "unknown")")
+            }
+
+            let (data, response) = try await session.data(for: urlRequest)
+
+            if AppConfig.Debug.enableLogging {
+                print("📥 Google sign-in response: \(String(data: data, encoding: .utf8) ?? "no data")")
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AuthError.invalidResponse
+            }
+
+            if httpResponse.statusCode == 401 {
+                throw AuthError.invalidCredentials
+            }
+
+            if !(200...299).contains(httpResponse.statusCode) {
+                if let apiError = try? decoder.decode(APIError.self, from: data) {
+                    throw AuthError.networkError(apiError.userMessage)
+                } else {
+                    throw AuthError.networkError("Server error: \(httpResponse.statusCode)")
+                }
+            }
+
+            let signInResponse = try decoder.decode(SignInResponse.self, from: data)
+
+            guard let token = signInResponse.session?.token ?? signInResponse.token else {
+                throw AuthError.invalidResponse
+            }
+
+            try KeychainManager.shared.storeToken(token)
+
+            await MainActor.run {
+                self.currentUser = signInResponse.user
+                self.isAuthenticated = true
+            }
+
+            return signInResponse.user
+
+        } catch let error as AuthError {
+            throw error
+        } catch {
+            throw AuthError.networkError(error.localizedDescription)
+        }
+    }
+
     // MARK: - Sign In with Apple
     func signInWithApple(
         identityToken: String,

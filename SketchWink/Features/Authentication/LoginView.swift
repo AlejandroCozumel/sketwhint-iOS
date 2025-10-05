@@ -178,7 +178,7 @@ struct LoginView: View {
                                         .tint(.white)
                                 } else {
                                     Text("Sign In")
-                                        .font(AppTypography.buttonLarge)
+                                        .font(AppTypography.buttonText)
                                 }
                             }
                             .foregroundColor(.white)
@@ -219,64 +219,12 @@ struct LoginView: View {
                         // Social login buttons
                         VStack(spacing: AppSpacing.md) {
                             // Apple sign in button
-                            SignInWithAppleButton(.signIn, onRequest: { request in
-                                viewModel.prepareAppleSignInRequest(request)
-                            }, onCompletion: { result in
-                                switch result {
-                                case .success(let authorization):
-                                    if let credential = authorization.credential as? ASAuthorizationAppleIDCredential {
-                                        Task {
-                                            await viewModel.signInWithApple(using: credential)
-                                        }
-                                    } else {
-                                        viewModel.errorMessage = "Unable to process Apple sign-in response."
-                                        viewModel.cancelAppleSignInFlow()
-                                    }
-                                case .failure(let error):
-                                    if let authError = error as? ASAuthorizationError,
-                                       authError.code == .canceled {
-                                        viewModel.cancelAppleSignInFlow()
-                                        return
-                                    }
-                                    viewModel.errorMessage = "Sign in with Apple failed. Please try again."
-                                    viewModel.cancelAppleSignInFlow()
-                                }
-                            })
-                            .signInWithAppleButtonStyle(.black)
-                            .frame(maxWidth: .infinity)
-                            .frame(minHeight: AppSizing.buttonHeight, maxHeight: AppSizing.buttonHeight)
-                            .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.round))
-                            .disabled(viewModel.isPerformingAppleSignIn || viewModel.isLoading)
-                            .overlay {
-                                if viewModel.isPerformingAppleSignIn {
-                                    ProgressView()
-                                        .tint(.white)
-                                }
-                            }
+                            AppleSignInButton(viewModel: viewModel, buttonLabel: .signIn)
 
                             // Google sign in button
-                            Button(action: {
-                                print("Google login tapped")
-                            }) {
-                                HStack(spacing: AppSpacing.sm) {
-                                    Image("google-logo")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 28, height: 28)
-
-                                    Text("Continue with Google")
-                                        .font(AppTypography.buttonLarge)
-                                        .foregroundColor(Color(red: 0.26, green: 0.52, blue: 0.96)) // Google Blue
-                                }
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 48)
-                            }
-                            .background(Color.white)
-                            .cornerRadius(AppSizing.cornerRadius.round)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.round)
-                                    .stroke(Color(red: 0.26, green: 0.52, blue: 0.96), lineWidth: 1) // Google Blue border
-                            )
+                            GoogleSignInButton(action: {
+                                viewModel.signInWithGoogle()
+                            })
                         }
 
                         // Sign up link
