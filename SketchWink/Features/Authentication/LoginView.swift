@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
@@ -182,7 +183,7 @@ struct LoginView: View {
                             }
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 48)
+                            .frame(minHeight: AppSizing.buttonHeight, maxHeight: AppSizing.buttonHeight)
                         }
                         .background(
                             viewModel.canSignIn(email: email, password: password)
@@ -218,22 +219,40 @@ struct LoginView: View {
                         // Social login buttons
                         VStack(spacing: AppSpacing.md) {
                             // Apple sign in button
-                            Button(action: {
-                                print("Apple login tapped")
-                            }) {
-                                HStack(spacing: AppSpacing.sm) {
-                                    Image(systemName: "apple.logo")
-                                        .font(.system(size: 20))
-
-                                    Text("Continue with Apple")
-                                        .font(AppTypography.buttonLarge)
+                            SignInWithAppleButton(.signIn, onRequest: { request in
+                                viewModel.prepareAppleSignInRequest(request)
+                            }, onCompletion: { result in
+                                switch result {
+                                case .success(let authorization):
+                                    if let credential = authorization.credential as? ASAuthorizationAppleIDCredential {
+                                        Task {
+                                            await viewModel.signInWithApple(using: credential)
+                                        }
+                                    } else {
+                                        viewModel.errorMessage = "Unable to process Apple sign-in response."
+                                        viewModel.cancelAppleSignInFlow()
+                                    }
+                                case .failure(let error):
+                                    if let authError = error as? ASAuthorizationError,
+                                       authError.code == .canceled {
+                                        viewModel.cancelAppleSignInFlow()
+                                        return
+                                    }
+                                    viewModel.errorMessage = "Sign in with Apple failed. Please try again."
+                                    viewModel.cancelAppleSignInFlow()
                                 }
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 48)
+                            })
+                            .signInWithAppleButtonStyle(.black)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: AppSizing.buttonHeight, maxHeight: AppSizing.buttonHeight)
+                            .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.round))
+                            .disabled(viewModel.isPerformingAppleSignIn || viewModel.isLoading)
+                            .overlay {
+                                if viewModel.isPerformingAppleSignIn {
+                                    ProgressView()
+                                        .tint(.white)
+                                }
                             }
-                            .background(Color.black)
-                            .cornerRadius(AppSizing.cornerRadius.round)
 
                             // Google sign in button
                             Button(action: {

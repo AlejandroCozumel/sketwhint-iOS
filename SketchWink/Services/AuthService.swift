@@ -15,6 +15,31 @@ struct SignUpRequest: Codable {
     let name: String
 }
 
+struct SocialSignInRequest: Codable {
+    let provider: String
+    let idToken: SocialIdToken
+    let requestSignUp: Bool
+}
+
+struct SocialIdToken: Codable {
+    let token: String
+    let nonce: String?
+    let accessToken: String?
+    let refreshToken: String?
+    let expiresAt: Double?
+    let user: SocialIdTokenUser?
+}
+
+struct SocialIdTokenUser: Codable {
+    let name: SocialIdTokenUserName?
+    let email: String?
+}
+
+struct SocialIdTokenUserName: Codable {
+    let firstName: String?
+    let lastName: String?
+}
+
 struct SignUpResponse: Codable {
     let message: String
     let user: User?
@@ -75,7 +100,9 @@ struct ResetPasswordResponse: Codable {
 
 struct SignInResponse: Codable {
     let user: User
-    let session: Session
+    let session: Session?
+    let token: String?
+    let redirect: Bool?
 }
 
 struct User: Codable {
@@ -499,16 +526,18 @@ class AuthService: ObservableObject {
             }
             
             let signInResponse = try decoder.decode(SignInResponse.self, from: data)
-            
-            // Store token securely
-            try KeychainManager.shared.storeToken(signInResponse.session.token)
-            
-            // Update published properties on main thread
+
+            guard let token = signInResponse.session?.token ?? signInResponse.token else {
+                throw AuthError.invalidResponse
+            }
+
+            try KeychainManager.shared.storeToken(token)
+
             await MainActor.run {
                 self.currentUser = signInResponse.user
                 self.isAuthenticated = true
             }
-            
+
             return signInResponse.user
             
         } catch let error as AuthError {
@@ -516,6 +545,109 @@ class AuthService: ObservableObject {
         } catch {
             throw AuthError.networkError(error.localizedDescription)
         }
+    }
+
+    // MARK: - Sign In with Apple
+    func signInWithApple(
+        identityToken: String,
+        hashedNonce: String?,
+        givenName: String?,
+        familyName: String?,
+        email: String?,
+        requestSignUp: Bool = true
+    ) async throws -> User {
+        let request = SocialSignInRequest(
+            provider: "apple",
+            idToken: SocialIdToken(
+                token: identityToken,
+                nonce: hashedNonce,
+                accessToken: nil,
+                refreshToken: nil,
+                expiresAt: nil,
+                user: makeSocialUser(givenName: givenName, familyName: familyName, email: email)
+            ),
+            requestSignUp: requestSignUp
+        )
+
+        guard let url = URL(string: AppConfig.apiURL(for: AppConfig.API.Endpoints.signInApple)) else {
+            throw AuthError.invalidResponse
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.timeoutInterval = AppConfig.API.timeout
+
+        do {
+            urlRequest.httpBody = try encoder.encode(request)
+        } catch {
+            throw AuthError.decodingError
+        }
+
+        do {
+            if AppConfig.Debug.enableLogging {
+                print("🌐 Apple sign-in request to: \(urlRequest.url?.absoluteString ?? "unknown")")
+            }
+
+            let (data, response) = try await session.data(for: urlRequest)
+
+            if AppConfig.Debug.enableLogging {
+                print("📥 Apple sign-in response: \(String(data: data, encoding: .utf8) ?? "no data")")
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AuthError.invalidResponse
+            }
+
+            if httpResponse.statusCode == 401 {
+                throw AuthError.invalidCredentials
+            }
+
+            if !(200...299).contains(httpResponse.statusCode) {
+                if let apiError = try? decoder.decode(APIError.self, from: data) {
+                    throw AuthError.networkError(apiError.userMessage)
+                } else {
+                    throw AuthError.networkError("Server error: \(httpResponse.statusCode)")
+                }
+            }
+
+            let signInResponse = try decoder.decode(SignInResponse.self, from: data)
+
+            guard let token = signInResponse.session?.token ?? signInResponse.token else {
+                throw AuthError.invalidResponse
+            }
+
+            try KeychainManager.shared.storeToken(token)
+
+            await MainActor.run {
+                self.currentUser = signInResponse.user
+                self.isAuthenticated = true
+            }
+
+            return signInResponse.user
+
+        } catch let error as AuthError {
+            throw error
+        } catch {
+            throw AuthError.networkError(error.localizedDescription)
+        }
+    }
+
+    private func makeSocialUser(givenName: String?, familyName: String?, email: String?) -> SocialIdTokenUser? {
+        let hasFirstName = givenName?.isEmpty == false
+        let hasLastName = familyName?.isEmpty == false
+        let hasEmail = email?.isEmpty == false
+
+        if !hasFirstName && !hasLastName && !hasEmail {
+            return nil
+        }
+
+        let name: SocialIdTokenUserName? = (hasFirstName || hasLastName)
+            ? SocialIdTokenUserName(firstName: hasFirstName ? givenName : nil,
+                                    lastName: hasLastName ? familyName : nil)
+            : nil
+
+        return SocialIdTokenUser(name: name, email: hasEmail ? email : nil)
     }
     
     // MARK: - Sign Out

@@ -28,6 +28,7 @@ struct AppConfig {
             // Authentication
             static let signUp = "/auth/sign-up"          // POST - Create new account
             static let signIn = "/auth/sign-in"          // POST - Login user
+            static let signInApple = "/auth/sign-in/social" // POST - Login via social providers (Apple, Google)
             static let verifyOTP = "/verify-otp"         // POST - Verify email OTP
             static let resendOTP = "/auth/resend-otp"    // POST - Resend verification OTP
             static let refreshToken = "/auth/refresh"     // POST - Refresh access token
