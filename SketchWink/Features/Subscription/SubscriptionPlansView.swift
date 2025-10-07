@@ -15,30 +15,30 @@ struct SubscriptionPlansView: View {
             id: "basic",
             name: "Basic",
             monthlyTokens: 50,
-            monthlyPrice: 9,
-            yearlyPrice: 90,
+            monthlyPrice: 999,
+            yearlyPrice: 9999,
             color: AppColors.primaryBlue,
             icon: "paintbrush.fill",
             features: [
                 "50 credits every month",
-                "All art categories",
-                "3-month credit rollover",
-                "Cancel anytime"
+                "All art styles",
+                "Up to 5 family profiles",
+                "3-month credit rollover (150 tokens)"
             ]
         ),
         PlanCard(
             id: "pro",
             name: "Pro",
             monthlyTokens: 120,
-            monthlyPrice: 18,
-            yearlyPrice: 180,
+            monthlyPrice: 1999,
+            yearlyPrice: 19999,
             color: AppColors.primaryPurple,
             icon: "star.fill",
             features: [
                 "120 credits every month",
-                "Up to 5 family profiles",
-                "PIN protection",
-                "All Basic features"
+                "PIN profile protection",
+                "Token rollover up to 360 credits",
+                "All features from Basic"
             ],
             badge: "POPULAR"
         ),
@@ -46,30 +46,30 @@ struct SubscriptionPlansView: View {
             id: "max",
             name: "Max",
             monthlyTokens: 250,
-            monthlyPrice: 29,
-            yearlyPrice: 290,
+            monthlyPrice: 2999,
+            yearlyPrice: 29999,
             color: AppColors.primaryPink,
             icon: "crown.fill",
             features: [
                 "250 credits every month",
-                "1K/2K quality selector",
+                "1K/2K image quality",
                 "Commercial license",
-                "All Pro features"
+                "All features from Pro"
             ]
         ),
         PlanCard(
             id: "business",
             name: "Business",
             monthlyTokens: 1000,
-            monthlyPrice: 99,
-            yearlyPrice: 990,
+            monthlyPrice: 9999,
+            yearlyPrice: 99999,
             color: AppColors.primaryTeal, // Cyan Teal - Professional and modern
             icon: "briefcase.fill",
             features: [
                 "1000 credits every month",
-                "Multiple AI models",
+                "Switch between AI models",
                 "Priority support",
-                "All Max features"
+                "All features from Max"
             ],
             badge: "ENTERPRISE"
         )
@@ -159,33 +159,46 @@ struct SubscriptionPlansView: View {
         HStack(spacing: 0) {
             // Monthly button
             Button(action: { withAnimation(.spring(response: 0.3)) { isYearly = false } }) {
-                Text("Monthly")
-                    .font(AppTypography.bodyMedium)
-                    .fontWeight(.semibold)
-                    .foregroundColor(isYearly ? AppColors.textSecondary : .white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, AppSpacing.sm)
-                    .background(isYearly ? Color.clear : currentPlan.color)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                ZStack {
+                    // Invisible placeholder to define height
+                    VStack(spacing: 2) {
+                        Text("Yearly")
+                            .font(AppTypography.bodyLarge)
+                            .fontWeight(.semibold)
+                            .opacity(0)
+
+                        Text("SAVE 2 MONTHS")
+                            .font(.system(size: 10, weight: .bold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .opacity(0)
+                    }
+
+                    Text("Monthly")
+                        .font(AppTypography.bodyLarge)
+                        .fontWeight(.semibold)
+                }
+                .foregroundColor(isYearly ? AppColors.textSecondary : .white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppSpacing.sm)
+                .background(isYearly ? Color.clear : currentPlan.color)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
 
             // Yearly button with savings badge
             Button(action: { withAnimation(.spring(response: 0.3)) { isYearly = true } }) {
                 VStack(spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text("Yearly")
-                            .font(AppTypography.bodyMedium)
-                            .fontWeight(.semibold)
+                    Text("Yearly")
+                        .font(AppTypography.bodyLarge)
+                        .fontWeight(.semibold)
 
-                        Text("SAVE 17%")
-                            .font(AppTypography.captionSmall)
-                            .fontWeight(.bold)
-                            .foregroundColor(isYearly ? currentPlan.color : AppColors.successGreen)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(isYearly ? .white : AppColors.successGreen.opacity(0.15))
-                            .clipShape(Capsule())
-                    }
+                    Text("SAVE 2 MONTHS")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(isYearly ? currentPlan.color : AppColors.successGreen)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(isYearly ? .white : AppColors.successGreen.opacity(0.15))
+                        .clipShape(Capsule())
                 }
                 .foregroundColor(isYearly ? .white : AppColors.textSecondary)
                 .frame(maxWidth: .infinity)
@@ -203,6 +216,8 @@ struct SubscriptionPlansView: View {
         )
         .padding(.horizontal, AppSpacing.xl)
     }
+
+
 
     private var fixedBottomCTA: some View {
         VStack(spacing: AppSpacing.sm) {
@@ -229,7 +244,7 @@ struct SubscriptionPlansView: View {
                         ProgressView()
                             .tint(.white)
                     } else {
-                        Text("Start Free Trial")
+                        Text("Subscribe Now")
                             .font(AppTypography.buttonLarge)
                             .fontWeight(.bold)
                     }
@@ -258,7 +273,7 @@ struct SubscriptionPlansView: View {
     private var pricePerDay: String {
         let price = isYearly ? currentPlan.yearlyPrice : currentPlan.monthlyPrice
         let days = isYearly ? 365 : 30
-        let perDay = Double(price) / Double(days)
+        let perDay = (Double(price) / 100.0) / Double(days)
         return String(format: "$%.2f", perDay)
     }
 
@@ -314,9 +329,7 @@ struct CompactPlanCard: View {
         isYearly ? plan.yearlyPrice : plan.monthlyPrice
     }
 
-    private var priceText: String {
-        "$\(price)"
-    }
+
 
     private var periodText: String {
         isYearly ? "/year" : "/mo"
@@ -326,7 +339,8 @@ struct CompactPlanCard: View {
         guard isYearly else { return nil }
         let monthlyTotal = plan.monthlyPrice * 12
         let savings = monthlyTotal - plan.yearlyPrice
-        return "Save $\(savings)"
+        let savingsInDollars = Double(savings) / 100.0
+        return String(format: "Save $%.2f", savingsInDollars)
     }
 
     var body: some View {
@@ -367,9 +381,19 @@ struct CompactPlanCard: View {
                     .foregroundColor(AppColors.textPrimary)
 
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(priceText)
-                        .font(.system(size: 38, weight: .heavy, design: .rounded))
-                        .foregroundColor(plan.color)
+                    HStack(alignment: .firstTextBaseline, spacing: 0) {
+                        Text("$")
+                            .font(.system(size: 38, weight: .bold, design: .rounded))
+                            .foregroundColor(plan.color)
+                            .padding(.trailing, 4)
+                        Text("\(price / 100)")
+                            .font(.system(size: 38, weight: .heavy, design: .rounded))
+                            .foregroundColor(plan.color)
+                        Text(String(format: ".%02d", price % 100))
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .foregroundColor(plan.color)
+                            .baselineOffset(12)
+                    }
 
                     Text(periodText)
                         .font(AppTypography.bodyMedium)
