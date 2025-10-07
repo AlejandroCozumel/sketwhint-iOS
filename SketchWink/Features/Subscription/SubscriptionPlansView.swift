@@ -3,11 +3,10 @@ import SwiftUI
 struct SubscriptionPlansView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var tokenManager = TokenBalanceManager.shared
+    @StateObject private var viewModel = SubscriptionViewModel()
+
     @State private var currentPlanIndex = 1 // Start at Basic plan
     @State private var isYearly = true // Default to yearly for better value
-    @State private var isLoading = false
-    @State private var showingError = false
-    @State private var errorMessage = ""
 
     // Plan data - from backend seed database
     private let plans = [
@@ -238,9 +237,11 @@ struct SubscriptionPlansView: View {
             }
 
             // Subscribe button
-            Button(action: { selectPlan(currentPlan) }) {
+            Button(action: {
+                viewModel.purchase(plan: currentPlan, isYearly: isYearly)
+            }) {
                 HStack(spacing: AppSpacing.sm) {
-                    if isLoading {
+                    if viewModel.isLoading {
                         ProgressView()
                             .tint(.white)
                     } else {
@@ -262,12 +263,17 @@ struct SubscriptionPlansView: View {
                 .clipShape(Capsule())
                 .shadow(color: currentPlan.color.opacity(0.4), radius: 12, x: 0, y: 6)
             }
-            .disabled(isLoading)
+            .disabled(viewModel.isLoading)
             .padding(.horizontal, AppSpacing.lg)
             .padding(.bottom, AppSpacing.md)
         }
         .padding(.top, AppSpacing.sm)
         .background(.ultraThinMaterial)
+        .alert("Notice", isPresented: $viewModel.showingError) {
+            Button("OK") {}
+        } message: {
+            Text(viewModel.errorMessage)
+        }
     }
 
     private var pricePerDay: String {
@@ -277,20 +283,7 @@ struct SubscriptionPlansView: View {
         return String(format: "$%.2f", perDay)
     }
 
-    // MARK: - Actions
 
-    private func selectPlan(_ plan: PlanCard) {
-        print("🎯 SubscriptionPlans: Selected \(plan.name) - \(isYearly ? "Yearly" : "Monthly")")
-        // TODO: Implement Stripe checkout
-        isLoading = true
-
-        // Simulate API call
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            isLoading = false
-            errorMessage = "Stripe integration coming soon!"
-            showingError = true
-        }
-    }
 }
 
 // MARK: - Plan Card Data Model

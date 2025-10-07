@@ -250,14 +250,15 @@ struct AppConfig {
 
         // Apple In-App Purchase Product IDs
         struct AppleProductIDs {
-            static let basicMonthly = "com.sketchwink.basic.monthly"
-            static let basicYearly = "com.sketchwink.basic.yearly"
-            static let proMonthly = "com.sketchwink.pro.monthly"
-            static let proYearly = "com.sketchwink.pro.yearly"
-            static let maxMonthly = "com.sketchwink.max.monthly"
-            static let maxYearly = "com.sketchwink.max.yearly"
-            static let businessMonthly = "com.sketchwink.business.monthly"
-            static let businessYearly = "com.sketchwink.business.yearly"
+            // Match Apple product IDs configured in App Store Connect / backend seed
+            static let basicMonthly = "basic.monthly"
+            static let basicYearly = "basic.yearly"
+            static let proMonthly = "pro.monthly"
+            static let proYearly = "pro.yearly"
+            static let maxMonthly = "max.monthly"
+            static let maxYearly = "max.yearly"
+            static let businessMonthly = "business.monthly"
+            static let businessYearly = "business.yearly"
         }
     }
 
