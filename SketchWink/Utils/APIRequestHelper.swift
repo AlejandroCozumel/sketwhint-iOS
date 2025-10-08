@@ -63,12 +63,29 @@ class APIRequestHelper {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         do {
-            let jsonData = try JSONEncoder().encode(body)
+            let encoder = JSONEncoder()
+            // Ensure we don't skip null values - encode them explicitly
+            // This is important for optional fields that should be sent to the API
+            let jsonData = try encoder.encode(body)
             request.httpBody = jsonData
-            
+
             #if DEBUG
             if let requestString = String(data: jsonData, encoding: .utf8) {
-                print("📤 \(method) \(url.path): \(requestString)")
+                print("📤 API Request Details:")
+                print("   Method: \(method)")
+                print("   Path: \(url.path)")
+                print("   Body: \(requestString)")
+
+                // Parse JSON to show maxImages specifically for generation requests
+                if url.path.contains("generations"),
+                   let jsonObject = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                    print("   🔍 Parsed JSON Fields:")
+                    if let maxImages = jsonObject["maxImages"] {
+                        print("      - maxImages: \(maxImages) (type: \(type(of: maxImages)))")
+                    } else {
+                        print("      - maxImages: ❌ NOT PRESENT IN JSON")
+                    }
+                }
             }
             #endif
         } catch {

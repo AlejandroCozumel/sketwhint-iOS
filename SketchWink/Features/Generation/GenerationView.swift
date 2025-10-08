@@ -1052,7 +1052,15 @@ struct GenerationView: View {
 
         // Create request based on input method
         let request: CreateGenerationRequest
-        
+
+        #if DEBUG
+        print("🎯 GenerationView: Creating generation request with:")
+        print("   - selectedMaxImages: \(selectedMaxImages)")
+        print("   - selectedQuality: \(selectedQuality)")
+        print("   - selectedModel: \(selectedModel)")
+        print("   - selectedDimensions: \(selectedDimensions)")
+        #endif
+
         if self.inputMethod == .image, let inputImage = selectedInputImage {
             // Image-based generation
             request = CreateGenerationRequest(
@@ -1066,7 +1074,7 @@ struct GenerationView: View {
                 model: selectedModel,
                 familyProfileId: nil  // TODO: Add family profile support later
             )
-            
+
             #if DEBUG
             print("📷 GenerationView: Creating image-based generation")
             print("📐 GenerationView: Image size: \(inputImage.size)")
@@ -1083,12 +1091,16 @@ struct GenerationView: View {
                 model: selectedModel,
                 familyProfileId: nil  // TODO: Add family profile support later
             )
-            
+
             #if DEBUG
             print("✏️ GenerationView: Creating text-based generation")
             print("📝 GenerationView: Prompt: \(userPrompt)")
             #endif
         }
+
+        #if DEBUG
+        print("📦 GenerationView: Request created with maxImages: \(request.maxImages ?? -1)")
+        #endif
 
         do {
             #if DEBUG

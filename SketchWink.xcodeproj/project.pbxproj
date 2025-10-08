@@ -10,6 +10,7 @@
 		5C3584B12E9308EF00F7FE22 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5C3584B02E9308EF00F7FE22 /* GoogleService-Info.plist */; };
 		5C3584B52E930B0900F7FE22 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 5C3584B42E930B0900F7FE22 /* GoogleSignIn */; };
 		5C3584B72E930B0900F7FE22 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5C3584B62E930B0900F7FE22 /* GoogleSignInSwift */; };
+		5C93FAA42E94EC8300C29E13 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5C93FAA32E94EC8300C29E13 /* StoreKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,6 +32,7 @@
 
 /* Begin PBXFileReference section */
 		5C3584B02E9308EF00F7FE22 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		5C93FAA32E94EC8300C29E13 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		5CB437352E7C832D002FC297 /* SketchWink.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SketchWink.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB437442E7C832E002FC297 /* SketchWinkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SketchWinkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB4374E2E7C832E002FC297 /* SketchWinkUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SketchWinkUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -72,6 +74,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5C93FAA42E94EC8300C29E13 /* StoreKit.framework in Frameworks */,
 				5C3584B52E930B0900F7FE22 /* GoogleSignIn in Frameworks */,
 				5C3584B72E930B0900F7FE22 /* GoogleSignInSwift in Frameworks */,
 			);
@@ -94,6 +97,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		5C93FAA22E94EC8300C29E13 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				5C93FAA32E94EC8300C29E13 /* StoreKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		5CB4372C2E7C832D002FC297 = {
 			isa = PBXGroup;
 			children = (
@@ -102,6 +113,7 @@
 				5CB437512E7C832E002FC297 /* SketchWinkUITests */,
 				5CB437362E7C832D002FC297 /* Products */,
 				5C3584B02E9308EF00F7FE22 /* GoogleService-Info.plist */,
+				5C93FAA22E94EC8300C29E13 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
