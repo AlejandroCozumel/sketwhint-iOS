@@ -8,18 +8,16 @@ struct ProfileMenuButton: View {
     @State private var showPainting = false
 
     var body: some View {
-        Group {
-            if let currentProfile = profileService.currentProfile {
-                HStack(spacing: AppSpacing.xs) {
+        Button(action: { showingProfileMenu = true }) {
+            HStack(spacing: 6) {
+                if let currentProfile = profileService.currentProfile {
                     Text(currentProfile.displayAvatar)
-                        .font(.system(size: 28))
+                        .font(.system(size: 24))
 
                     Text(currentProfile.name)
-                        .font(AppTypography.titleMedium)
+                        .font(AppTypography.bodyMedium)
+                        .fontWeight(.semibold)
                         .foregroundColor(AppColors.textPrimary)
-                }
-                .onTapGesture {
-                    showingProfileMenu = true
                 }
             }
         }

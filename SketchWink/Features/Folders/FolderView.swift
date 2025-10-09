@@ -11,6 +11,7 @@ struct FolderView: View {
     @State private var showingEditFolder = false
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @FocusState private var isSearchFocused: Bool
 
     // Profile filtering (only for admin profiles)
     @State private var selectedProfileFilter: String?
@@ -43,9 +44,12 @@ struct FolderView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with search and filters - always show at top
-            headerSection
-            
+            // Filter chips (same as gallery)
+            filterChipsSection
+
+            // Search bar (same as gallery)
+            searchBarSection
+
             // Content
             if isLoading {
                 loadingView
@@ -56,13 +60,17 @@ struct FolderView: View {
             } else {
                 folderGridView
             }
-            
+
             Spacer()
         }
         .background(AppColors.backgroundLight)
-        .navigationTitle("Folders")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("My Folders")
+        .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                ProfileMenuButton(selectedTab: $selectedTab)
+            }
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 createFolderButton
             }
@@ -79,82 +87,75 @@ struct FolderView: View {
         .task {
             await loadFolders()
         }
-        .refreshable {
-            await loadFolders()
-        }
     }
     
-    // MARK: - Header Section
-    private var headerSection: some View {
-        VStack(spacing: AppSpacing.sm) {
-            // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(AppColors.textSecondary)
-                    .font(.system(size: 16))
-                
-                TextField("Search folders...", text: $searchText)
-                    .font(AppTypography.bodyMedium)
-                    .textFieldStyle(PlainTextFieldStyle())
-                
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(AppColors.textSecondary)
-                            .font(.system(size: 16))
+    // MARK: - Filter Chips Section
+    private var filterChipsSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppSpacing.sm) {
+                // Profile filters (only for admin profiles with multiple profiles)
+                if isMainProfile && profileService.availableProfiles.count > 1 {
+                    // All Profiles chip
+                    FilterChip(
+                        title: "All Profiles",
+                        icon: "person.2.fill",
+                        isSelected: selectedProfileFilter == nil
+                    ) {
+                        selectedProfileFilter = nil
                     }
-                    .childSafeTouchTarget()
+
+                    // Individual profile chips
+                    ForEach(profileService.availableProfiles, id: \.id) { profile in
+                        FilterChip(
+                            title: profile.name,
+                            icon: "person.circle.fill",
+                            isSelected: selectedProfileFilter == profile.id
+                        ) {
+                            selectedProfileFilter = profile.id
+                        }
+                    }
                 }
             }
             .padding(.horizontal, AppSpacing.md)
-            .padding(.vertical, AppSpacing.sm)
-            .background(AppColors.surfaceLight)
-            .clipShape(Capsule())
-            
-            // Profile filter (only for admin profiles)
-            if isMainProfile && profileService.availableProfiles.count > 1 {
-                profileFilterChips
-            }
-            
-            // Folder count
-            if !filteredFolders.isEmpty {
-                HStack {
-                    Text("\(filteredFolders.count) folder\(filteredFolders.count == 1 ? "" : "s")")
-                        .font(AppTypography.captionLarge)
+        }
+        .padding(.bottom, AppSpacing.sm)
+        .id("folders-filter-chips-\(profileService.availableProfiles.count)")
+    }
+
+    // MARK: - Search Bar Section
+    private var searchBarSection: some View {
+        HStack(spacing: AppSpacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(AppColors.textSecondary)
+                .font(.system(size: 16, weight: .medium))
+
+            TextField("Search folders...", text: $searchText)
+                .textFieldStyle(.plain)
+                .font(AppTypography.bodyMedium)
+                .foregroundColor(AppColors.textPrimary)
+                .focused($isSearchFocused)
+
+            if !searchText.isEmpty {
+                Button(action: { searchText = "" }) {
+                    Image(systemName: "xmark.circle.fill")
                         .foregroundColor(AppColors.textSecondary)
-                    
-                    Spacer()
+                        .font(.system(size: 16))
                 }
             }
         }
         .padding(.horizontal, AppSpacing.md)
         .padding(.vertical, AppSpacing.sm)
-    }
-    
-    // MARK: - Profile Filter Chips
-    private var profileFilterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppSpacing.sm) {
-                // All Profiles chip
-                ProfileFilterChip(
-                    title: "All Profiles",
-                    icon: "👥",
-                    isSelected: selectedProfileFilter == nil,
-                    action: { selectedProfileFilter = nil }
+        .background(AppColors.backgroundLight)
+        .cornerRadius(AppSizing.cornerRadius.round)
+        .overlay(
+            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.round)
+                .stroke(
+                    isSearchFocused ? AppColors.primaryBlue : AppColors.borderLight,
+                    lineWidth: isSearchFocused ? 2 : 1
                 )
-                
-                // Individual profile chips
-                ForEach(profileService.availableProfiles, id: \.id) { profile in
-                    ProfileFilterChip(
-                        title: profile.name,
-                        icon: profile.displayAvatar,
-                        isSelected: selectedProfileFilter == profile.id,
-                        action: { selectedProfileFilter = profile.id }
-                    )
-                }
-            }
-            .padding(.horizontal, AppSpacing.md)
-        }
+        )
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.bottom, AppSpacing.sm)
     }
     
     // MARK: - Create Folder Button
@@ -181,7 +182,11 @@ struct FolderView: View {
                 }
             }
             .padding(.horizontal, AppSpacing.md)
+            .padding(.top, AppSpacing.sm)
             .padding(.bottom, AppSpacing.xl)
+        }
+        .refreshable {
+            await refreshFolders()
         }
     }
     
@@ -278,7 +283,16 @@ struct FolderView: View {
     private func loadFolders() async {
         isLoading = true
         defer { isLoading = false }
-        
+
+        do {
+            try await folderService.loadFolders()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func refreshFolders() async {
+        // Don't set isLoading to avoid showing loading overlay during pull-to-refresh
         do {
             try await folderService.loadFolders()
         } catch {

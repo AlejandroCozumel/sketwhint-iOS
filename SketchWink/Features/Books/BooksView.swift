@@ -112,7 +112,7 @@ struct BooksView: View {
         VStack(spacing: 0) {
             // Filter chips (always show for favorites, conditionally show profile filters)
             filterChipsSection
-            
+
             // Books grid
             booksGridSection
         }
@@ -130,9 +130,6 @@ struct BooksView: View {
         .onAppear {
             loadInitialBooks()
             loadCategories()
-        }
-        .refreshable {
-            await refreshBooks()
         }
         .sheet(item: $selectedBook) { book in
             BookReadingView(book: book)
@@ -191,6 +188,7 @@ struct BooksView: View {
                 onSearchToggle: { }
             )
         )
+        .id("books-filter-chips-\(availableCategories.count)-\(profileService.availableProfiles.count)")
     }
     
     // MARK: - Books Grid Section
@@ -250,6 +248,9 @@ struct BooksView: View {
             }
             .padding(.horizontal, AppSpacing.md)
             .padding(.bottom, AppSpacing.xl)
+        }
+        .refreshable {
+            await refreshBooks()
         }
     }
     

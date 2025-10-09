@@ -150,13 +150,16 @@ struct FolderImagesView: View {
                     .padding(.bottom, AppSpacing.md)
                 }
                 
-                // Content
+                // Content - WITH refreshable only on the scrollable content
                 if isLoading && images.isEmpty {
                     loadingView
                 } else if images.isEmpty {
                     emptyStateView
                 } else {
                     imageGridView
+                        .refreshable {
+                            await refreshImages()
+                        }
                 }
             }
             .background(AppColors.backgroundLight)
@@ -197,9 +200,6 @@ struct FolderImagesView: View {
             .task {
                 await loadCategories()
                 await loadImages()
-            }
-            .refreshable {
-                await refreshImages()
             }
             .alert("Remove Images", isPresented: $showingRemoveConfirmation) {
                 Button("Cancel", role: .cancel) { }
@@ -446,8 +446,24 @@ struct FolderImagesView: View {
     }
     
     private func refreshImages() async {
+        // Don't set isLoading to avoid showing loading overlay during pull-to-refresh
         currentPage = 1
-        await loadImages()
+
+        do {
+            let response = try await loadImagesPage(page: 1)
+
+            await MainActor.run {
+                self.images = response.images
+                self.totalImages = response.total
+                self.currentPage = response.page
+                self.hasMorePages = response.images.count >= pageLimit && response.total > response.images.count
+            }
+
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+            }
+        }
     }
     
     private func loadMoreImages() async {
@@ -635,6 +651,7 @@ struct FolderImagesView: View {
             .padding(.horizontal, AppSpacing.md)
         }
         .padding(.bottom, AppSpacing.sm)
+        .id("folder-images-filter-chips-\(availableCategories.count)-\(profileService.availableProfiles.count)")
     }
     
     // MARK: - Search Bar Section (same as gallery)

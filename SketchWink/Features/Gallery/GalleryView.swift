@@ -192,9 +192,9 @@ struct GalleryView: View {
                 .padding(.vertical, AppSpacing.sectionSpacing)
                 .padding(.bottom, isSelectionMode && !selectedImages.isEmpty ? 80 : 0) // Add bottom padding when toolbar is visible
             }
-            // .refreshable {
-            //     await refreshGallery()
-            // }
+            .refreshable {
+                await refreshGallery()
+            }
             .dismissKeyboardOnScroll()
             .simultaneousGesture(
                 DragGesture().onChanged { _ in
@@ -836,6 +836,7 @@ struct GalleryView: View {
                 }
             )
         )
+        .id("gallery-filter-chips-\(availableCategories.count)-\(profileService.availableProfiles.count)")
     }
 
     // MARK: - Gallery Header

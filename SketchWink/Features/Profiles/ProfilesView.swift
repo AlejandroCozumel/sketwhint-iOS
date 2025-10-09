@@ -22,8 +22,11 @@ struct ProfilesView: View {
     }
     @State private var currentProfile: FamilyProfile?
     @State private var isSwitchingProfile = false
+    @State private var showingProfileMenu = false
 
     @StateObject private var authService = AuthService.shared
+    @StateObject private var profileService = ProfileService.shared
+    @StateObject private var tokenManager = TokenBalanceManager.shared
     
     var body: some View {
         NavigationStack {
@@ -44,9 +47,21 @@ struct ProfilesView: View {
             .background(AppColors.backgroundLight)
             .navigationTitle("Family Profiles")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                AppToolbarContent(
+                    profileService: profileService,
+                    tokenManager: tokenManager,
+                    onProfileTap: { showingProfileMenu = true },
+                    onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                    onUpgradeTap: { showingSubscriptionPlans = true }
+                )
+            }
         }
         .task {
             await loadData()
+        }
+        .sheet(isPresented: $showingProfileMenu) {
+            ProfileMenuSheet(selectedTab: .constant(4), showPainting: .constant(false))
         }
         .onAppear {
             loadCurrentProfile()
