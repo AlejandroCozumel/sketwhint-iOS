@@ -63,8 +63,10 @@ struct GenerationView: View {
 
     let preselectedCategory: CategoryWithOptions?
     let onDismiss: () -> Void
+    @Binding var selectedTab: Int
 
-    init(preselectedCategory: CategoryWithOptions? = nil, onDismiss: @escaping () -> Void = {}) {
+    init(preselectedCategory: CategoryWithOptions? = nil, selectedTab: Binding<Int>, onDismiss: @escaping () -> Void = {}) {
+        self._selectedTab = selectedTab
         #if DEBUG
         print("🎯 GenerationView: init() called")
         print("🎯 GenerationView: preselectedCategory = \(preselectedCategory?.category.name ?? "nil")")
@@ -231,6 +233,7 @@ struct GenerationView: View {
         if case .completed(let generation) = generationState {
             GenerationResultView(
                 generation: generation,
+                selectedTab: $selectedTab,
                 onDismiss: {
                     generationState = .idle
                     userPrompt = ""
@@ -242,6 +245,11 @@ struct GenerationView: View {
                     userPrompt = ""
                     selectedInputImage = nil
                     isPromptFocused = false
+                },
+                onDismissParent: {
+                    // Dismiss the parent GenerationView sheet
+                    GenerationProgressSSEService.shared.disconnect()
+                    onDismiss()
                 }
             )
         }
@@ -308,35 +316,6 @@ struct GenerationView: View {
             // Generate Button
             generateButtonView
         }
-    }
-
-    // MARK: - Category Header
-    @ViewBuilder
-    private func categoryHeaderView(category: GenerationCategory) -> some View {
-        VStack(spacing: AppSpacing.md) {
-            Text(category.icon ?? "🎨")
-                .font(.system(size: AppSizing.iconSizes.xxl))
-
-            VStack(spacing: AppSpacing.xs) {
-                Text(category.name)
-                    .headlineLarge()
-                    .foregroundColor(AppColors.textPrimary)
-
-                Text(category.description)
-                    .bodyMedium()
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .padding(AppSpacing.cardPadding.inner)
-        .background(categoryColor.opacity(0.1))
-        .cornerRadius(AppSizing.cornerRadius.md)
-        .shadow(
-            color: Color.black.opacity(AppSizing.shadows.small.opacity),
-            radius: AppSizing.shadows.small.radius,
-            x: AppSizing.shadows.small.x,
-            y: AppSizing.shadows.small.y
-        )
     }
 
     // MARK: - Style Selection
@@ -1209,17 +1188,16 @@ struct GenerationView: View {
                 .foregroundColor(AppColors.textPrimary)
             
             if let selectedImage = selectedInputImage {
-                // Show selected image - EXACT same size as dashed box only
+                // Show selected image - Full width with proper aspect ratio
                 Button(action: {
                     showingPhotoSourceSelection = true
                 }) {
                     ZStack {
                         Image(uiImage: selectedImage)
                             .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: .infinity, minHeight: 140)
-                            .clipped()
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: .infinity)
+                            .cornerRadius(12)
                         
                         // Absolute positioned buttons inside the photo
                         VStack {

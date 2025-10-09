@@ -75,6 +75,7 @@ struct CategorySelectionView: View {
         .sheet(item: $selectedCategory) { category in
             GenerationView(
                 preselectedCategory: category,
+                selectedTab: $selectedTab,
                 onDismiss: {
                     selectedCategory = nil
                 }

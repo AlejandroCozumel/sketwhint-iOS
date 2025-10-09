@@ -2,9 +2,11 @@ import SwiftUI
 
 struct GenerationResultView: View {
     let generation: Generation
+    @Binding var selectedTab: Int
     let onDismiss: () -> Void
     let onGenerateAnother: () -> Void
-    
+    let onDismissParent: () -> Void
+
     @State private var selectedImageIndex = 0
     @State private var isShowingShareSheet = false
     @State private var isShowingColoringView = false
@@ -25,29 +27,33 @@ struct GenerationResultView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: AppSpacing.sectionSpacing) {
-                    
-                    // Success Header
-                    successHeaderView
-                    
-                    // Generated Image Display
+                VStack(spacing: 0) {
+
+                    // Generated Image Display (full width, no padding, no spacing)
                     if let currentImage = currentImage {
                         imageDisplayView(image: currentImage)
                     }
-                    
-                    // Image Selection (if multiple)
-                    if let images = generation.images, images.count > 1 {
-                        imageSelectionView(images: images)
+
+                    // Content with padding
+                    VStack(spacing: AppSpacing.sectionSpacing) {
+                        // Image Selection (if multiple)
+                        if let images = generation.images, images.count > 1 {
+                            imageSelectionView(images: images)
+                        }
+
+                        // Share Button
+                        shareButtonView
+
+                        // Generation Info
+                        generationInfoView
+
+                        // Action Buttons
+                        actionButtonsView
                     }
-                    
-                    // Generation Info
-                    generationInfoView
-                    
-                    // Action Buttons
-                    actionButtonsView
+                    .pageMargins()
+                    .padding(.top, AppSpacing.sectionSpacing)
+                    .padding(.bottom, AppSpacing.sectionSpacing)
                 }
-                .pageMargins()
-                .padding(.vertical, AppSpacing.sectionSpacing)
             }
             .background(AppColors.backgroundLight)
             .navigationTitle(categoryConfig.navigationTitle)
@@ -83,117 +89,80 @@ struct GenerationResultView: View {
         }
     }
     
-    // MARK: - Success Header
-    private var successHeaderView: some View {
-        VStack(spacing: AppSpacing.lg) {
-            // Success animation
-            ZStack {
-                Circle()
-                    .fill(categoryConfig.primaryColor)
-                    .frame(width: 100, height: 100)
-                    .shadow(
-                        color: categoryConfig.primaryColor.opacity(0.3),
-                        radius: 20,
-                        x: 0,
-                        y: 10
-                    )
-                
-                Text(categoryConfig.successEmoji)
-                    .font(.system(size: 50))
-            }
-            
-            VStack(spacing: AppSpacing.sm) {
-                Text(categoryConfig.successTitle)
-                    .font(AppTypography.headlineLarge)
-                    .foregroundColor(AppColors.textPrimary)
-                
-                Text(categoryConfig.successDescription)
-                    .font(AppTypography.bodyLarge)
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .cardStyle()
-    }
-    
     // MARK: - Image Display
     @ViewBuilder
     private func imageDisplayView(image: GeneratedImage) -> some View {
-        VStack(spacing: AppSpacing.md) {
-            
-            // Main image
-            AsyncImage(url: URL(string: image.imageUrl)) { imagePhase in
-                switch imagePhase {
-                case .success(let swiftUIImage):
-                    swiftUIImage
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .cornerRadius(AppSizing.cornerRadius.lg)
-                        .shadow(
-                            color: AppColors.textPrimary.opacity(0.1),
-                            radius: 10,
-                            x: 0,
-                            y: 5
-                        )
-                        .onAppear {
-                            // Convert SwiftUI Image to UIImage for sharing
-                            Task {
-                                if let url = URL(string: image.imageUrl),
-                                   let data = try? Data(contentsOf: url),
-                                   let uiImage = UIImage(data: data) {
-                                    shareableImage = uiImage
-                                }
+        // Main image with horizontal padding
+        AsyncImage(url: URL(string: image.imageUrl)) { imagePhase in
+            switch imagePhase {
+            case .success(let swiftUIImage):
+                swiftUIImage
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .cornerRadius(AppSizing.cornerRadius.lg)
+                    .onAppear {
+                        // Convert SwiftUI Image to UIImage for sharing
+                        Task {
+                            if let url = URL(string: image.imageUrl),
+                               let data = try? Data(contentsOf: url),
+                               let uiImage = UIImage(data: data) {
+                                shareableImage = uiImage
                             }
                         }
-                case .failure(_):
-                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                        .fill(AppColors.textSecondary.opacity(0.1))
-                        .frame(height: 300)
-                        .overlay(
-                            VStack(spacing: AppSpacing.sm) {
-                                Text("📷")
-                                    .font(.system(size: 40))
-                                Text("Image failed to load")
-                                    .captionLarge()
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                        )
-                case .empty:
-                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                        .fill(AppColors.textSecondary.opacity(0.1))
-                        .frame(height: 300)
-                        .overlay(
-                            ProgressView()
-                                .tint(AppColors.primaryBlue)
-                        )
-                @unknown default:
-                    EmptyView()
-                }
+                    }
+            case .failure(_):
+                Rectangle()
+                    .fill(AppColors.textSecondary.opacity(0.1))
+                    .frame(height: 300)
+                    .overlay(
+                        VStack(spacing: AppSpacing.sm) {
+                            Text("📷")
+                                .font(.system(size: 40))
+                            Text("Image failed to load")
+                                .captionLarge()
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                    )
+            case .empty:
+                Rectangle()
+                    .fill(AppColors.textSecondary.opacity(0.1))
+                    .frame(height: 300)
+                    .overlay(
+                        ProgressView()
+                            .tint(AppColors.primaryBlue)
+                    )
+            @unknown default:
+                EmptyView()
             }
-            .frame(maxHeight: 400)
-            
-            // Image actions - Only Share button (full width)
-            Button {
-                isShowingShareSheet = true
-            } label: {
-                HStack(spacing: AppSpacing.xs) {
-                    Text("📤")
-                    Text("Share")
-                        .font(AppTypography.titleMedium)
-                }
-            }
-            .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
-            .disabled(shareableImage == nil)
-            .childSafeTouchTarget()
         }
-        .cardStyle()
+        .padding(.horizontal, AppSpacing.pageMargin)
+    }
+
+    // MARK: - Share Button
+    private var shareButtonView: some View {
+        Button {
+            isShowingShareSheet = true
+        } label: {
+            Text("Share")
+                .font(AppTypography.bodyMedium)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppSpacing.md)
+                .background(AppColors.primaryPurple)
+                .clipShape(Capsule())
+        }
+        .disabled(shareableImage == nil)
+        .opacity(shareableImage == nil ? 0.6 : 1.0)
+        .childSafeTouchTarget()
     }
     
     // MARK: - Image Selection (Multiple Images)
     @ViewBuilder
     private func imageSelectionView(images: [GeneratedImage]) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Choose Your Favorite")
+            Text("Tap to View")
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
             
@@ -230,7 +199,6 @@ struct GenerationResultView: View {
                         .childSafeTouchTarget()
                     }
                 }
-                .padding(.horizontal, AppSpacing.sm)
             }
         }
         .cardStyle()
@@ -239,45 +207,42 @@ struct GenerationResultView: View {
     // MARK: - Generation Info
     private var generationInfoView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Creation Details")
+            Text("Details")
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
-            
+
             VStack(spacing: AppSpacing.sm) {
                 if let currentImage = currentImage {
-                    GenerationInfoRow(
+                    DetailRow(
                         label: "Title",
-                        value: currentImage.generation?.title ?? currentImage.originalUserPrompt ?? "Unknown",
-                        isExpandable: true
+                        value: currentImage.generation?.title ?? currentImage.originalUserPrompt ?? "Unknown"
                     )
-                    
-                    GenerationInfoRow(
+
+                    DetailRow(
                         label: "Category",
                         value: generation.categoryName ?? currentImage.generation?.category ?? "Unknown"
                     )
-                    
-                    GenerationInfoRow(
+
+                    DetailRow(
                         label: "Style",
                         value: generation.optionName ?? currentImage.generation?.option ?? "Unknown"
                     )
-                    
-                    GenerationInfoRow(
+
+                    DetailRow(
                         label: "Model",
                         value: currentImage.generation?.modelUsed ?? currentImage.modelUsed ?? "Unknown"
                     )
-                    
-                    GenerationInfoRow(
+
+                    DetailRow(
                         label: "Quality",
                         value: (currentImage.generation?.qualityUsed ?? currentImage.qualityUsed ?? "standard").capitalized
                     )
-                    
-                    GenerationInfoRow(
+
+                    DetailRow(
                         label: "Created",
                         value: formatDate(currentImage.createdAt)
                     )
                 }
-                
-                // Note: Enhancement info not available in current API response
             }
         }
         .cardStyle()
@@ -286,48 +251,54 @@ struct GenerationResultView: View {
     // MARK: - Action Buttons
     private var actionButtonsView: some View {
         VStack(spacing: AppSpacing.md) {
-            // Generate Another
-            Button {
-                dismiss()
-                onGenerateAnother()
-            } label: {
-                HStack(spacing: AppSpacing.sm) {
-                    Text(categoryConfig.generateAnotherEmoji)
-                    Text(categoryConfig.generateAnotherTitle)
-                        .font(AppTypography.titleMedium)
-                }
-            }
-            .largeButtonStyle(backgroundColor: categoryConfig.primaryColor)
-            .childSafeTouchTarget()
-            
             // View Gallery
             Button {
-                dismiss()
-                onDismiss()
-                // Gallery will be accessible from MainAppView
+                selectedTab = 1 // Switch to Gallery tab (index 1)
+                dismiss() // Dismiss GenerationResultView
+                onDismiss() // Reset generation state
+                onDismissParent() // Dismiss parent GenerationView
             } label: {
-                HStack(spacing: AppSpacing.sm) {
-                    Text("🖼️")
-                    Text("View My Gallery")
-                        .font(AppTypography.titleMedium)
-                }
+                Text("View My Gallery")
+                    .font(AppTypography.bodyMedium)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppSpacing.md)
+                    .background(AppColors.primaryBlue)
+                    .clipShape(Capsule())
             }
-            .largeButtonStyle(backgroundColor: AppColors.wallpapersColor)
             .childSafeTouchTarget()
         }
     }
     
     // MARK: - Helper Methods
     private func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: dateString) else {
-            return dateString
+        // Try ISO8601 formatter first
+        let iso8601Formatter = ISO8601DateFormatter()
+        iso8601Formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        if let date = iso8601Formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .short
+            displayFormatter.timeZone = TimeZone.current
+            displayFormatter.locale = Locale.current
+            return displayFormatter.string(from: date)
         }
-        
-        let displayFormatter = DateFormatter()
-        displayFormatter.dateStyle = .medium
-        displayFormatter.timeStyle = .short
-        return displayFormatter.string(from: date)
+
+        // Fallback: try without fractional seconds
+        iso8601Formatter.formatOptions = [.withInternetDateTime]
+        if let date = iso8601Formatter.date(from: dateString) {
+            let displayFormatter = DateFormatter()
+            displayFormatter.dateStyle = .medium
+            displayFormatter.timeStyle = .short
+            displayFormatter.timeZone = TimeZone.current
+            displayFormatter.locale = Locale.current
+            return displayFormatter.string(from: date)
+        }
+
+        // Last resort: return original string
+        return dateString
     }
 }
 
@@ -412,50 +383,6 @@ struct CategoryDisplayConfig {
                 generateAnotherEmoji: "🎨",
                 generateAnotherTitle: "Create Another"
             )
-        }
-    }
-}
-
-// MARK: - Supporting Views
-struct GenerationInfoRow: View {
-    let label: String
-    let value: String
-    let isExpandable: Bool
-    
-    @State private var isExpanded = false
-    
-    init(label: String, value: String, isExpandable: Bool = false) {
-        self.label = label
-        self.value = value
-        self.isExpandable = isExpandable
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-            HStack {
-                Text(label + ":")
-                    .font(AppTypography.titleSmall)
-                    .foregroundColor(AppColors.textSecondary)
-                
-                Spacer()
-                
-                if isExpandable && value.count > 50 {
-                    Button(isExpanded ? "Show Less" : "Show More") {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isExpanded.toggle()
-                        }
-                    }
-                    .font(AppTypography.captionMedium)
-                    .foregroundColor(AppColors.primaryBlue)
-                }
-            }
-            
-            Text(isExpandable && !isExpanded && value.count > 50 
-                 ? String(value.prefix(50)) + "..."
-                 : value)
-                .font(AppTypography.bodyMedium)
-                .foregroundColor(AppColors.textPrimary)
-                .multilineTextAlignment(.leading)
         }
     }
 }
