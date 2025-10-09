@@ -173,6 +173,12 @@ struct GenerationView: View {
             .padding(.vertical, AppSpacing.sectionSpacing)
         }
         .dismissKeyboardOnScroll()
+        .simultaneousGesture(
+            DragGesture().onChanged { _ in
+                // Dismiss keyboard when user starts scrolling
+                isPromptFocused = false
+            }
+        )
     }
 
     private var doneButton: some View {

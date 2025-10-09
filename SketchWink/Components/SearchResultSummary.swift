@@ -45,19 +45,18 @@ struct SearchResultSummary: View {
                 }
                 
                 Spacer()
-                
+
                 // Clear search button
                 Button(action: onClearSearch) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(AppColors.textSecondary)
                         .font(.system(size: 20))
                 }
-                .childSafeTouchTarget()
             }
             .padding(.horizontal, AppSpacing.md)
             .padding(.vertical, AppSpacing.sm)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.round)
                     .fill(AppColors.surfaceLight)
                     .stroke(AppColors.primaryBlue.opacity(0.2), lineWidth: 1)
             )

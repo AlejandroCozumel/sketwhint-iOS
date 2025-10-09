@@ -23,6 +23,7 @@ struct GalleryView: View {
     @State private var isSearchActive = false
     @State private var selectedProfileFilter: String? = nil  // NEW: Profile filter
     @State private var showPainting = false
+    @FocusState private var isSearchFocused: Bool
 
     // Auto-search with debouncing
     @State private var searchWorkItem: DispatchWorkItem?
@@ -168,7 +169,7 @@ struct GalleryView: View {
                 .padding(.horizontal, AppSpacing.md)
                 .padding(.vertical, AppSpacing.sm)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.round)
                         .fill(AppColors.infoBlue.opacity(0.1))
                         .stroke(AppColors.infoBlue.opacity(0.3), lineWidth: 1)
                 )
@@ -191,6 +192,16 @@ struct GalleryView: View {
                 .padding(.vertical, AppSpacing.sectionSpacing)
                 .padding(.bottom, isSelectionMode && !selectedImages.isEmpty ? 80 : 0) // Add bottom padding when toolbar is visible
             }
+            // .refreshable {
+            //     await refreshGallery()
+            // }
+            .dismissKeyboardOnScroll()
+            .simultaneousGesture(
+                DragGesture().onChanged { _ in
+                    // Dismiss keyboard when user starts scrolling
+                    isSearchFocused = false
+                }
+            )
 
             // Sticky bottom toolbar for selection actions
             if isSelectionMode && !selectedImages.isEmpty {
@@ -375,8 +386,10 @@ struct GalleryView: View {
                 .font(.system(size: 16, weight: .medium))
 
             TextField("Search your creations...", text: $searchText)
+                .textFieldStyle(.plain)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
+                .focused($isSearchFocused)
                 .onChange(of: searchText) {
                     print("🔍 DEBUG: SearchText changed to: '\(searchText)' (TextField #1)")
                     handleSearchTextChange()
@@ -399,7 +412,15 @@ struct GalleryView: View {
         }
         .padding(.horizontal, AppSpacing.md)
         .padding(.vertical, AppSpacing.sm)
-        .background(AppColors.surfaceLight.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        .background(AppColors.backgroundLight)
+        .cornerRadius(AppSizing.cornerRadius.round)
+        .overlay(
+            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.round)
+                .stroke(
+                    isSearchFocused ? AppColors.primaryBlue : AppColors.borderLight,
+                    lineWidth: isSearchFocused ? 2 : 1
+                )
+        )
         .animation(.easeInOut(duration: 0.2), value: searchText.isEmpty)
         .padding(.horizontal, AppSpacing.md)
         .padding(.bottom, AppSpacing.sm)
@@ -842,7 +863,15 @@ struct GalleryView: View {
 
             // Categories filter could go here in the future
         }
-        .cardStyle()
+        .padding(AppSpacing.cardPadding.inner)
+        .background(AppColors.surfaceLight)
+        .cornerRadius(AppSizing.cornerRadius.round)
+        .shadow(
+            color: Color.black.opacity(AppSizing.shadows.small.opacity),
+            radius: AppSizing.shadows.small.radius,
+            x: AppSizing.shadows.small.x,
+            y: AppSizing.shadows.small.y
+        )
     }
 
     // MARK: - Modern Filters View
@@ -869,8 +898,10 @@ struct GalleryView: View {
                 .font(.system(size: 16, weight: .medium))
 
             TextField("Search your creations...", text: $searchText)
+                .textFieldStyle(.plain)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
+                .focused($isSearchFocused)
                 .onChange(of: searchText) {
                     print("🔍 DEBUG: SearchText changed to: '\(searchText)' (Main SearchBar)")
                     handleSearchTextChange()
@@ -893,7 +924,15 @@ struct GalleryView: View {
         }
         .padding(.horizontal, AppSpacing.md)
         .padding(.vertical, AppSpacing.sm)
-        .background(AppColors.surfaceLight.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+        .background(AppColors.backgroundLight)
+        .cornerRadius(AppSizing.cornerRadius.round)
+        .overlay(
+            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.round)
+                .stroke(
+                    isSearchFocused ? AppColors.primaryBlue : AppColors.borderLight,
+                    lineWidth: isSearchFocused ? 2 : 1
+                )
+        )
         .animation(.easeInOut(duration: 0.2), value: searchText.isEmpty)
     }
 
@@ -1270,6 +1309,27 @@ struct GalleryView: View {
                 self.error = error
                 showingError = true
                 isLoading = false
+            }
+        }
+    }
+
+    // MARK: - Pull to Refresh
+    private func refreshGallery() async {
+        // Reset pagination and reload first page
+        currentPage = 1
+
+        do {
+            let response = try await loadImagesPage(page: currentPage)
+
+            await MainActor.run {
+                images = response.images
+                totalImages = response.total
+                hasMorePages = (response.page * response.limit) < response.total
+            }
+        } catch {
+            await MainActor.run {
+                self.error = error
+                showingError = true
             }
         }
     }
