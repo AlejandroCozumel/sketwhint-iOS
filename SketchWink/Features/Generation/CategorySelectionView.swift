@@ -160,7 +160,7 @@ struct CategorySelectionView: View {
 
             // Grid of skeleton cards
             LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.itemSpacing) {
-                ForEach(0..<4, id: \.self) { _ in
+                ForEach(0..<6, id: \.self) { _ in
                     SkeletonCategoryCard()
                 }
             }
