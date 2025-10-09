@@ -262,11 +262,14 @@ extension View {
         foregroundColor: Color = .white
     ) -> some View {
         self
+            .font(AppTypography.titleMedium)
+            .fontWeight(.semibold)
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, AppSpacing.buttonPadding.large.horizontal)
             .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
             .background(backgroundColor)
             .foregroundColor(foregroundColor)
-            .cornerRadius(AppSizing.cornerRadius.lg)
+            .clipShape(Capsule())
             .shadow(
                 color: Color.black.opacity(AppSizing.shadows.medium.opacity),
                 radius: AppSizing.shadows.medium.radius,

@@ -262,54 +262,53 @@ struct ProfilesView: View {
     private var profileManagementView: some View {
         VStack(spacing: AppSpacing.sectionSpacing) {
 
-            // Header with stats
-            profilesHeaderView
+            // Combined Plan Information Card
+            planInformationCard
 
             // Profiles Grid
             profilesGrid
 
-            // Plan limits info
-            planLimitsView
+            // Add Profile Button
+            addProfileButton
 
             // Account section
             accountSection
         }
     }
-    
-    // MARK: - Profiles Header
-    private var profilesHeaderView: some View {
+
+    // MARK: - Plan Information Card
+    private var planInformationCard: some View {
         HStack {
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                Text("Family Profiles")
-                    .headlineLarge()
+                Text("Plan Information")
+                    .headlineMedium()
                     .foregroundColor(AppColors.textPrimary)
-                
-                Text("\(profiles.count) of \(userPermissions?.maxFamilyProfiles ?? 1) profiles created")
-                    .captionLarge()
-                    .foregroundColor(AppColors.textSecondary)
+
+                if let permissions = userPermissions {
+                    Text("\(profiles.count) of \(permissions.maxFamilyProfiles) profiles available")
+                        .captionLarge()
+                        .foregroundColor(AppColors.textSecondary)
+                }
             }
-            
+
             Spacer()
-            
-            Button {
-                if canCreateProfile {
-                    showingCreateProfile = true
-                } else {
-                    handleProfileCreationLimit()
-                }
-            } label: {
+
+            // Plan Badge
+            if let permissions = userPermissions {
                 HStack(spacing: AppSpacing.xs) {
-                    Image(systemName: canCreateProfile ? "plus.circle.fill" : (isFreePlan ? "lock.circle.fill" : "exclamationmark.circle.fill"))
-                    Text(canCreateProfile ? "Add Profile" : (isFreePlan ? "Upgrade to Add" : "Limit Reached"))
+                    Text(permissions.planName)
+                        .font(AppTypography.captionLarge)
+                        .fontWeight(.semibold)
+
+                    Text(planEmoji)
+                        .font(.system(size: 16))
                 }
-                .font(AppTypography.titleMedium)
-                .foregroundColor(.white)
+                .foregroundColor(planBadgeColor)
                 .padding(.horizontal, AppSpacing.md)
                 .padding(.vertical, AppSpacing.sm)
-                .background(canCreateProfile ? AppColors.primaryBlue : AppColors.warningOrange)
+                .background(planBadgeColor.opacity(0.1))
                 .cornerRadius(AppSizing.cornerRadius.lg)
             }
-            .childSafeTouchTarget()
         }
         .cardStyle()
     }
@@ -325,7 +324,7 @@ struct ProfilesView: View {
                     canEdit: currentProfile?.isDefault == true,
                     onTap: {
                         // Switch to profile
-                        
+
                         if profile.hasPin {
                             #if DEBUG
                             print("   - Showing PIN entry for \(profile.name)")
@@ -349,59 +348,39 @@ struct ProfilesView: View {
             }
         }
     }
-    
-    // MARK: - Plan Limits
-    private var planLimitsView: some View {
-        Group {
-            if let permissions = userPermissions {
-                VStack(spacing: AppSpacing.md) {
-                    HStack {
-                        Text("Plan Information")
-                            .headlineMedium()
-                            .foregroundColor(AppColors.textPrimary)
-                        Spacer()
-                    }
-                    
-                    VStack(spacing: AppSpacing.sm) {
-                        PlanInfoRow(
-                            icon: "person.2.fill",
-                            title: "Family Profiles",
-                            value: "\(permissions.maxFamilyProfiles) profiles",
-                            current: "\(profiles.count) used"
-                        )
-                        
-                        if profiles.count >= permissions.maxFamilyProfiles {
-                            HStack {
-                                Image(systemName: "info.circle")
-                                    .foregroundColor(AppColors.warningOrange)
-                                
-                                VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                                    if isFreePlan {
-                                        Text("Upgrade your plan to add more family profiles")
-                                            .captionMedium()
-                                            .foregroundColor(AppColors.textSecondary)
-                                        
-                                        Button("View Plans") {
-                                            highlightedFeature = "Family Profiles"
-                                            showingSubscriptionPlans = true
-                                        }
-                                        .font(AppTypography.captionLarge)
-                                        .foregroundColor(AppColors.primaryBlue)
-                                    } else {
-                                        Text("You've reached the maximum of \(permissions.maxFamilyProfiles) family profiles")
-                                            .captionMedium()
-                                            .foregroundColor(AppColors.textSecondary)
-                                    }
-                                }
-                                
-                                Spacer()
-                            }
-                        }
-                    }
+
+    // MARK: - Add Profile Button
+    private var addProfileButton: some View {
+        VStack(spacing: AppSpacing.sm) {
+            Button {
+                if canCreateProfile {
+                    showingCreateProfile = true
+                } else {
+                    handleProfileCreationLimit()
                 }
-                .cardStyle()
+            } label: {
+                HStack(spacing: AppSpacing.sm) {
+                    Image(systemName: canCreateProfile ? "plus" : (isFreePlan ? "lock.fill" : "exclamationmark.triangle.fill"))
+
+                    Text(canCreateProfile ? "Add Family Profile" : (isFreePlan ? "Upgrade to Add Profiles" : "Profile Limit Reached"))
+                }
+            }
+            .largeButtonStyle(backgroundColor: canCreateProfile ? AppColors.primaryBlue : AppColors.warningOrange)
+            .childSafeTouchTarget()
+
+            if !canCreateProfile && isFreePlan {
+                Text("Upgrade your plan to create more family profiles")
+                    .captionLarge()
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            } else if !canCreateProfile {
+                Text("You've reached the maximum profiles for your plan")
+                    .captionLarge()
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
             }
         }
+        .contentPadding()
     }
 
     // MARK: - Account Section
@@ -451,16 +430,10 @@ struct ProfilesView: View {
                 }
 
                 // Sign Out Button
-                Button(action: { showingSignOutAlert = true }) {
-                    Text("Sign Out")
-                        .font(AppTypography.bodyMedium)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, AppSpacing.md)
-                        .background(AppColors.errorRed)
-                        .clipShape(Capsule())
+                Button("Sign Out") {
+                    showingSignOutAlert = true
                 }
+                .largeButtonStyle(backgroundColor: AppColors.errorRed)
                 .childSafeTouchTarget()
 
                 Text("You can always sign back in anytime")
@@ -474,15 +447,15 @@ struct ProfilesView: View {
 
     // MARK: - Computed Properties
     private var canCreateProfile: Bool {
-        guard let permissions = userPermissions else { 
+        guard let permissions = userPermissions else {
             #if DEBUG
             print("🚨 ProfilesView: userPermissions is nil, denying profile creation")
             #endif
-            return false 
+            return false
         }
-        
+
         let canCreate = profiles.count < permissions.maxFamilyProfiles
-        
+
         #if DEBUG
         print("🔍 ProfilesView: canCreateProfile check:")
         print("   - Current profiles: \(profiles.count)")
@@ -490,21 +463,59 @@ struct ProfilesView: View {
         print("   - Can create: \(canCreate)")
         print("   - Plan: \(permissions.planName)")
         #endif
-        
+
         return canCreate
     }
-    
+
     private var isFreePlan: Bool {
         guard let permissions = userPermissions else { return true }
         let isFree = permissions.maxFamilyProfiles <= 1
-        
+
         #if DEBUG
         print("🔍 ProfilesView: isFreePlan check:")
         print("   - Max profiles: \(permissions.maxFamilyProfiles)")
         print("   - Is free plan: \(isFree)")
         #endif
-        
+
         return isFree
+    }
+
+    private var planEmoji: String {
+        guard let permissions = userPermissions else { return "📦" }
+        let planName = permissions.planName.lowercased()
+
+        if planName.contains("free") {
+            return "📦"
+        } else if planName.contains("basic") {
+            return "⭐"
+        } else if planName.contains("pro") {
+            return "💎"
+        } else if planName.contains("max") {
+            return "👑"
+        } else if planName.contains("business") {
+            return "🏢"
+        } else {
+            return "✨"
+        }
+    }
+
+    private var planBadgeColor: Color {
+        guard let permissions = userPermissions else { return AppColors.textSecondary }
+        let planName = permissions.planName.lowercased()
+
+        if planName.contains("free") {
+            return AppColors.textSecondary
+        } else if planName.contains("basic") {
+            return AppColors.primaryBlue
+        } else if planName.contains("pro") {
+            return AppColors.primaryPurple
+        } else if planName.contains("max") {
+            return AppColors.warningOrange
+        } else if planName.contains("business") {
+            return AppColors.primaryPink
+        } else {
+            return AppColors.primaryBlue
+        }
     }
     
     // MARK: - Methods
