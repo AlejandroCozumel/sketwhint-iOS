@@ -137,6 +137,15 @@ struct BedtimeStory: Codable, Identifiable {
     let playCount: Int
     let status: String
     let createdAt: String
+    let wordTimestamps: String? // JSON string with word-level timestamps for synchronized highlighting
+}
+
+// MARK: - Word Timestamp Models
+
+struct WordTimestamp: Codable {
+    let word: String
+    let start: Double // Start time in seconds
+    let end: Double   // End time in seconds
 }
 
 struct BedtimeStoriesResponse: Codable {

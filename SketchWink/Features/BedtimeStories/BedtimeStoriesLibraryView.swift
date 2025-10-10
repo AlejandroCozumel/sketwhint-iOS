@@ -10,6 +10,7 @@ struct BedtimeStoriesLibraryView: View {
     @State private var showCreateStory = false
     @State private var showSubscriptionPlans = false
     @State private var showingProfileMenu = false
+    @State private var isLoadingStoryDetails = false
 
     // Filters
     @State private var showFavoritesOnly = false
@@ -118,7 +119,9 @@ struct BedtimeStoriesLibraryView: View {
             LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.itemSpacing) {
                 ForEach(service.stories) { story in
                     StoryCard(story: story) {
-                        selectedStory = story
+                        Task {
+                            await openStoryPlayer(storyId: story.id)
+                        }
                     } onFavorite: {
                         Task {
                             await toggleFavorite(story)
@@ -261,6 +264,39 @@ struct BedtimeStoriesLibraryView: View {
     private func applyFilters() {
         Task {
             await loadStories()
+        }
+    }
+
+    private func openStoryPlayer(storyId: String) async {
+        isLoadingStoryDetails = true
+
+        do {
+            #if DEBUG
+            print("🎯 BedtimeStoriesLibraryView: Fetching full story details for ID: \(storyId)")
+            #endif
+
+            let fullStory = try await service.getStory(id: storyId)
+
+            #if DEBUG
+            print("✅ BedtimeStoriesLibraryView: Full story loaded")
+            print("   - Title: \(fullStory.title)")
+            print("   - Has storyText: \(fullStory.storyText != nil)")
+            if let storyText = fullStory.storyText {
+                print("   - StoryText length: \(storyText.count) chars")
+            }
+            print("   - Has wordTimestamps: \(fullStory.wordTimestamps != nil)")
+            if let timestamps = fullStory.wordTimestamps {
+                print("   - WordTimestamps length: \(timestamps.count) chars")
+            }
+            #endif
+
+            await MainActor.run {
+                selectedStory = fullStory
+                isLoadingStoryDetails = false
+            }
+        } catch {
+            print("❌ Error loading story details: \(error)")
+            isLoadingStoryDetails = false
         }
     }
 

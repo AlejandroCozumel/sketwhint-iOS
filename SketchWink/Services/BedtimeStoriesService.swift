@@ -371,10 +371,23 @@ class BedtimeStoriesService: ObservableObject {
             throw BedtimeStoryError.httpError(httpResponse.statusCode)
         }
 
+        #if DEBUG
+        print("📥 BedtimeStoriesService: Raw API Response:")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print(responseString)
+        }
+        #endif
+
         let storiesResponse = try JSONDecoder().decode(BedtimeStoriesResponse.self, from: data)
 
         #if DEBUG
-        print("✅ BedtimeStoriesService: Loaded \(storiesResponse.stories.count) stories")
+        print("✅ BedtimeStoriesService: Loaded \(storiesResponse.stories.count) stories (list view - no storyText/wordTimestamps)")
+        for (index, story) in storiesResponse.stories.enumerated() {
+            print("   Story \(index + 1): \(story.title)")
+            print("      - ID: \(story.id)")
+            print("      - Duration: \(story.duration)s")
+            print("      - Theme: \(story.theme ?? "none")")
+        }
         #endif
 
         await MainActor.run {
@@ -400,6 +413,12 @@ class BedtimeStoriesService: ObservableObject {
             request.setValue(profileId, forHTTPHeaderField: "X-Profile-ID")
         }
 
+        #if DEBUG
+        print("📖 BedtimeStoriesService: Fetching single story from \(url)")
+        print("   - Story ID: \(id)")
+        print("   - Token: \(token.prefix(20))...")
+        #endif
+
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -407,13 +426,43 @@ class BedtimeStoriesService: ObservableObject {
         }
 
         guard 200...299 ~= httpResponse.statusCode else {
+            #if DEBUG
+            print("❌ BedtimeStoriesService getStory: HTTP Error \(httpResponse.statusCode)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("   - Response: \(responseString)")
+            }
+            #endif
+
             if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
                 throw BedtimeStoryError.apiError(apiError.userMessage)
             }
             throw BedtimeStoryError.httpError(httpResponse.statusCode)
         }
 
+        #if DEBUG
+        print("📥 BedtimeStoriesService getStory: Raw API Response:")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print(responseString)
+        }
+        #endif
+
         let storyResponse = try JSONDecoder().decode(SingleBedtimeStoryResponse.self, from: data)
+
+        #if DEBUG
+        print("✅ BedtimeStoriesService: Single story loaded")
+        print("   - Title: \(storyResponse.story.title)")
+        print("   - Has storyText: \(storyResponse.story.storyText != nil)")
+        if let storyText = storyResponse.story.storyText {
+            print("   - StoryText length: \(storyText.count) chars")
+            print("   - First 200 chars: \(String(storyText.prefix(200)))")
+        }
+        print("   - Has wordTimestamps: \(storyResponse.story.wordTimestamps != nil)")
+        if let timestamps = storyResponse.story.wordTimestamps {
+            print("   - WordTimestamps length: \(timestamps.count) chars")
+            print("   - First 200 chars: \(String(timestamps.prefix(200)))")
+        }
+        #endif
+
         return storyResponse.story
     }
 
