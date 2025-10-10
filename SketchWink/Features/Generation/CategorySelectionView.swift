@@ -21,6 +21,7 @@ struct CategorySelectionView: View {
     @State private var showingProfileMenu = false
     @State private var showPainting = false
     @State private var showSubscriptionPlans = false
+    @State private var showBedtimeStories = false
     
     
     var body: some View {
@@ -32,8 +33,11 @@ struct CategorySelectionView: View {
                     // Categories Grid
                     categoriesGridView
 
-                    // Books Section (Separate Product Categories)
-                    booksSection
+                    // Bedtime Stories Section
+                    bedtimeStoriesSection
+
+                    // Books Section (Commented Out - Not Ready)
+                    // booksSection
                 }
             }
             .pageMargins()
@@ -61,6 +65,11 @@ struct CategorySelectionView: View {
         .fullScreenCover(isPresented: $showPainting) {
             NavigationView {
                 PaintingView()
+            }
+        }
+        .sheet(isPresented: $showBedtimeStories) {
+            NavigationView {
+                BedtimeStoriesCreateView()
             }
         }
         .task {
@@ -207,7 +216,106 @@ struct CategorySelectionView: View {
         }
     }
     
-    // MARK: - Books Section
+    // MARK: - Bedtime Stories Section
+    private var bedtimeStoriesSection: some View {
+        VStack(alignment: .center, spacing: AppSpacing.md) {
+            Text("Bedtime Stories")
+                .font(AppTypography.categoryTitle)
+                .foregroundColor(AppColors.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, 10)
+
+            Button(action: {
+                showBedtimeStories = true
+            }) {
+                HStack(spacing: AppSpacing.md) {
+                    // Left: Icon
+                    Circle()
+                        .fill(Color(hex: "#6366F1").opacity(0.2))
+                        .frame(width: 64, height: 64)
+                        .overlay(
+                            Text("🌙")
+                                .font(.system(size: 32))
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(Color(hex: "#6366F1").opacity(0.3), lineWidth: 2)
+                        )
+
+                    // Center: Main Content
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        HStack {
+                            Text("AI Bedtime Stories")
+                                .titleMedium()
+                                .foregroundColor(AppColors.textPrimary)
+
+                            Spacer()
+
+                            // Badge
+                            Text("Audio")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(Color(hex: "#6366F1"))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color(hex: "#6366F1").opacity(0.15))
+                                .cornerRadius(8)
+                        }
+
+                        Text("Create personalized bedtime stories with AI voices and soothing images")
+                            .bodyMedium()
+                            .foregroundColor(AppColors.textSecondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+
+                        // Additional info row
+                        HStack {
+                            HStack(spacing: 4) {
+                                Image(systemName: "star.fill")
+                                    .foregroundColor(AppColors.warningOrange)
+                                    .font(.system(size: 12))
+                                Text("5-10 tokens")
+                                    .captionLarge()
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            HStack(spacing: 4) {
+                                Image(systemName: "waveform")
+                                    .foregroundColor(AppColors.primaryBlue)
+                                    .font(.system(size: 12))
+                                Text("Audio Story")
+                                    .captionLarge()
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .padding(AppSpacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                        .fill(Color(hex: "#6366F1").opacity(0.05))
+                        .shadow(
+                            color: Color(hex: "#6366F1").opacity(0.1),
+                            radius: 8,
+                            x: 0,
+                            y: 4
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                                .stroke(Color(hex: "#6366F1").opacity(0.2), lineWidth: 1)
+                        )
+                )
+            }
+            .childSafeTouchTarget()
+        }
+    }
+
+    // MARK: - Books Section (Commented Out)
+    /*
     private var booksSection: some View {
         VStack(alignment: .center, spacing: AppSpacing.md) {
             Text("Story Books")
@@ -249,7 +357,8 @@ struct CategorySelectionView: View {
             }
         }
     }
-    
+    */
+
     // MARK: - Methods
     private func generateBookWithDefaults(for draft: StoryDraft) async {
         #if DEBUG

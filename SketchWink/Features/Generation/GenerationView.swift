@@ -149,7 +149,7 @@ struct GenerationView: View {
             scrollContent
                 .background(AppColors.backgroundLight)
                 .navigationTitle(selectedCategory?.category.name ?? "Create Art")
-                .navigationBarTitleDisplayMode(.large)
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         doneButton

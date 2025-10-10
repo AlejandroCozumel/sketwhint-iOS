@@ -33,11 +33,21 @@ struct MainAppView: View {
             }
             .tag(1)
 
+            // MARK: - Books Tab (Commented Out - Not Ready Yet)
+            // NavigationStack {
+            //     BooksView()
+            // }
+            // .tabItem {
+            //     Label("Books", systemImage: "book.fill")
+            // }
+            // .tag(2)
+
+            // MARK: - Stories Tab (Bedtime Stories)
             NavigationStack {
-                BooksView()
+                BedtimeStoriesLibraryView()
             }
             .tabItem {
-                Label("Books", systemImage: "book.fill")
+                Label("Stories", systemImage: "moon.stars.fill")
             }
             .tag(2)
 
