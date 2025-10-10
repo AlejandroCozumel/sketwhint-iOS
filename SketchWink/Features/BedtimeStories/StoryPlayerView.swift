@@ -506,10 +506,9 @@ class LyricsAudioPlayer: ObservableObject {
             #endif
         }
 
-        // Fast lookup from cache
+        // 🎨 Highlight current word with vibrant orange (no bold)
         if let cachedRange = wordPositionCache?[safe: currentWordIndex]?.range {
-            attributed[cachedRange].foregroundColor = Color(hex: "#6366F1")
-            attributed[cachedRange].font = .system(size: 20, weight: .bold, design: .rounded)
+            attributed[cachedRange].foregroundColor = Color(hex: "#EA580C") // Vibrant orange-600
         }
 
         return attributed
