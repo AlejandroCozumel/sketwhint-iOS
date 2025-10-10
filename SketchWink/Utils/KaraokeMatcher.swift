@@ -139,7 +139,7 @@ struct KaraokeMatcher {
         return result
     }
 
-    /// Find current word index based on audio playback time
+    /// Find current word index based on audio playback time (Apple Music style)
     /// - Parameters:
     ///   - currentTime: Current audio playback time in seconds
     ///   - karaokeWords: Array of matched karaoke words
@@ -150,26 +150,37 @@ struct KaraokeMatcher {
     ) -> Int {
         guard !karaokeWords.isEmpty else { return -1 }
 
-        // Binary search for current word
+        // 🎵 APPLE MUSIC STRATEGY: Binary search with look-ahead
+        // A word is "active" from its start time until the NEXT word starts
+        // This eliminates gaps between words and prevents skipping
+
+        // Before first word
+        if currentTime < karaokeWords[0].start {
+            return -1
+        }
+
+        // After last word
+        if currentTime >= karaokeWords[karaokeWords.count - 1].start {
+            return karaokeWords.count - 1
+        }
+
+        // Binary search to find the word whose start time is <= currentTime
+        // and the next word's start time is > currentTime
         var left = 0
         var right = karaokeWords.count - 1
-        var found = -1
 
-        while left <= right {
-            let mid = (left + right) / 2
-            let word = karaokeWords[mid]
+        while left < right {
+            let mid = (left + right + 1) / 2  // Round up to avoid infinite loop
 
-            if currentTime >= word.start && currentTime < word.end {
-                found = mid
-                break
-            } else if currentTime < word.start {
-                right = mid - 1
+            if karaokeWords[mid].start <= currentTime {
+                left = mid
             } else {
-                left = mid + 1
+                right = mid - 1
             }
         }
 
-        return found
+        // At this point, left == right and points to the active word
+        return left
     }
 }
 

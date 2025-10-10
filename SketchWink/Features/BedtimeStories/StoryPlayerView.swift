@@ -222,6 +222,10 @@ struct StoryPlayerView: View {
                             .multilineTextAlignment(.leading)
                             .padding(.horizontal, AppSpacing.lg)
                             .id("story-text")
+                            .onAppear {
+                                // 🚀 OPTIMIZATION: Prepare karaoke sync on first appearance
+                                audioPlayer.prepareKaraokeSync(with: storyText)
+                            }
                     }
 
                     // Bottom spacing
@@ -321,6 +325,10 @@ class LyricsAudioPlayer: ObservableObject {
     let hasLyrics: Bool
     let words: [WordTimestamp]
 
+    // 🚀 OPTIMIZATION: Pre-computed word position cache (Apple Music style)
+    private var wordPositionCache: [(range: Range<AttributedString.Index>, word: String)]?
+    private var karaokeWords: [KaraokeWord] = []
+
     private var player: AVPlayer?
     private var timeObserver: Any?
     private var updateTimer: Timer?
@@ -355,8 +363,9 @@ class LyricsAudioPlayer: ObservableObject {
 
         player = AVPlayer(url: url)
 
-        // Observe playback time
-        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        // 🚀 CRITICAL FIX: High-precision time observer for smooth karaoke sync
+        // Apple Music uses ~10-30ms intervals for lyrics synchronization
+        let interval = CMTime(seconds: 0.02, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self = self else { return }
 
@@ -445,27 +454,37 @@ class LyricsAudioPlayer: ObservableObject {
 
     // MARK: - Lyrics Synchronization
     private func startLyricsSync() {
-        // Update current word every 0.1 seconds (10 times per second)
-        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        // 🚀 OPTIMIZATION: 60fps update rate (16.67ms) - Apple Music style
+        // High refresh rate ensures no missed words and instant visual feedback
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.0167, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updateCurrentWord()
             }
         }
+
+        #if DEBUG
+        print("⚡ Lyrics sync started: 60fps (16.67ms intervals)")
+        #endif
     }
 
     private func updateCurrentWord() {
-        guard hasLyrics, !words.isEmpty else { return }
+        guard hasLyrics, !karaokeWords.isEmpty else { return }
 
-        let time = currentTime
+        // 🚀 OPTIMIZATION: Binary search O(log n) with look-ahead strategy
+        // Words stay highlighted until the next word starts (no gaps)
+        let newIndex = KaraokeMatcher.findCurrentWordIndex(
+            currentTime: currentTime,
+            karaokeWords: karaokeWords
+        )
 
-        // Find which word is currently playing
-        for (index, word) in words.enumerated() {
-            if time >= word.start && time < word.end {
-                if currentWordIndex != index {
-                    currentWordIndex = index
-                }
-                return
-            }
+        // Update immediately when word changes
+        if newIndex != currentWordIndex && newIndex != -1 {
+            currentWordIndex = newIndex
+
+            #if DEBUG
+            let word = karaokeWords[newIndex]
+            print("🎯 Word [\(newIndex)]: '\(word.originalWord)' at \(String(format: "%.3f", currentTime))s (start: \(String(format: "%.3f", word.start))s)")
+            #endif
         }
     }
 
@@ -474,85 +493,99 @@ class LyricsAudioPlayer: ObservableObject {
         var attributed = AttributedString(storyText)
 
         // If no lyrics or invalid index, return plain text
-        guard hasLyrics, currentWordIndex >= 0, currentWordIndex < words.count else {
+        guard hasLyrics, currentWordIndex >= 0, currentWordIndex < karaokeWords.count else {
             return attributed
         }
 
-        // Find the current word in the full text using position mapping
-        if let range = findWordRangeByPosition(at: currentWordIndex, in: storyText) {
-            // Highlight the current word
-            attributed[range].foregroundColor = Color(hex: "#6366F1")
-            attributed[range].font = .system(size: 20, weight: .bold, design: .rounded)
+        // 🚀 OPTIMIZATION: Use pre-computed cache instead of rebuilding every time
+        if wordPositionCache == nil {
+            wordPositionCache = buildWordPositionCache(for: storyText)
+
+            #if DEBUG
+            print("📦 Word position cache built: \(wordPositionCache?.count ?? 0) words")
+            #endif
+        }
+
+        // Fast lookup from cache
+        if let cachedRange = wordPositionCache?[safe: currentWordIndex]?.range {
+            attributed[cachedRange].foregroundColor = Color(hex: "#6366F1")
+            attributed[cachedRange].font = .system(size: 20, weight: .bold, design: .rounded)
         }
 
         return attributed
     }
 
-    private func findWordRangeByPosition(at index: Int, in text: String) -> Range<AttributedString.Index>? {
-        // Build a map of word positions in the story text
-        // Replace newlines with spaces to match how Whisper sees the text
+    // 🚀 OPTIMIZATION: Build word position cache once (Apple Music approach)
+    private func buildWordPositionCache(for text: String) -> [(range: Range<AttributedString.Index>, word: String)] {
+        var cache: [(range: Range<AttributedString.Index>, word: String)] = []
+        let attributedText = AttributedString(text)
+
+        // Replace newlines with spaces to match Whisper's view
         let cleanedText = text.replacingOccurrences(of: "\n", with: " ")
         var wordPositions: [(word: String, range: Range<String.Index>)] = []
 
-        // Split text into words while preserving their positions
-        var currentIndex = cleanedText.startIndex
+        // Parse all word positions in one pass
         var currentWord = ""
         var wordStart: String.Index?
 
         for charIndex in cleanedText.indices {
             let char = cleanedText[charIndex]
 
-            // Include apostrophes for contractions (I'll, you've, don't, etc.)
             if char.isLetter || char.isNumber || char == "'" {
                 if wordStart == nil {
                     wordStart = charIndex
                 }
                 currentWord.append(char)
             } else {
-                // End of word
                 if !currentWord.isEmpty, let start = wordStart {
-                    let end = charIndex
-                    wordPositions.append((word: currentWord, range: start..<end))
+                    wordPositions.append((word: currentWord, range: start..<charIndex))
                     currentWord = ""
                     wordStart = nil
                 }
             }
         }
 
-        // Handle last word if text doesn't end with punctuation
+        // Handle last word
         if !currentWord.isEmpty, let start = wordStart {
             wordPositions.append((word: currentWord, range: start..<cleanedText.endIndex))
         }
 
-        // Validate index is within bounds
-        guard index >= 0 && index < wordPositions.count else {
-            return nil
+        // Convert to AttributedString ranges
+        for position in wordPositions {
+            let startOffset = cleanedText.distance(from: cleanedText.startIndex, to: position.range.lowerBound)
+            let endOffset = cleanedText.distance(from: cleanedText.startIndex, to: position.range.upperBound)
+
+            let rangeStart = attributedText.index(attributedText.startIndex, offsetByCharacters: startOffset)
+            let rangeEnd = attributedText.index(attributedText.startIndex, offsetByCharacters: endOffset)
+
+            cache.append((range: rangeStart..<rangeEnd, word: position.word))
         }
 
-        // Get the word from timestamps
-        let timestampWord = words[index].word.lowercased()
+        return cache
+    }
 
-        // Find matching word at this position (allow some tolerance for mismatches)
-        let position = wordPositions[index]
-        let textWord = position.word.lowercased()
+    // 🚀 OPTIMIZATION: Initialize karaoke words for binary search
+    func prepareKaraokeSync(with storyText: String) {
+        guard hasLyrics else { return }
 
-        // Verify words match (case-insensitive)
-        guard timestampWord == textWord else {
-            #if DEBUG
-            print("⚠️ Word mismatch at index \(index): timestamp='\(timestampWord)' text='\(textWord)'")
-            #endif
-            return nil
+        // Convert WordTimestamp to KaraokeWord for binary search compatibility
+        karaokeWords = words.enumerated().map { index, timestamp in
+            KaraokeWord(
+                originalWord: timestamp.word,
+                normalizedWord: timestamp.word.lowercased(),
+                start: timestamp.start,
+                end: timestamp.end,
+                index: index
+            )
         }
 
-        // Convert String.Range to AttributedString.Range
-        let attributedText = AttributedString(text)
-        let startOffset = cleanedText.distance(from: cleanedText.startIndex, to: position.range.lowerBound)
-        let endOffset = cleanedText.distance(from: cleanedText.startIndex, to: position.range.upperBound)
-
-        let rangeStart = attributedText.index(attributedText.startIndex, offsetByCharacters: startOffset)
-        let rangeEnd = attributedText.index(attributedText.startIndex, offsetByCharacters: endOffset)
-
-        return rangeStart..<rangeEnd
+        #if DEBUG
+        print("🎼 Karaoke words prepared: \(karaokeWords.count) words")
+        if let first = karaokeWords.first, let last = karaokeWords.last {
+            print("   - First word: '\(first.originalWord)' at \(String(format: "%.2f", first.start))s")
+            print("   - Last word: '\(last.originalWord)' at \(String(format: "%.2f", last.end))s")
+        }
+        #endif
     }
 
     deinit {
@@ -561,5 +594,12 @@ class LyricsAudioPlayer: ObservableObject {
         }
         updateTimer?.invalidate()
         player = nil
+    }
+}
+
+// MARK: - Array Safe Subscript Extension
+extension Array {
+    subscript(safe index: Int) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
