@@ -490,7 +490,8 @@ class LyricsAudioPlayer: ObservableObject {
 
     private func findWordRangeByPosition(at index: Int, in text: String) -> Range<AttributedString.Index>? {
         // Build a map of word positions in the story text
-        let cleanedText = text
+        // Replace newlines with spaces to match how Whisper sees the text
+        let cleanedText = text.replacingOccurrences(of: "\n", with: " ")
         var wordPositions: [(word: String, range: Range<String.Index>)] = []
 
         // Split text into words while preserving their positions
@@ -501,7 +502,8 @@ class LyricsAudioPlayer: ObservableObject {
         for charIndex in cleanedText.indices {
             let char = cleanedText[charIndex]
 
-            if char.isLetter || char.isNumber {
+            // Include apostrophes for contractions (I'll, you've, don't, etc.)
+            if char.isLetter || char.isNumber || char == "'" {
                 if wordStart == nil {
                     wordStart = charIndex
                 }

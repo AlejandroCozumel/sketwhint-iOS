@@ -14,10 +14,10 @@ struct AppConfig {
     // MARK: - API Configuration
     struct API {
         #if DEBUG
-        static let baseURL = "https://api.sketchwink.com/api"  // TUNNEL URL for SSE support
-        // static let baseURL = "http://127.0.0.1:3000/api"  // Use this only if not using SSE
+        //static let baseURL = "https://api.sketchwink.com/api"  // TUNNEL URL for SSE support
+         static let baseURL = "http://127.0.0.1:3000/api"  // Use this only if not using SSE
         #else
-        static let baseURL = "https://api.sketchwink.com/api"
+        static let baseURL = "http://127.0.0.1:3000/api"
         #endif
 
         static let timeout: TimeInterval = 30
