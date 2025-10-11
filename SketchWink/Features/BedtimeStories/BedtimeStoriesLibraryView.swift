@@ -17,22 +17,26 @@ struct BedtimeStoriesLibraryView: View {
     @State private var selectedTheme: String?
     @State private var searchText = ""
 
+    // Local stories array (managed by view, not service)
+    @State private var stories: [BedtimeStory] = []
+
     // Pagination
     @State private var currentPage = 1
     @State private var isLoading = false
     @State private var hasMorePages = true
+    @State private var isRefreshing = false
 
     var body: some View {
         VStack(spacing: 0) {
             // Filter chips
-            if !service.stories.isEmpty || showFavoritesOnly {
+            if !stories.isEmpty || showFavoritesOnly {
                 filterChipsView
             }
 
             // Stories grid or empty state
-            if isLoading && service.stories.isEmpty {
+            if isLoading && stories.isEmpty {
                 loadingView
-            } else if service.stories.isEmpty {
+            } else if stories.isEmpty {
                 emptyStateView
             } else {
                 storiesGridView
@@ -87,7 +91,7 @@ struct BedtimeStoriesLibraryView: View {
                 }
 
                 // Theme filters (if available)
-                ForEach(Array(Set(service.stories.compactMap { $0.theme })), id: \.self) { theme in
+                ForEach(Array(Set(stories.compactMap { $0.theme })), id: \.self) { theme in
                     FilterChip(
                         title: theme,
                         icon: "book.fill",
@@ -111,7 +115,7 @@ struct BedtimeStoriesLibraryView: View {
     private var storiesGridView: some View {
         ScrollView {
             LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.itemSpacing) {
-                ForEach(service.stories) { story in
+                ForEach(stories) { story in
                     StoryCard(story: story) {
                         Task {
                             await openStoryPlayer(storyId: story.id)
@@ -123,8 +127,8 @@ struct BedtimeStoriesLibraryView: View {
                     }
                 }
 
-                // Load more indicator
-                if hasMorePages && !isLoading {
+                // Load more indicator (only if not refreshing)
+                if hasMorePages && !isLoading && !isRefreshing {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, AppSpacing.md)
@@ -211,7 +215,6 @@ struct BedtimeStoriesLibraryView: View {
 
         isLoading = true
         currentPage = 1
-        hasMorePages = true
 
         do {
             let response = try await service.getStories(
@@ -219,7 +222,11 @@ struct BedtimeStoriesLibraryView: View {
                 favorites: showFavoritesOnly ? true : nil,
                 theme: selectedTheme
             )
-            hasMorePages = response.pagination.page < response.pagination.totalPages
+
+            await MainActor.run {
+                stories = response.stories
+                hasMorePages = response.pagination.page < response.pagination.totalPages
+            }
         } catch {
             print("❌ Error loading stories: \(error)")
         }
@@ -241,10 +248,13 @@ struct BedtimeStoriesLibraryView: View {
             )
 
             await MainActor.run {
-                service.stories.append(contentsOf: response.stories)
+                stories.append(contentsOf: response.stories)
                 hasMorePages = response.pagination.page < response.pagination.totalPages
             }
         } catch {
+            await MainActor.run {
+                currentPage -= 1 // Revert page increment on error
+            }
             print("❌ Error loading more stories: \(error)")
         }
 
@@ -252,7 +262,30 @@ struct BedtimeStoriesLibraryView: View {
     }
 
     private func refreshStories() async {
-        await loadStories()
+        // Set refreshing flag to prevent infinite scroll during refresh
+        isRefreshing = true
+
+        // Reset state before loading
+        currentPage = 1
+
+        do {
+            let response = try await service.getStories(
+                page: currentPage,
+                favorites: showFavoritesOnly ? true : nil,
+                theme: selectedTheme
+            )
+
+            await MainActor.run {
+                stories = response.stories
+                hasMorePages = response.pagination.page < response.pagination.totalPages
+                isRefreshing = false
+            }
+        } catch {
+            print("❌ Error refreshing stories: \(error)")
+            await MainActor.run {
+                isRefreshing = false
+            }
+        }
     }
 
     private func applyFilters() {
@@ -296,12 +329,19 @@ struct BedtimeStoriesLibraryView: View {
 
     private func toggleFavorite(_ story: BedtimeStory) async {
         do {
-            _ = try await service.toggleFavorite(id: story.id)
+            let newFavoriteStatus = try await service.toggleFavorite(id: story.id)
 
-            // Remove from list if viewing favorites only and unfavorited
-            if showFavoritesOnly, let index = service.stories.firstIndex(where: { $0.id == story.id && !$0.isFavorite }) {
-                withAnimation {
-                    service.stories.remove(at: index)
+            await MainActor.run {
+                // Update local story state
+                if let index = stories.firstIndex(where: { $0.id == story.id }) {
+                    stories[index].isFavorite = newFavoriteStatus
+
+                    // Remove from list if viewing favorites only and unfavorited
+                    if showFavoritesOnly && !newFavoriteStatus {
+                        withAnimation {
+                            stories.remove(at: index)
+                        }
+                    }
                 }
             }
         } catch {

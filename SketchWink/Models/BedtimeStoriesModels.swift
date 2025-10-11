@@ -90,7 +90,7 @@ struct BedtimeDraftResponse: Codable {
 
 struct BedtimeDraft: Codable, Identifiable {
     let id: String
-    let title: String
+    var title: String
     var storyText: String
     let wordCount: Int
     let length: String

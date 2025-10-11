@@ -22,8 +22,27 @@ struct BedtimeStoriesCreateView: View {
     @State private var selectedVoice = "nova" // Default to Sofia
     @State private var voices: [Voice] = []
 
+    private enum FocusField {
+        case prompt
+        case characterName
+    }
+    @FocusState private var focusedField: FocusField?
+
+    private enum EditFocusField {
+        case title
+        case story
+    }
+    @FocusState private var editFocusField: EditFocusField?
+
     // Step 3: Draft
     @State private var currentDraft: BedtimeDraft?
+    @State private var showingTokenConfirmation = false
+    @State private var showingGenerationAlert = false
+
+    // Edit mode states
+    @State private var isEditMode = false
+    @State private var editedTitle = ""
+    @State private var editedStoryText = ""
 
     private var selectedVoiceDescription: String? {
         voices.first { $0.id == selectedVoice }?.description
@@ -35,27 +54,51 @@ struct BedtimeStoriesCreateView: View {
             progressBar
 
             // Main content
-            ScrollView {
+            if currentStep == 3 && isEditMode {
                 VStack(spacing: AppSpacing.lg) {
-                    switch currentStep {
-                    case 1:
-                        step1ThemeSelection
-                            .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
-                    case 2:
-                        step2StoryDetails
-                            .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
-                    case 3:
-                        step3DraftPreviewAndGenerate
-                            .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
-                    default:
-                        EmptyView()
-                    }
+                    step3DraftPreviewAndGenerate
                 }
-                .padding(AppSpacing.md)
-                .padding(.bottom, AppSpacing.xl)
+                .background(AppColors.backgroundLight)
+                .ignoresSafeArea(.keyboard)
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: AppSpacing.lg) {
+                            switch currentStep {
+                            case 1:
+                                step1ThemeSelection
+                                    .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
+                                    .id("step1")
+                            case 2:
+                                step2StoryDetails
+                                    .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
+                                    .id("step2")
+                            case 3:
+                                step3DraftPreviewAndGenerate
+                                    .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
+                                    .id("step3")
+                            default:
+                                EmptyView()
+                            }
+                        }
+                        .padding(AppSpacing.md)
+                        .padding(.bottom, AppSpacing.xl)
+                    }
+                    .dismissKeyboardOnScroll()
+                    .simultaneousGesture(
+                        DragGesture().onChanged { _ in
+                            focusedField = nil
+                        }
+                    )
+                    .onChange(of: currentStep) { oldValue, newValue in
+                        withAnimation {
+                            proxy.scrollTo("step\(newValue)", anchor: .top)
+                        }
+                    }
+                    .animation(.easeInOut, value: currentStep)
+                    .background(AppColors.backgroundLight)
+                }
             }
-            .animation(.easeInOut, value: currentStep)
-            .background(AppColors.backgroundLight)
         }
         .navigationTitle("Create Bedtime Story")
         .navigationBarTitleDisplayMode(.inline)
@@ -89,6 +132,22 @@ struct BedtimeStoriesCreateView: View {
             Button("OK") { }
         } message: {
             Text(error ?? "An unknown error occurred")
+        }
+        .alert("Confirm Generation", isPresented: $showingTokenConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Generate") {
+                showingGenerationAlert = true
+            }
+        } message: {
+            Text("This will cost \(selectedLength.tokenCost) tokens to generate. Do you want to proceed?")
+        }
+        .alert("Generating Story", isPresented: $showingGenerationAlert) {
+            Button("Dismiss") {
+                Task { await generateStory() }
+                dismiss()
+            }
+        } message: {
+            Text("Your story will be generated in the background and will be available in your library in 1 to 4 minutes.")
         }
     }
 
@@ -167,8 +226,32 @@ struct BedtimeStoriesCreateView: View {
                     .padding(AppSpacing.md)
                     .background(AppColors.backgroundLight)
                     .cornerRadius(AppSizing.cornerRadius.md)
-                    .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(AppColors.borderLight, lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(focusedField == .prompt ? AppColors.primaryIndigo : AppColors.borderLight, lineWidth: 1))
                     .lineLimit(3...6)
+                    .focused($focusedField, equals: .prompt)
+            }.cardStyle()
+
+            VStack(spacing: AppSpacing.md) {
+                HStack {
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Character Name (Optional)")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                        Text("Give your main character a special name")
+                            .font(AppTypography.captionLarge)
+                            .foregroundColor(AppColors.textSecondary)
+                    }
+                    Spacer()
+                }
+                TextField("Enter character name", text: $characterName)
+                    .textFieldStyle(.plain)
+                    .font(AppTypography.bodyLarge)
+                    .foregroundColor(AppColors.textPrimary)
+                    .padding(AppSpacing.md)
+                    .background(AppColors.backgroundLight)
+                    .cornerRadius(AppSizing.cornerRadius.md)
+                    .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(focusedField == .characterName ? AppColors.primaryIndigo : AppColors.borderLight, lineWidth: 1))
+                    .focused($focusedField, equals: .characterName)
             }.cardStyle()
 
             VStack(spacing: AppSpacing.md) {
@@ -224,7 +307,7 @@ struct BedtimeStoriesCreateView: View {
                     .cornerRadius(AppSizing.cornerRadius.md)
                     .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(AppColors.borderLight, lineWidth: 1))
                 }
-                
+
                 if let description = selectedVoiceDescription {
                     Text(description)
                         .font(AppTypography.captionLarge)
@@ -232,28 +315,6 @@ struct BedtimeStoriesCreateView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, AppSpacing.xs)
                 }
-            }.cardStyle()
-
-            VStack(spacing: AppSpacing.md) {
-                HStack {
-                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                        Text("Character Name (Optional)")
-                            .font(AppTypography.titleMedium)
-                            .foregroundColor(AppColors.textPrimary)
-                        Text("Give your main character a special name")
-                            .font(AppTypography.captionLarge)
-                            .foregroundColor(AppColors.textSecondary)
-                    }
-                    Spacer()
-                }
-                TextField("Enter character name", text: $characterName)
-                    .textFieldStyle(.plain)
-                    .font(AppTypography.bodyLarge)
-                    .foregroundColor(AppColors.textPrimary)
-                    .padding(AppSpacing.md)
-                    .background(AppColors.backgroundLight)
-                    .cornerRadius(AppSizing.cornerRadius.md)
-                    .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(AppColors.borderLight, lineWidth: 1))
             }.cardStyle()
 
             VStack(spacing: AppSpacing.md) {
@@ -299,16 +360,21 @@ struct BedtimeStoriesCreateView: View {
             Button {
                 Task { await createDraft() }
             } label: {
-                HStack(spacing: AppSpacing.sm) {
+                HStack(spacing: AppSpacing.xs) {
                     if isLoading {
-                        ProgressView().tint(.white).scaleEffect(0.9)
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(0.9)
+                    } else {
+                        Image(systemName: "doc.text.fill")
                     }
                     Text(isLoading ? "Creating Draft..." : "Create Draft (Free)")
-                        .font(AppTypography.titleMedium).fontWeight(.semibold)
                 }
+                .font(AppTypography.titleMedium)
+                .fontWeight(.semibold)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.lg)
+                .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
                 .background(canCreateDraft && !isLoading ? AppColors.primaryIndigo : AppColors.buttonDisabled)
                 .clipShape(Capsule())
             }
@@ -318,7 +384,7 @@ struct BedtimeStoriesCreateView: View {
 
             if !canCreateDraft {
                 Text("Please enter a story idea")
-                    .font(AppTypography.captionMedium)
+                    .captionMedium()
                     .foregroundColor(AppColors.errorRed)
                     .multilineTextAlignment(.center)
             }
@@ -332,48 +398,111 @@ struct BedtimeStoriesCreateView: View {
     // MARK: - Step 3: Draft Preview & Generate
     private var step3DraftPreviewAndGenerate: some View {
         VStack(alignment: .leading, spacing: AppSpacing.lg) {
-            VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                Text(currentDraft?.title ?? "Story Preview")
-                    .headlineLarge()
-                    .foregroundColor(AppColors.textPrimary)
-
-                HStack(spacing: AppSpacing.md) {
-                    Label("\(currentDraft?.wordCount ?? 0) words", systemImage: "doc.text")
-                    Label("\(currentDraft?.estimatedDuration ?? 0)s", systemImage: "clock")
-                }
-                .font(AppTypography.captionLarge)
-                .foregroundColor(AppColors.textSecondary)
-            }
-
-            if let draft = currentDraft {
-                Text(draft.storyText)
-                    .font(AppTypography.bodyMedium)
-                    .foregroundColor(AppColors.textPrimary)
-                    .padding(AppSpacing.md)
-                    .background(AppColors.surfaceLight)
-                    .cornerRadius(AppSizing.cornerRadius.md)
-            }
-            
-            generateStoryButtonView
-        }
-    }
-    
-    // MARK: - Generate Story Button
-    private var generateStoryButtonView: some View {
-        VStack(spacing: AppSpacing.sm) {
-            Button {
-                Task { await generateStory() }
-            } label: {
-                HStack(spacing: AppSpacing.sm) {
-                    if isLoading {
-                        ProgressView().tint(.white).scaleEffect(0.9)
+            if isEditMode {
+                // Edit mode layout
+                VStack(alignment: .leading, spacing: AppSpacing.lg) {
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Story Title")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                        TextField("Enter story title", text: $editedTitle)
+                            .textFieldStyle(.plain)
+                            .font(AppTypography.headlineMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                            .padding(AppSpacing.md)
+                            .background(AppColors.backgroundLight)
+                            .cornerRadius(AppSizing.cornerRadius.md)
+                            .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(editFocusField == .title ? AppColors.primaryIndigo : AppColors.borderLight, lineWidth: editFocusField == .title ? 2 : 1))
+                            .focused($editFocusField, equals: .title)
                     }
-                    Text(isLoading ? "Generating Story..." : "Generate Story (\(selectedLength.tokenCost) tokens)")
-                        .font(AppTypography.titleMedium).fontWeight(.semibold)
+
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Story Text")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                        TextEditor(text: $editedStoryText)
+                            .font(AppTypography.bodyMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                            .padding(AppSpacing.md)
+                            .background(AppColors.backgroundLight)
+                            .cornerRadius(AppSizing.cornerRadius.md)
+                            .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(editFocusField == .story ? AppColors.primaryIndigo : AppColors.borderLight, lineWidth: editFocusField == .story ? 2 : 1))
+                            .focused($editFocusField, equals: .story)
+                            .scrollContentBackground(.hidden)
+                    }
+
+                    Spacer() // Pushes buttons to the bottom
+
+                    editModeButtonsView
                 }
+                .padding(.horizontal, AppSpacing.md)
+            } else {
+                // Review mode layout
+                VStack(alignment: .leading, spacing: AppSpacing.lg) {
+                    VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                        Text(currentDraft?.title ?? "Story Preview")
+                            .headlineLarge()
+                            .foregroundColor(AppColors.textPrimary)
+
+                        HStack(spacing: AppSpacing.md) {
+                            Label("\(currentDraft?.wordCount ?? 0) words", systemImage: "doc.text")
+                            Label("\(currentDraft?.estimatedDuration ?? 0)s", systemImage: "clock")
+                        }
+                        .font(AppTypography.captionLarge)
+                        .foregroundColor(AppColors.textSecondary)
+                    }
+
+                    if let draft = currentDraft {
+                        Text(draft.storyText)
+                            .font(AppTypography.bodyMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                            .padding(AppSpacing.md)
+                            .background(AppColors.backgroundLight)
+                            .cornerRadius(AppSizing.cornerRadius.md)
+                            .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(AppColors.borderLight, lineWidth: 1))
+                    }
+
+                    reviewModeButtonsView
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Review Mode Buttons
+    private var reviewModeButtonsView: some View {
+        VStack(spacing: AppSpacing.sm) {
+            // Edit Button
+            Button {
+                enterEditMode()
+            } label: {
+                Text("Edit")
+                .font(AppTypography.titleMedium)
+                .fontWeight(.semibold)
+                .foregroundColor(AppColors.primaryIndigo)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
+                .background(AppColors.backgroundLight)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(AppColors.primaryIndigo, lineWidth: 2)
+                )
+            }
+            .disabled(isLoading)
+            .opacity(!isLoading ? 1.0 : 0.6)
+            .childSafeTouchTarget()
+
+            // Generate Story Button
+            Button {
+                showingTokenConfirmation = true
+            } label: {
+                Text(isLoading ? "Generating Story..." : "Generate Story")
+                .font(AppTypography.titleMedium)
+                .fontWeight(.semibold)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.lg)
+                .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
                 .background(!isLoading ? AppColors.primaryIndigo : AppColors.buttonDisabled)
                 .clipShape(Capsule())
             }
@@ -381,6 +510,61 @@ struct BedtimeStoriesCreateView: View {
             .opacity(!isLoading ? 1.0 : 0.6)
             .childSafeTouchTarget()
         }
+    }
+
+    // MARK: - Edit Mode Buttons
+    private var editModeButtonsView: some View {
+        VStack(spacing: AppSpacing.sm) {
+            // Cancel Button
+            Button {
+                exitEditMode()
+            } label: {
+                Text("Cancel")
+                .font(AppTypography.titleMedium)
+                .fontWeight(.semibold)
+                .foregroundColor(AppColors.textSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
+                .background(AppColors.backgroundLight)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(AppColors.borderLight, lineWidth: 1)
+                )
+            }
+            .disabled(isLoading)
+            .opacity(!isLoading ? 1.0 : 0.6)
+            .childSafeTouchTarget()
+
+            // Save Button
+            Button {
+                Task { await saveDraft() }
+            } label: {
+                Text(isLoading ? "Saving..." : "Save")
+                .font(AppTypography.titleMedium)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
+                .background(!isLoading && canSave ? AppColors.primaryIndigo : AppColors.buttonDisabled)
+                .clipShape(Capsule())
+            }
+            .disabled(!canSave || isLoading)
+            .opacity(!isLoading && canSave ? 1.0 : 0.6)
+            .childSafeTouchTarget()
+
+            if !canSave {
+                Text("Title and story text cannot be empty")
+                    .captionMedium()
+                    .foregroundColor(AppColors.errorRed)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+
+    private var canSave: Bool {
+        !editedTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !editedStoryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     // MARK: - Actions
@@ -438,19 +622,38 @@ struct BedtimeStoriesCreateView: View {
         isLoading = false
     }
 
-    private func generateStory() async {
+    private func enterEditMode() {
+        guard let draft = currentDraft else { return }
+        editedTitle = draft.title
+        editedStoryText = draft.storyText
+        isEditMode = true
+    }
+
+    private func exitEditMode() {
+        isEditMode = false
+        editedTitle = ""
+        editedStoryText = ""
+    }
+
+    private func saveDraft() async {
         guard let draft = currentDraft else { return }
 
         isLoading = true
         do {
-            _ = try await service.generateStory(
-                draftId: draft.id,
-                voiceId: selectedVoice
+            try await service.updateDraft(
+                id: draft.id,
+                storyText: editedStoryText,
+                title: editedTitle
             )
-            
             await MainActor.run {
-                Task { await tokenManager.refreshSilently() }
-                dismiss()
+                // Update the current draft with saved values
+                currentDraft?.title = editedTitle
+                currentDraft?.storyText = editedStoryText
+
+                // Exit edit mode
+                isEditMode = false
+                editedTitle = ""
+                editedStoryText = ""
             }
         } catch {
             await MainActor.run {
@@ -459,6 +662,18 @@ struct BedtimeStoriesCreateView: View {
             }
         }
         isLoading = false
+    }
+
+    private func generateStory() async {
+        guard let draft = currentDraft else { return }
+
+        Task {
+            try? await service.generateStory(
+                draftId: draft.id,
+                voiceId: selectedVoice
+            )
+            await tokenManager.refreshSilently()
+        }
     }
 }
 
@@ -539,11 +754,11 @@ struct LengthButton: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 80)
-            .background(isSelected ? AppColors.primaryBlue : AppColors.backgroundLight)
+            .background(isSelected ? AppColors.primaryIndigo : AppColors.backgroundLight)
             .cornerRadius(AppSizing.cornerRadius.md)
             .overlay(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                    .stroke(isSelected ? AppColors.primaryBlue : AppColors.borderLight, lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? AppColors.primaryIndigo : AppColors.borderLight, lineWidth: isSelected ? 2 : 1)
             )
         }
         .buttonStyle(PlainButtonStyle())

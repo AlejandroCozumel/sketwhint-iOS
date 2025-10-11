@@ -250,6 +250,9 @@ class BedtimeStoriesService: ObservableObject {
         await MainActor.run {
             if currentDraft?.id == id {
                 currentDraft?.storyText = storyText
+                if let title = title {
+                    currentDraft?.title = title
+                }
             }
         }
     }
