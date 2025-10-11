@@ -37,18 +37,35 @@ struct Defaults: Codable {
 
 // MARK: - Theme Models
 
+struct BedtimeStoryCategory: Codable {
+    let id: String
+    let name: String
+    let description: String
+    let icon: String?
+    let imageUrl: String?
+    let color: String?
+}
+
 struct BedtimeThemeOption: Codable, Identifiable {
     let id: String
-    let categoryId: String
+    let categoryId: String?
     let name: String
     let description: String
     let style: String
+    let imageUrl: String?
+    let color: String?
+    let requiresCustomContent: Bool?
     let isDefault: Bool?
     let sortOrder: Int
 }
 
 struct BedtimeThemeOptionsResponse: Codable {
     let options: [BedtimeThemeOption]
+}
+
+struct BedtimeThemesResponse: Codable {
+    let category: BedtimeStoryCategory
+    let themes: [BedtimeThemeOption]
 }
 
 // MARK: - Draft Models

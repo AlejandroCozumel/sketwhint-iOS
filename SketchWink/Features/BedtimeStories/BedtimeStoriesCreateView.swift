@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BedtimeStoriesCreateView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var service = BedtimeStoriesService.shared
+    @ObservedObject private var service = BedtimeStoriesService.shared
     @StateObject private var tokenManager = TokenBalanceManager.shared
 
     @State private var currentStep = 1
@@ -13,6 +13,7 @@ struct BedtimeStoriesCreateView: View {
 
     // Step 1: Theme
     @State private var selectedTheme: BedtimeThemeOption?
+    @State private var category: BedtimeStoryCategory?
 
     // Step 2: Details
     @State private var prompt = ""
@@ -43,6 +44,10 @@ struct BedtimeStoriesCreateView: View {
     @State private var isEditMode = false
     @State private var editedTitle = ""
     @State private var editedStoryText = ""
+
+    init(category: BedtimeStoryCategory?) {
+        self._category = State(initialValue: category)
+    }
 
     private var selectedVoiceDescription: String? {
         voices.first { $0.id == selectedVoice }?.description
@@ -126,7 +131,6 @@ struct BedtimeStoriesCreateView: View {
         }
         .task {
             await loadConfig()
-            await loadThemes()
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
@@ -176,7 +180,7 @@ struct BedtimeStoriesCreateView: View {
     private var step1ThemeSelection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.lg) {
             VStack(alignment: .center, spacing: AppSpacing.md) {
-                Text("Choose a Story Theme")
+                Text(category?.name ?? "Choose a Story Theme")
                     .font(AppTypography.categoryTitle)
                     .foregroundColor(AppColors.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -586,7 +590,8 @@ struct BedtimeStoriesCreateView: View {
     private func loadThemes() async {
         isLoading = true
         do {
-            _ = try await service.getThemes()
+            let response = try await service.getThemes()
+            self.category = response.category
         } catch {
             await MainActor.run {
                 self.error = error.localizedDescription
@@ -745,7 +750,7 @@ struct LengthButton: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(isSelected ? .white.opacity(0.9) : AppColors.textSecondary)
                 HStack(spacing: 2) {
-                    Image(systemName: "star.fill")
+                    Image(systemName: "circle.inset.filled")
                         .font(.system(size: 10))
                     Text("\(length.tokenCost)")
                         .font(.system(size: 11, weight: .semibold))

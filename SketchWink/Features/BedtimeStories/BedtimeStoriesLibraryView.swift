@@ -3,7 +3,7 @@ import AVFoundation
 
 struct BedtimeStoriesLibraryView: View {
     @Binding var selectedTab: Int
-    @StateObject private var service = BedtimeStoriesService.shared
+    @ObservedObject private var service = BedtimeStoriesService.shared
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var tokenManager = TokenBalanceManager.shared
 
@@ -62,7 +62,7 @@ struct BedtimeStoriesLibraryView: View {
         }
         .sheet(isPresented: $showCreateStory) {
             NavigationView {
-                BedtimeStoriesCreateView()
+                BedtimeStoriesCreateView(category: service.category)
             }
         }
         .sheet(item: $selectedStory) { story in
@@ -72,7 +72,7 @@ struct BedtimeStoriesLibraryView: View {
             SubscriptionPlansView()
         }
         .task {
-            await loadStories()
+            await loadInitialData()
         }
     }
 
@@ -91,16 +91,16 @@ struct BedtimeStoriesLibraryView: View {
                 }
 
                 // Theme filters (if available)
-                ForEach(Array(Set(stories.compactMap { $0.theme })), id: \.self) { theme in
+                ForEach(service.themes) { theme in
                     FilterChip(
-                        title: theme,
+                        title: theme.name,
                         icon: "book.fill",
-                        isSelected: selectedTheme == theme
+                        isSelected: selectedTheme == theme.id
                     ) {
-                        if selectedTheme == theme {
+                        if selectedTheme == theme.id {
                             selectedTheme = nil
                         } else {
-                            selectedTheme = theme
+                            selectedTheme = theme.id
                         }
                         applyFilters()
                     }
@@ -210,6 +210,10 @@ struct BedtimeStoriesLibraryView: View {
     }
 
     // MARK: - Data Methods
+    private func loadInitialData() async {
+        await loadStories()
+    }
+
     private func loadStories() async {
         guard !isLoading else { return } // Prevent multiple simultaneous loads
 

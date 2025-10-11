@@ -6,6 +6,7 @@ struct CategorySelectionView: View {
     @StateObject private var draftService = DraftService.shared
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var tokenManager = TokenBalanceManager.shared
+    @ObservedObject private var bedtimeStoriesService = BedtimeStoriesService.shared
     @Binding var selectedTab: Int
     @State private var categories: [CategoryWithOptions] = []
     @State private var productCategories: [ProductCategory] = []
@@ -69,7 +70,7 @@ struct CategorySelectionView: View {
         }
         .sheet(isPresented: $showBedtimeStories) {
             NavigationView {
-                BedtimeStoriesCreateView()
+                BedtimeStoriesCreateView(category: bedtimeStoriesService.category)
             }
         }
         .task {
@@ -219,98 +220,15 @@ struct CategorySelectionView: View {
     // MARK: - Bedtime Stories Section
     private var bedtimeStoriesSection: some View {
         VStack(alignment: .center, spacing: AppSpacing.md) {
-            Text("Bedtime Stories")
+            Text(bedtimeStoriesService.category?.name ?? "Bedtime Stories")
                 .font(AppTypography.categoryTitle)
                 .foregroundColor(AppColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.bottom, 10)
 
-            Button(action: {
+            BedtimeStoryFeatureCard(category: bedtimeStoriesService.category) {
                 showBedtimeStories = true
-            }) {
-                HStack(spacing: AppSpacing.md) {
-                    // Left: Icon
-                    Circle()
-                        .fill(Color(hex: "#6366F1").opacity(0.2))
-                        .frame(width: 64, height: 64)
-                        .overlay(
-                            Text("🌙")
-                                .font(.system(size: 32))
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(Color(hex: "#6366F1").opacity(0.3), lineWidth: 2)
-                        )
-
-                    // Center: Main Content
-                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                        HStack {
-                            Text("AI Bedtime Stories")
-                                .titleMedium()
-                                .foregroundColor(AppColors.textPrimary)
-
-                            Spacer()
-
-                            // Badge
-                            Text("Audio")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(Color(hex: "#6366F1"))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Color(hex: "#6366F1").opacity(0.15))
-                                .cornerRadius(8)
-                        }
-
-                        Text("Create personalized bedtime stories with AI voices and soothing images")
-                            .bodyMedium()
-                            .foregroundColor(AppColors.textSecondary)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-
-                        // Additional info row
-                        HStack {
-                            HStack(spacing: 4) {
-                                Image(systemName: "star.fill")
-                                    .foregroundColor(AppColors.warningOrange)
-                                    .font(.system(size: 12))
-                                Text("5-10 tokens")
-                                    .captionLarge()
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            HStack(spacing: 4) {
-                                Image(systemName: "waveform")
-                                    .foregroundColor(AppColors.primaryBlue)
-                                    .font(.system(size: 12))
-                                Text("Audio Story")
-                                    .captionLarge()
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                        }
-                    }
-
-                    Spacer(minLength: 0)
-                }
-                .padding(AppSpacing.md)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                        .fill(Color(hex: "#6366F1").opacity(0.05))
-                        .shadow(
-                            color: Color(hex: "#6366F1").opacity(0.1),
-                            radius: 8,
-                            x: 0,
-                            y: 4
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                                .stroke(Color(hex: "#6366F1").opacity(0.2), lineWidth: 1)
-                        )
-                )
             }
-            .childSafeTouchTarget()
         }
     }
 
@@ -416,9 +334,13 @@ struct CategorySelectionView: View {
             let productResponse = try await productService.getProductCategories()
             productCategories = productResponse.products
             
+            // Load bedtime stories themes and category info
+            _ = try await bedtimeStoriesService.getThemes()
+            
             #if DEBUG
             print("🎨 CategorySelection: Loaded \(categories.count) visual art categories")
             print("📚 CategorySelection: Loaded \(productCategories.count) product categories")
+            print("🌙 CategorySelection: Loaded \(bedtimeStoriesService.themes.count) bedtime story themes")
             #endif
             
         } catch {
@@ -439,6 +361,116 @@ struct CategorySelectionView: View {
         selectedProductCategory = productCategory
         navigateToCreationMethod = true
         print("📚 CategorySelection: navigating to creation method for: \(productCategory.name)")
+    }
+}
+
+// MARK: - Bedtime Story Feature Card
+struct BedtimeStoryFeatureCard: View {
+    let category: BedtimeStoryCategory?
+    let action: () -> Void
+    
+    private var categoryColor: Color {
+        if let colorHex = category?.color {
+            return Color(hex: colorHex)
+        }
+        return AppColors.primaryIndigo
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 0) {
+                // Top half - Image
+                if let imageUrl = category?.imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { imagePhase in
+                        switch imagePhase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 200, alignment: .top)
+                                .clipped()
+                        case .failure(_):
+                            Rectangle()
+                                .fill(categoryColor.opacity(0.2))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 200)
+                        case .empty:
+                            Rectangle()
+                                .fill(AppColors.textSecondary.opacity(0.3))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 200)
+                                .shimmer()
+                        @unknown default:
+                            Rectangle()
+                                .fill(categoryColor.opacity(0.2))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 200)
+                        }
+                    }
+                } else {
+                    Rectangle()
+                        .fill(categoryColor.opacity(0.2))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 200)
+                }
+
+                // Bottom half - Text
+                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                    Text(category?.name ?? "Bedtime Stories")
+                        .font(AppTypography.titleMedium)
+                        .foregroundColor(AppColors.textPrimary)
+                        .lineLimit(1)
+
+                    Text(category?.description ?? "AI-narrated bedtime stories with audio and cover image")
+                        .font(AppTypography.captionLarge)
+                        .foregroundColor(AppColors.textSecondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    
+                    Spacer()
+                    
+                    // Additional info row
+                    HStack {
+                        HStack(spacing: 4) {
+                            Image(systemName: "circle.inset.filled")
+                                .foregroundColor(AppColors.warningOrange)
+                                .font(.system(size: 12))
+                            Text("5-10 tokens")
+                                .captionLarge()
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "waveform")
+                                .foregroundColor(AppColors.primaryBlue)
+                                .font(.system(size: 12))
+                            Text("Audio Story")
+                                .captionLarge()
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                    }
+                }
+                .padding(AppSpacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity)
+            .background(categoryColor.opacity(0.08))
+            .cornerRadius(AppSizing.cornerRadius.lg)
+            .overlay(
+                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                    .stroke(categoryColor.opacity(0.3), lineWidth: 1)
+            )
+            .shadow(
+                color: categoryColor.opacity(0.3),
+                radius: 10,
+                x: 0,
+                y: 10
+            )
+        }
+        .childSafeTouchTarget()
     }
 }
 

@@ -7,6 +7,7 @@ class BedtimeStoriesService: ObservableObject {
 
     @Published var config: BedtimeStoriesConfig?
     @Published var themes: [BedtimeThemeOption] = []
+    @Published var category: BedtimeStoryCategory?
     @Published var stories: [BedtimeStory] = []
     @Published var currentDraft: BedtimeDraft?
     @Published var error: String?
@@ -68,12 +69,12 @@ class BedtimeStoriesService: ObservableObject {
 
     // MARK: - 2. Get Themes
 
-    func getThemes() async throws -> [BedtimeThemeOption] {
+    func getThemes() async throws -> BedtimeThemesResponse {
         guard let token = try KeychainManager.shared.retrieveToken() else {
             throw BedtimeStoryError.noToken
         }
 
-        let url = URL(string: "\(baseURL)/categories/bedtime_stories/options")!
+        let url = URL(string: "\(baseURL)/bedtime-stories/themes")!
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
@@ -109,17 +110,18 @@ class BedtimeStoriesService: ObservableObject {
             throw BedtimeStoryError.httpError(httpResponse.statusCode)
         }
 
-        let themesResponse = try JSONDecoder().decode(BedtimeThemeOptionsResponse.self, from: data)
+        let themesResponse = try JSONDecoder().decode(BedtimeThemesResponse.self, from: data)
 
         #if DEBUG
-        print("✅ BedtimeStoriesService: Loaded \(themesResponse.options.count) themes")
+        print("✅ BedtimeStoriesService: Loaded \(themesResponse.themes.count) themes")
         #endif
 
         await MainActor.run {
-            self.themes = themesResponse.options
+            self.themes = themesResponse.themes
+            self.category = themesResponse.category
         }
 
-        return themesResponse.options
+        return themesResponse
     }
 
     // MARK: - 3. Create Draft (FREE - No Tokens)
