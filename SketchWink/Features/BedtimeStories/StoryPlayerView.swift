@@ -289,7 +289,23 @@ class LyricsAudioPlayer: ObservableObject {
         }
     }
 
+    private func setupAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+            #if DEBUG
+            print("🎧 AVAudioSession configured for background playback.")
+            #endif
+        } catch {
+            #if DEBUG
+            print("❌ Failed to set up AVAudioSession for background playback: \(error)")
+            #endif
+        }
+    }
+
     func loadAudio(from urlString: String) {
+        setupAudioSession()
+
         guard let url = URL(string: urlString) else {
             print("❌ Invalid audio URL: \(urlString)")
             return
@@ -390,14 +406,16 @@ class LyricsAudioPlayer: ObservableObject {
     private func startLyricsSync() {
         // 🚀 OPTIMIZATION: 60fps update rate (16.67ms) - Apple Music style
         // High refresh rate ensures no missed words and instant visual feedback
-        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.0167, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 0.0167, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updateCurrentWord()
             }
         }
+        updateTimer = timer
+        RunLoop.current.add(timer, forMode: .common)
 
         #if DEBUG
-        print("⚡ Lyrics sync started: 60fps (16.67ms intervals)")
+        print("⚡ Lyrics sync started: 60fps (16.67ms intervals) in common run loop mode")
         #endif
     }
 

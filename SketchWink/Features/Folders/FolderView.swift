@@ -161,11 +161,11 @@ struct FolderView: View {
     // MARK: - Create Folder Button
     private var createFolderButton: some View {
         Button(action: { showingCreateFolder = true }) {
-            Image(systemName: "plus")
-                .font(AppTypography.titleMedium)
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 24))
                 .foregroundColor(AppColors.primaryBlue)
         }
-        .childSafeTouchTarget()
+        .buttonStyle(PlainButtonStyle())
     }
     
     // MARK: - Folder Grid View
