@@ -8,6 +8,7 @@ struct AppColors {
     // MARK: - Primary Brand Colors (Modern & Vibrant)
     static let primaryBlue = Color(hex: "#37B6F6")        // Picton Blue - Bright, friendly blue
     static let primaryPurple = Color(hex: "#882FF6")      // Blue-Violet - Creative and magical
+    static let primaryIndigo = Color(hex: "#6366F1")      // Indigo - Calm and focused
     static let primaryPink = Color(hex: "#FF6B9D")        // Bubblegum Pink - Playful and warm
     static let primaryTeal = Color(hex: "#06B6D4")        // Cyan Teal - Professional and modern (Business tier)
     

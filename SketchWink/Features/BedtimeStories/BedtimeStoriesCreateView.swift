@@ -9,22 +9,25 @@ struct BedtimeStoriesCreateView: View {
     @State private var isLoading = false
     @State private var error: String?
     @State private var showingError = false
+    @State private var transitionEdge: Edge = .trailing
 
-    // Step 1: Theme & Prompt
+    // Step 1: Theme
     @State private var selectedTheme: BedtimeThemeOption?
+
+    // Step 2: Details
     @State private var prompt = ""
     @State private var selectedLength: BedtimeStoryLength = .short
     @State private var characterName = ""
     @State private var ageGroup = "3-5 years old"
+    @State private var selectedVoice = "nova" // Default to Sofia
+    @State private var voices: [Voice] = []
 
-    // Step 2: Draft (auto-loaded)
+    // Step 3: Draft
     @State private var currentDraft: BedtimeDraft?
 
-    // Step 3: Voice & Speed
-    @State private var selectedVoice = "nova"
-    @State private var selectedSpeed = 1.0
-    @State private var voices: [Voice] = []
-    @State private var speedOptions: [SpeedOption] = []
+    private var selectedVoiceDescription: String? {
+        voices.first { $0.id == selectedVoice }?.description
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,11 +39,14 @@ struct BedtimeStoriesCreateView: View {
                 VStack(spacing: AppSpacing.lg) {
                     switch currentStep {
                     case 1:
-                        step1ThemeAndPrompt
+                        step1ThemeSelection
+                            .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
                     case 2:
-                        step2DraftPreview
+                        step2StoryDetails
+                            .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
                     case 3:
-                        step3VoiceSelection
+                        step3DraftPreviewAndGenerate
+                            .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
                     default:
                         EmptyView()
                     }
@@ -48,16 +54,26 @@ struct BedtimeStoriesCreateView: View {
                 .padding(AppSpacing.md)
                 .padding(.bottom, AppSpacing.xl)
             }
+            .animation(.easeInOut, value: currentStep)
             .background(AppColors.backgroundLight)
-
-            // Bottom navigation (only for steps 2 and 3)
-            if currentStep > 1 {
-                bottomNavigationBar
-            }
         }
         .navigationTitle("Create Bedtime Story")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                if currentStep > 1 {
+                    Button(action: {
+                        transitionEdge = .leading
+                        currentStep -= 1
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                    }
+                    .foregroundColor(AppColors.primaryBlue)
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Cancel") {
                     dismiss()
@@ -82,7 +98,7 @@ struct BedtimeStoriesCreateView: View {
             HStack(spacing: 4) {
                 ForEach(1...3, id: \.self) { step in
                     Rectangle()
-                        .fill(step <= currentStep ? Color(hex: "#6366F1") : AppColors.borderLight)
+                        .fill(step <= currentStep ? AppColors.primaryIndigo : AppColors.borderLight)
                         .frame(height: 4)
                 }
             }
@@ -97,10 +113,9 @@ struct BedtimeStoriesCreateView: View {
         .background(AppColors.backgroundLight)
     }
 
-    // MARK: - Step 1: Theme & Prompt
-    private var step1ThemeAndPrompt: some View {
+    // MARK: - Step 1: Theme Selection
+    private var step1ThemeSelection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.lg) {
-            // Header
             VStack(alignment: .center, spacing: AppSpacing.md) {
                 Text("Choose a Story Theme")
                     .font(AppTypography.categoryTitle)
@@ -108,7 +123,6 @@ struct BedtimeStoriesCreateView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.bottom, 10)
 
-                // Themes grid
                 if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity)
@@ -121,143 +135,161 @@ struct BedtimeStoriesCreateView: View {
                                 isSelected: selectedTheme?.id == theme.id
                             ) {
                                 selectedTheme = theme
+                                transitionEdge = .trailing
+                                currentStep = 2
                             }
                         }
                     }
                 }
             }
+        }
+    }
 
-            // Prompt Input
-            if selectedTheme != nil {
-                VStack(spacing: AppSpacing.md) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                            Text("Story Idea")
-                                .font(AppTypography.titleMedium)
-                                .foregroundColor(AppColors.textPrimary)
-
-                            Text("Describe what you'd like to happen in your bedtime story")
-                                .font(AppTypography.captionLarge)
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-                        Spacer()
+    // MARK: - Step 2: Story Details
+    private var step2StoryDetails: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.lg) {
+            VStack(spacing: AppSpacing.md) {
+                HStack {
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Story Idea")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                        Text("Describe what you'd like to happen in your bedtime story")
+                            .font(AppTypography.captionLarge)
+                            .foregroundColor(AppColors.textSecondary)
                     }
-
-                    TextField("A sleepy bunny finding the perfect spot to nap...", text: $prompt, axis: .vertical)
-                        .textFieldStyle(.plain)
-                        .font(AppTypography.bodyLarge)
-                        .foregroundColor(AppColors.textPrimary)
-                        .padding(AppSpacing.md)
-                        .background(AppColors.backgroundLight)
-                        .cornerRadius(AppSizing.cornerRadius.md)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                                .stroke(AppColors.borderLight, lineWidth: 1)
-                        )
-                        .lineLimit(3...6)
+                    Spacer()
                 }
-                .cardStyle()
+                TextField("A sleepy bunny finding the perfect spot to nap...", text: $prompt, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(AppTypography.bodyLarge)
+                    .foregroundColor(AppColors.textPrimary)
+                    .padding(AppSpacing.md)
+                    .background(AppColors.backgroundLight)
+                    .cornerRadius(AppSizing.cornerRadius.md)
+                    .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(AppColors.borderLight, lineWidth: 1))
+                    .lineLimit(3...6)
+            }.cardStyle()
 
-                // Length selector
-                VStack(spacing: AppSpacing.md) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                            Text("Story Length")
-                                .font(AppTypography.titleMedium)
-                                .foregroundColor(AppColors.textPrimary)
-
-                            Text("Choose how long your bedtime story should be")
-                                .font(AppTypography.captionLarge)
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-                        Spacer()
+            VStack(spacing: AppSpacing.md) {
+                HStack {
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Story Length")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                        Text("Choose how long your bedtime story should be")
+                            .font(AppTypography.captionLarge)
+                            .foregroundColor(AppColors.textSecondary)
                     }
-
-                    HStack(spacing: AppSpacing.sm) {
-                        ForEach(BedtimeStoryLength.allCases, id: \.rawValue) { length in
-                            LengthButton(
-                                length: length,
-                                isSelected: selectedLength == length
-                            ) {
-                                selectedLength = length
-                            }
+                    Spacer()
+                }
+                HStack(spacing: AppSpacing.sm) {
+                    ForEach(BedtimeStoryLength.allCases, id: \.rawValue) { length in
+                        LengthButton(length: length, isSelected: selectedLength == length) {
+                            selectedLength = length
                         }
                     }
                 }
-                .cardStyle()
+            }.cardStyle()
 
-                // Character name (optional)
-                VStack(spacing: AppSpacing.md) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                            Text("Character Name (Optional)")
-                                .font(AppTypography.titleMedium)
-                                .foregroundColor(AppColors.textPrimary)
-
-                            Text("Give your main character a special name")
-                                .font(AppTypography.captionLarge)
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-                        Spacer()
+            VStack(spacing: AppSpacing.md) {
+                HStack {
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Narrator Voice")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                        Text("Pick a narrator voice for the story")
+                            .font(AppTypography.captionLarge)
+                            .foregroundColor(AppColors.textSecondary)
                     }
-
-                    TextField("Enter character name", text: $characterName)
-                        .textFieldStyle(.plain)
-                        .font(AppTypography.bodyLarge)
-                        .foregroundColor(AppColors.textPrimary)
-                        .padding(AppSpacing.md)
-                        .background(AppColors.backgroundLight)
-                        .cornerRadius(AppSizing.cornerRadius.md)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                                .stroke(AppColors.borderLight, lineWidth: 1)
-                        )
+                    Spacer()
                 }
-                .cardStyle()
 
-                // Age group
-                VStack(spacing: AppSpacing.md) {
+                Menu {
+                    ForEach(voices) { voice in
+                        Button(voice.name) { selectedVoice = voice.id }
+                    }
+                } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                            Text("Age Group")
-                                .font(AppTypography.titleMedium)
-                                .foregroundColor(AppColors.textPrimary)
-
-                            Text("Select the target age for this story")
-                                .font(AppTypography.captionLarge)
-                                .foregroundColor(AppColors.textSecondary)
-                        }
+                        Text(voices.first(where: { $0.id == selectedVoice })?.name ?? "Select a voice")
+                            .font(AppTypography.bodyLarge)
+                            .foregroundColor(AppColors.textPrimary)
                         Spacer()
+                        Image(systemName: "chevron.down")
+                            .foregroundColor(AppColors.textSecondary)
+                            .font(.system(size: 14, weight: .medium))
                     }
-
-                    Menu {
-                        Button("3-5 years old") { ageGroup = "3-5 years old" }
-                        Button("5-7 years old") { ageGroup = "5-7 years old" }
-                        Button("7-10 years old") { ageGroup = "7-10 years old" }
-                    } label: {
-                        HStack {
-                            Text(ageGroup)
-                                .font(AppTypography.bodyLarge)
-                                .foregroundColor(AppColors.textPrimary)
-                            Spacer()
-                            Image(systemName: "chevron.down")
-                                .foregroundColor(AppColors.textSecondary)
-                                .font(.system(size: 14, weight: .medium))
-                        }
-                        .padding(AppSpacing.md)
-                        .background(AppColors.backgroundLight)
-                        .cornerRadius(AppSizing.cornerRadius.md)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                                .stroke(AppColors.borderLight, lineWidth: 1)
-                        )
-                    }
+                    .padding(AppSpacing.md)
+                    .background(AppColors.backgroundLight)
+                    .cornerRadius(AppSizing.cornerRadius.md)
+                    .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(AppColors.borderLight, lineWidth: 1))
                 }
-                .cardStyle()
+                
+                if let description = selectedVoiceDescription {
+                    Text(description)
+                        .font(AppTypography.captionLarge)
+                        .foregroundColor(AppColors.primaryIndigo)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, AppSpacing.xs)
+                }
+            }.cardStyle()
 
-                // Generate Draft Button (inline for step 1)
-                createDraftButtonView
-            }
+            VStack(spacing: AppSpacing.md) {
+                HStack {
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Character Name (Optional)")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                        Text("Give your main character a special name")
+                            .font(AppTypography.captionLarge)
+                            .foregroundColor(AppColors.textSecondary)
+                    }
+                    Spacer()
+                }
+                TextField("Enter character name", text: $characterName)
+                    .textFieldStyle(.plain)
+                    .font(AppTypography.bodyLarge)
+                    .foregroundColor(AppColors.textPrimary)
+                    .padding(AppSpacing.md)
+                    .background(AppColors.backgroundLight)
+                    .cornerRadius(AppSizing.cornerRadius.md)
+                    .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(AppColors.borderLight, lineWidth: 1))
+            }.cardStyle()
+
+            VStack(spacing: AppSpacing.md) {
+                HStack {
+                    VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                        Text("Age Group")
+                            .font(AppTypography.titleMedium)
+                            .foregroundColor(AppColors.textPrimary)
+                        Text("Select the target age for this story")
+                            .font(AppTypography.captionLarge)
+                            .foregroundColor(AppColors.textSecondary)
+                    }
+                    Spacer()
+                }
+                Menu {
+                    Button("3-5 years old") { ageGroup = "3-5 years old" }
+                    Button("5-7 years old") { ageGroup = "5-7 years old" }
+                    Button("7-10 years old") { ageGroup = "7-10 years old" }
+                } label: {
+                    HStack {
+                        Text(ageGroup)
+                            .font(AppTypography.bodyLarge)
+                            .foregroundColor(AppColors.textPrimary)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .foregroundColor(AppColors.textSecondary)
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .padding(AppSpacing.md)
+                    .background(AppColors.backgroundLight)
+                    .cornerRadius(AppSizing.cornerRadius.md)
+                    .overlay(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md).stroke(AppColors.borderLight, lineWidth: 1))
+                }
+            }.cardStyle()
+
+            createDraftButtonView
         }
     }
 
@@ -265,25 +297,19 @@ struct BedtimeStoriesCreateView: View {
     private var createDraftButtonView: some View {
         VStack(spacing: AppSpacing.sm) {
             Button {
-                Task {
-                    await createDraft()
-                }
+                Task { await createDraft() }
             } label: {
                 HStack(spacing: AppSpacing.sm) {
                     if isLoading {
-                        ProgressView()
-                            .tint(.white)
-                            .scaleEffect(0.9)
+                        ProgressView().tint(.white).scaleEffect(0.9)
                     }
-
                     Text(isLoading ? "Creating Draft..." : "Create Draft (Free)")
-                        .font(AppTypography.titleMedium)
-                        .fontWeight(.semibold)
+                        .font(AppTypography.titleMedium).fontWeight(.semibold)
                 }
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, AppSpacing.lg)
-                .background(canCreateDraft && !isLoading ? Color(hex: "#6366F1") : AppColors.buttonDisabled)
+                .background(canCreateDraft && !isLoading ? AppColors.primaryIndigo : AppColors.buttonDisabled)
                 .clipShape(Capsule())
             }
             .disabled(!canCreateDraft || isLoading)
@@ -291,7 +317,7 @@ struct BedtimeStoriesCreateView: View {
             .childSafeTouchTarget()
 
             if !canCreateDraft {
-                Text("Please select a theme and enter a story idea")
+                Text("Please enter a story idea")
                     .font(AppTypography.captionMedium)
                     .foregroundColor(AppColors.errorRed)
                     .multilineTextAlignment(.center)
@@ -300,11 +326,11 @@ struct BedtimeStoriesCreateView: View {
     }
 
     private var canCreateDraft: Bool {
-        selectedTheme != nil && !prompt.isEmpty
+        !prompt.isEmpty
     }
 
-    // MARK: - Step 2: Draft Preview
-    private var step2DraftPreview: some View {
+    // MARK: - Step 3: Draft Preview & Generate
+    private var step3DraftPreviewAndGenerate: some View {
         VStack(alignment: .leading, spacing: AppSpacing.lg) {
             VStack(alignment: .leading, spacing: AppSpacing.sm) {
                 Text(currentDraft?.title ?? "Story Preview")
@@ -319,7 +345,6 @@ struct BedtimeStoriesCreateView: View {
                 .foregroundColor(AppColors.textSecondary)
             }
 
-            // Story text preview
             if let draft = currentDraft {
                 Text(draft.storyText)
                     .font(AppTypography.bodyMedium)
@@ -328,177 +353,48 @@ struct BedtimeStoriesCreateView: View {
                     .background(AppColors.surfaceLight)
                     .cornerRadius(AppSizing.cornerRadius.md)
             }
-
-            // Info card
-            HStack(spacing: AppSpacing.sm) {
-                Image(systemName: "info.circle.fill")
-                    .foregroundColor(AppColors.infoBlue)
-                Text("Review your story. You can edit it in the next step if needed.")
-                    .font(AppTypography.captionLarge)
-                    .foregroundColor(AppColors.textSecondary)
-            }
-            .padding(AppSpacing.md)
-            .background(AppColors.infoBlue.opacity(0.1))
-            .cornerRadius(AppSizing.cornerRadius.sm)
+            
+            generateStoryButtonView
         }
     }
-
-    // MARK: - Step 3: Voice Selection
-    private var step3VoiceSelection: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.lg) {
-            VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                Text("Choose a Voice & Speed")
-                    .headlineMedium()
-                    .foregroundColor(AppColors.textPrimary)
-
-                Text("Pick a narrator voice and reading speed")
-                    .bodyMedium()
-                    .foregroundColor(AppColors.textSecondary)
-            }
-
-            // Voices
-            VStack(alignment: .leading, spacing: AppSpacing.md) {
-                Text("Narrator Voice")
-                    .titleSmall()
-                    .foregroundColor(AppColors.textSecondary)
-
-                ForEach(voices) { voice in
-                    VoiceCard(
-                        voice: voice,
-                        isSelected: selectedVoice == voice.id
-                    ) {
-                        selectedVoice = voice.id
-                    }
-                }
-            }
-
-            // Speed
-            VStack(alignment: .leading, spacing: AppSpacing.md) {
-                Text("Reading Speed")
-                    .titleSmall()
-                    .foregroundColor(AppColors.textSecondary)
-
-                ForEach(speedOptions) { option in
-                    SpeedCard(
-                        option: option,
-                        isSelected: selectedSpeed == option.value
-                    ) {
-                        selectedSpeed = option.value
-                    }
-                }
-            }
-
-            // Token cost reminder
-            HStack(spacing: AppSpacing.sm) {
-                Image(systemName: "star.fill")
-                    .foregroundColor(AppColors.warningOrange)
-                Text("This will cost \(selectedLength.tokenCost) tokens to generate")
-                    .font(AppTypography.captionLarge)
-                    .foregroundColor(AppColors.textSecondary)
-            }
-            .padding(AppSpacing.md)
-            .background(AppColors.warningOrange.opacity(0.1))
-            .cornerRadius(AppSizing.cornerRadius.sm)
-        }
-    }
-
-    // MARK: - Bottom Navigation
-    private var bottomNavigationBar: some View {
+    
+    // MARK: - Generate Story Button
+    private var generateStoryButtonView: some View {
         VStack(spacing: AppSpacing.sm) {
-            HStack(spacing: AppSpacing.md) {
-                if currentStep > 1 {
-                    Button("Back") {
-                        currentStep -= 1
+            Button {
+                Task { await generateStory() }
+            } label: {
+                HStack(spacing: AppSpacing.sm) {
+                    if isLoading {
+                        ProgressView().tint(.white).scaleEffect(0.9)
                     }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, AppSpacing.md)
-                    .background(AppColors.surfaceLight)
-                    .cornerRadius(AppSizing.cornerRadius.sm)
+                    Text(isLoading ? "Generating Story..." : "Generate Story (\(selectedLength.tokenCost) tokens)")
+                        .font(AppTypography.titleMedium).fontWeight(.semibold)
                 }
-
-                Button(nextButtonTitle) {
-                    Task {
-                        await handleNextStep()
-                    }
-                }
-                .font(AppTypography.titleMedium)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.md)
-                .background(canProceed ? Color(hex: "#6366F1") : AppColors.buttonDisabled)
-                .cornerRadius(AppSizing.cornerRadius.sm)
-                .disabled(!canProceed || isLoading)
-                .opacity(canProceed ? 1.0 : 0.6)
+                .padding(.vertical, AppSpacing.lg)
+                .background(!isLoading ? AppColors.primaryIndigo : AppColors.buttonDisabled)
+                .clipShape(Capsule())
             }
-        }
-        .padding(AppSpacing.md)
-        .background(AppColors.backgroundLight)
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: -5)
-    }
-
-    private var nextButtonTitle: String {
-        switch currentStep {
-        case 1: return "Create Draft (Free)"
-        case 2: return "Choose Voice"
-        case 3: return "Generate Story (\(selectedLength.tokenCost) tokens)"
-        default: return "Next"
-        }
-    }
-
-    private var canProceed: Bool {
-        switch currentStep {
-        case 1: return selectedTheme != nil && !prompt.isEmpty
-        case 2: return currentDraft != nil
-        case 3: return true
-        default: return false
+            .disabled(isLoading)
+            .opacity(!isLoading ? 1.0 : 0.6)
+            .childSafeTouchTarget()
         }
     }
 
     // MARK: - Actions
-    private func handleNextStep() async {
-        switch currentStep {
-        case 2:
-            currentStep = 3
-        case 3:
-            await generateStory()
-        default:
-            break
-        }
-    }
-
     private func loadConfig() async {
         do {
             let config = try await service.loadConfig()
             await MainActor.run {
                 voices = config.voices
-                speedOptions = config.speedOptions
                 selectedVoice = config.defaults.voiceId
-                selectedSpeed = config.defaults.speed
-
-                #if DEBUG
-                print("🎙️ BedtimeStoriesCreateView: Config loaded")
-                print("   - Voices count: \(voices.count)")
-                print("   - Speed options count: \(speedOptions.count)")
-                print("   - Default voice: \(selectedVoice)")
-                print("   - Default speed: \(selectedSpeed)")
-                for voice in voices {
-                    print("     • \(voice.name) (\(voice.id)) - \(voice.description)")
-                }
-                for speed in speedOptions {
-                    print("     • \(speed.label) (\(speed.value)) - \(speed.description)")
-                }
-                #endif
             }
         } catch {
             await MainActor.run {
                 self.error = error.localizedDescription
                 showingError = true
-
-                #if DEBUG
-                print("❌ BedtimeStoriesCreateView: Failed to load config - \(error)")
-                #endif
             }
         }
     }
@@ -530,7 +426,8 @@ struct BedtimeStoriesCreateView: View {
             )
             await MainActor.run {
                 currentDraft = draft
-                currentStep = 2
+                transitionEdge = .trailing
+                currentStep = 3
             }
         } catch {
             await MainActor.run {
@@ -548,14 +445,11 @@ struct BedtimeStoriesCreateView: View {
         do {
             _ = try await service.generateStory(
                 draftId: draft.id,
-                voiceId: selectedVoice,
-                speed: selectedSpeed
+                voiceId: selectedVoice
             )
+            
             await MainActor.run {
-                // Refresh token balance
-                Task {
-                    await tokenManager.refreshSilently()
-                }
+                Task { await tokenManager.refreshSilently() }
                 dismiss()
             }
         } catch {
@@ -578,24 +472,17 @@ struct ThemeCard: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {
-                // Image section (using color as placeholder)
                 Rectangle()
-                    .fill(Color(hex: "#6366F1").opacity(0.2))
+                    .fill(AppColors.primaryIndigo.opacity(0.2))
                     .frame(maxWidth: .infinity)
                     .frame(height: 100)
-                    .overlay(
-                        Text("🌙")
-                            .font(.system(size: 40))
-                    )
-
-                // Text section
+                    .overlay(Text("🌙").font(.system(size: 40)))
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     Text(theme.name)
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
                         .multilineTextAlignment(.leading)
                         .lineLimit(2)
-
                     Text(theme.description)
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
@@ -608,17 +495,17 @@ struct ThemeCard: View {
             }
             .frame(height: 200)
             .frame(maxWidth: .infinity)
-            .background(Color(hex: "#6366F1").opacity(0.08))
+            .background(AppColors.primaryIndigo.opacity(0.08))
             .overlay(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
                     .stroke(
-                        isSelected ? Color(hex: "#6366F1") : Color(hex: "#6366F1").opacity(0.3),
+                        isSelected ? AppColors.primaryIndigo : AppColors.primaryIndigo.opacity(0.3),
                         lineWidth: isSelected ? 2 : 1
                     )
             )
             .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
             .shadow(
-                color: Color(hex: "#6366F1").opacity(isSelected ? 0.3 : 0.1),
+                color: AppColors.primaryIndigo.opacity(isSelected ? 0.3 : 0.1),
                 radius: 10,
                 x: 0,
                 y: 10
@@ -639,11 +526,9 @@ struct LengthButton: View {
                 Text(length.rawValue.capitalized)
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundColor(isSelected ? .white : AppColors.textPrimary)
-
                 Text(durationText)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(isSelected ? .white.opacity(0.9) : AppColors.textSecondary)
-
                 HStack(spacing: 2) {
                     Image(systemName: "star.fill")
                         .font(.system(size: 10))
@@ -670,82 +555,5 @@ struct LengthButton: View {
         case .medium: return "4-5 min"
         case .long: return "6-8 min"
         }
-    }
-}
-
-struct VoiceCard: View {
-    let voice: Voice
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: AppSpacing.md) {
-                VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    Text(voice.name)
-                        .font(AppTypography.titleMedium)
-                        .foregroundColor(AppColors.textPrimary)
-
-                    Text(voice.description)
-                        .font(AppTypography.captionLarge)
-                        .foregroundColor(AppColors.textSecondary)
-                        .lineLimit(2)
-                }
-
-                Spacer()
-
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Color(hex: "#6366F1"))
-                        .font(.system(size: 24))
-                }
-            }
-            .padding(AppSpacing.md)
-            .background(isSelected ? Color(hex: "#6366F1").opacity(0.1) : AppColors.surfaceLight)
-            .overlay(
-                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                    .stroke(isSelected ? Color(hex: "#6366F1") : AppColors.borderLight, lineWidth: isSelected ? 2 : 1)
-            )
-            .cornerRadius(AppSizing.cornerRadius.sm)
-        }
-        .childSafeTouchTarget()
-    }
-}
-
-struct SpeedCard: View {
-    let option: SpeedOption
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: AppSpacing.md) {
-                VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    Text(option.label)
-                        .font(AppTypography.titleMedium)
-                        .foregroundColor(AppColors.textPrimary)
-
-                    Text(option.description)
-                        .font(AppTypography.captionLarge)
-                        .foregroundColor(AppColors.textSecondary)
-                }
-
-                Spacer()
-
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Color(hex: "#6366F1"))
-                        .font(.system(size: 24))
-                }
-            }
-            .padding(AppSpacing.md)
-            .background(isSelected ? Color(hex: "#6366F1").opacity(0.1) : AppColors.surfaceLight)
-            .overlay(
-                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                    .stroke(isSelected ? Color(hex: "#6366F1") : AppColors.borderLight, lineWidth: isSelected ? 2 : 1)
-            )
-            .cornerRadius(AppSizing.cornerRadius.sm)
-        }
-        .childSafeTouchTarget()
     }
 }
