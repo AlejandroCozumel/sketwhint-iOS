@@ -158,11 +158,21 @@ struct AppCoordinator: View {
         if authService.isAuthenticated {
             await loadStoredProfile()
             
-            // Initialize token balance after authentication
-            Task {
-                await tokenBalanceManager.initialize()
-            }
-        } else {
+                    // Initialize token balance after authentication
+                    Task {
+                        await tokenBalanceManager.initialize()
+                    }
+            
+                    // Load Bedtime Stories config
+                    Task {
+                        do {
+                            _ = try await BedtimeStoriesService.shared.loadConfig()
+                        } catch {
+                            #if DEBUG
+                            print("❌ Failed to load Bedtime Stories config: \(error)")
+                            #endif
+                        }
+                    }        } else {
             // Clear token balance state when not authenticated
             tokenBalanceManager.clearState()
         }

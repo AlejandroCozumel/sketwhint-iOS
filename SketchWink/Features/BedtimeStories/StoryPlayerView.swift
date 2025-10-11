@@ -28,30 +28,27 @@ struct StoryPlayerView: View {
         #endif
     }
 
+    private var voiceName: String? {
+        guard let voiceId = story.voiceId,
+              let voices = BedtimeStoriesService.shared.config?.voices else {
+            return nil
+        }
+        return voices.first { $0.id == voiceId }?.name
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        let minutes = seconds / 60
+        let remainingSeconds = seconds % 60
+        return String(format: "%d:%02d min", minutes, remainingSeconds)
+    }
+
     var body: some View {
         NavigationView {
             ZStack {
                 AppColors.backgroundLight
                     .ignoresSafeArea()
 
-                if audioPlayer.hasLyrics {
-                    // Lyrics Mode (Apple Music style)
-                    lyricsView
-                        .onAppear {
-                            #if DEBUG
-                            print("🎵 Showing LYRICS VIEW")
-                            print("   - Has storyText: \(story.storyText != nil)")
-                            #endif
-                        }
-                } else {
-                    // Simple Mode (current implementation)
-                    simplePlayerView
-                        .onAppear {
-                            #if DEBUG
-                            print("📖 Showing SIMPLE VIEW")
-                            #endif
-                        }
-                }
+                playerView
             }
             .navigationTitle(audioPlayer.hasLyrics ? "" : "Story Player")
             .navigationBarTitleDisplayMode(.inline)
@@ -76,8 +73,8 @@ struct StoryPlayerView: View {
         }
     }
 
-    // MARK: - Simple Player View (No Lyrics)
-    private var simplePlayerView: some View {
+    // MARK: - Unified Player View
+    private var playerView: some View {
         ScrollView {
             VStack(spacing: AppSpacing.lg) {
                 // Cover image
@@ -119,30 +116,30 @@ struct StoryPlayerView: View {
                         .font(AppTypography.headlineLarge)
                         .foregroundColor(AppColors.textPrimary)
 
-                    if let theme = story.theme {
-                        HStack {
-                            Image(systemName: "book.fill")
-                                .foregroundColor(Color(hex: "#6366F1"))
-                            Text(theme)
-                                .font(AppTypography.bodyMedium)
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-                    }
-
                     HStack(spacing: AppSpacing.lg) {
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
                                 .foregroundColor(AppColors.textSecondary)
-                            Text("\(story.duration / 60) min")
+                            Text(formatDuration(story.duration))
                                 .font(AppTypography.captionLarge)
                                 .foregroundColor(AppColors.textSecondary)
                         }
 
-                        if let characterName = story.characterName {
+                        if let voiceName = voiceName {
                             HStack(spacing: 4) {
-                                Image(systemName: "person.fill")
+                                Image(systemName: "speaker.wave.2.fill")
                                     .foregroundColor(AppColors.textSecondary)
-                                Text(characterName)
+                                Text(voiceName)
+                                    .font(AppTypography.captionLarge)
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                        }
+                        
+                        if let theme = story.theme {
+                            HStack(spacing: 4) {
+                                Image(systemName: "tag.fill")
+                                    .foregroundColor(AppColors.textSecondary)
+                                Text(theme)
                                     .font(AppTypography.captionLarge)
                                     .foregroundColor(AppColors.textSecondary)
                             }
@@ -153,89 +150,26 @@ struct StoryPlayerView: View {
 
                     // Story text
                     if let storyText = story.storyText {
-                        Text(storyText)
-                            .font(AppTypography.bodyMedium)
-                            .foregroundColor(AppColors.textPrimary)
-                            .lineSpacing(6)
+                        if audioPlayer.hasLyrics {
+                            Text(audioPlayer.createHighlightedText(from: storyText))
+                                .font(AppTypography.bodyLarge)
+                                .foregroundColor(AppColors.textPrimary)
+                                .lineSpacing(6)
+                                .onAppear {
+                                    audioPlayer.prepareKaraokeSync(with: storyText)
+                                }
+                        } else {
+                            Text(storyText)
+                                .font(AppTypography.bodyLarge)
+                                .foregroundColor(AppColors.textPrimary)
+                                .lineSpacing(6)
+                        }
                     }
                 }
                 .padding(.horizontal, AppSpacing.md)
             }
             .padding(.vertical, AppSpacing.lg)
             .padding(.bottom, 120) // Space for player controls
-        }
-    }
-
-    // MARK: - Lyrics View (Apple Music Style)
-    private var lyricsView: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Top spacing
-                    Color.clear.frame(height: AppSpacing.xl)
-
-                    // Cover image (smaller in lyrics mode)
-                    AsyncImage(url: URL(string: story.imageUrl)) { imagePhase in
-                        switch imagePhase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 200, height: 200)
-                                .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
-                                .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
-                        case .failure(_):
-                            Rectangle()
-                                .fill(Color(hex: "#6366F1").opacity(0.2))
-                                .frame(width: 200, height: 200)
-                                .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
-                                .overlay(
-                                    Image(systemName: "moon.stars")
-                                        .font(.system(size: 40))
-                                        .foregroundColor(Color(hex: "#6366F1"))
-                                )
-                        case .empty:
-                            Rectangle()
-                                .fill(AppColors.surfaceLight)
-                                .frame(width: 200, height: 200)
-                                .shimmer()
-                                .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-                    .padding(.bottom, AppSpacing.xl)
-
-                    // Title
-                    Text(story.title)
-                        .font(AppTypography.headlineMedium)
-                        .foregroundColor(AppColors.textPrimary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, AppSpacing.md)
-                        .padding(.bottom, AppSpacing.xl)
-
-                    // Full story text with highlighted current word
-                    if let storyText = story.storyText {
-                        Text(audioPlayer.createHighlightedText(from: storyText))
-                            .font(AppTypography.bodyLarge)
-                            .lineSpacing(8)
-                            .multilineTextAlignment(.leading)
-                            .padding(.horizontal, AppSpacing.lg)
-                            .id("story-text")
-                            .onAppear {
-                                // 🚀 OPTIMIZATION: Prepare karaoke sync on first appearance
-                                audioPlayer.prepareKaraokeSync(with: storyText)
-                            }
-                    }
-
-                    // Bottom spacing
-                    Color.clear.frame(height: 180) // Space for player controls
-                }
-            }
-            .onChange(of: audioPlayer.currentWordIndex) {
-                // Auto-scroll is handled by the highlighted word staying visible
-                // SwiftUI handles this automatically with ScrollView
-            }
         }
     }
 

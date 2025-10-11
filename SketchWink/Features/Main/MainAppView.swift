@@ -44,7 +44,7 @@ struct MainAppView: View {
 
             // MARK: - Stories Tab (Bedtime Stories)
             NavigationStack {
-                BedtimeStoriesLibraryView()
+                BedtimeStoriesLibraryView(selectedTab: $selectedTab)
             }
             .tabItem {
                 Label("Stories", systemImage: "moon.stars.fill")

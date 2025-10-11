@@ -2,6 +2,7 @@ import SwiftUI
 import AVFoundation
 
 struct BedtimeStoriesLibraryView: View {
+    @Binding var selectedTab: Int
     @StateObject private var service = BedtimeStoriesService.shared
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var tokenManager = TokenBalanceManager.shared
@@ -9,7 +10,6 @@ struct BedtimeStoriesLibraryView: View {
     @State private var selectedStory: BedtimeStory?
     @State private var showCreateStory = false
     @State private var showSubscriptionPlans = false
-    @State private var showingProfileMenu = false
     @State private var isLoadingStoryDetails = false
 
     // Filters
@@ -41,6 +41,11 @@ struct BedtimeStoriesLibraryView: View {
         .navigationTitle("Bedtime Stories")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                ProfileMenuButton(selectedTab: $selectedTab)
+            }
+
+            // Right Plus Button
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     showCreateStory = true
@@ -50,14 +55,6 @@ struct BedtimeStoriesLibraryView: View {
                         .foregroundColor(Color(hex: "#6366F1"))
                 }
             }
-
-            AppToolbarContent(
-                profileService: profileService,
-                tokenManager: tokenManager,
-                onProfileTap: { showingProfileMenu = true },
-                onCreditsTap: { /* TODO */ },
-                onUpgradeTap: { showSubscriptionPlans = true }
-            )
         }
         .sheet(isPresented: $showCreateStory) {
             NavigationView {
@@ -69,9 +66,6 @@ struct BedtimeStoriesLibraryView: View {
         }
         .sheet(isPresented: $showSubscriptionPlans) {
             SubscriptionPlansView()
-        }
-        .sheet(isPresented: $showingProfileMenu) {
-            ProfileMenuSheet(selectedTab: .constant(2), showPainting: .constant(false))
         }
         .task {
             await loadStories()
@@ -370,7 +364,7 @@ struct StoryCard: View {
                 .frame(height: 120)
 
                 // Content
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     Text(story.title)
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
@@ -385,7 +379,7 @@ struct StoryCard: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    Label("\(story.duration / 60) min", systemImage: "clock")
+                    Label(formatDuration(story.duration), systemImage: "clock")
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
@@ -403,6 +397,12 @@ struct StoryCard: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        let minutes = seconds / 60
+        let remainingSeconds = seconds % 60
+        return String(format: "%d:%02d min", minutes, remainingSeconds)
     }
 }
 
