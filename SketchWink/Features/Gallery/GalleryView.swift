@@ -1976,13 +1976,26 @@ struct ImageDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") {
+                Button(action: {
                     dismiss()
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(AppColors.textSecondary)
+                        .padding(8)
+                        .background(AppColors.buttonSecondary)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                 }
-                .font(AppTypography.titleMedium)
-                .foregroundColor(AppColors.primaryBlue)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
         }
+        .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
         } message: {

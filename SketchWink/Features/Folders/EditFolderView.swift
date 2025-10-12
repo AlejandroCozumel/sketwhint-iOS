@@ -66,11 +66,22 @@ struct EditFolderView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppColors.textSecondary)
+                            .padding(8)
+                            .background(AppColors.buttonSecondary)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.borderLight, lineWidth: 1)
+                            )
                     }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.primaryBlue)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -83,6 +94,8 @@ struct EditFolderView: View {
                     .disabled(!hasChanges || !isValidInput || isUpdating)
                 }
             }
+            .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .alert("Error", isPresented: .constant(errorMessage != nil)) {
                 Button("OK") {
                     errorMessage = nil

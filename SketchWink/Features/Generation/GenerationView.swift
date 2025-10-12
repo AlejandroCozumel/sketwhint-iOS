@@ -147,7 +147,6 @@ struct GenerationView: View {
     private var mainContent: some View {
         NavigationView {
             scrollContent
-                .background(AppColors.backgroundLight)
                 .navigationTitle(selectedCategory?.category.name ?? "Create Art")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -155,7 +154,11 @@ struct GenerationView: View {
                         doneButton
                     }
                 }
+                .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
         }
+        .background(AppColors.backgroundLight)
+        .cornerRadius(20)
     }
 
     private var scrollContent: some View {
@@ -182,15 +185,26 @@ struct GenerationView: View {
     }
 
     private var doneButton: some View {
-        Button("Done") {
+        Button(action: {
             #if DEBUG
             print("🔗 GenerationView: User tapped Done, disconnecting SSE and dismissing")
             #endif
             GenerationProgressSSEService.shared.disconnect()
             onDismiss()
+        }) {
+            Image(systemName: "xmark")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(AppColors.textSecondary)
+                .padding(8)
+                .background(AppColors.buttonSecondary)
+                .clipShape(Circle())
+                .overlay(
+                    Circle()
+                        .stroke(AppColors.borderLight, lineWidth: 1)
+                )
         }
-        .font(AppTypography.titleMedium)
-        .foregroundColor(AppColors.primaryBlue)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Close")
     }
 
     @ViewBuilder

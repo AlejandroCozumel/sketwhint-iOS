@@ -960,13 +960,27 @@ struct CreateProfileView: View {
             .navigationTitle("Create Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppColors.textSecondary)
+                            .padding(8)
+                            .background(AppColors.buttonSecondary)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.borderLight, lineWidth: 1)
+                            )
                     }
-                    .foregroundColor(AppColors.primaryBlue)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
             }
+            .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
@@ -1531,12 +1545,26 @@ struct EditProfileView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppColors.textSecondary)
+                            .padding(8)
+                            .background(AppColors.buttonSecondary)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.borderLight, lineWidth: 1)
+                            )
                     }
-                    .foregroundColor(AppColors.primaryBlue)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
             }
+            .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
         .alert("Hide Profile", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) { }

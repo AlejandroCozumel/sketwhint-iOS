@@ -166,14 +166,25 @@ struct FolderImagesView: View {
             .navigationTitle(folder.name)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppColors.textSecondary)
+                            .padding(8)
+                            .background(AppColors.buttonSecondary)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.borderLight, lineWidth: 1)
+                            )
                     }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.primaryBlue)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if !images.isEmpty {
                         Menu {
@@ -197,6 +208,8 @@ struct FolderImagesView: View {
                     }
                 }
             }
+            .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .task {
                 await loadCategories()
                 await loadImages()
@@ -1058,13 +1071,26 @@ struct FolderImageDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") {
+                Button(action: {
                     dismiss()
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(AppColors.textSecondary)
+                        .padding(8)
+                        .background(AppColors.buttonSecondary)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                 }
-                .font(AppTypography.titleMedium)
-                .foregroundColor(AppColors.primaryBlue)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
         }
+        .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
         } message: {

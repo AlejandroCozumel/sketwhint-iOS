@@ -123,14 +123,25 @@ struct SubscriptionPlansView: View {
             .navigationTitle("Unlock Premium")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(AppColors.textSecondary)
+                            .padding(8)
+                            .background(AppColors.buttonSecondary)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.borderLight, lineWidth: 1)
+                            )
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
             }
+            .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
     }
 
