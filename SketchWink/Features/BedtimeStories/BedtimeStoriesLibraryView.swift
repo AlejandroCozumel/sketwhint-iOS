@@ -26,10 +26,15 @@ struct BedtimeStoriesLibraryView: View {
     @State private var hasMorePages = true
     @State private var isRefreshing = false
 
+    // Computed property to check if any filters are active
+    private var hasActiveFilters: Bool {
+        showFavoritesOnly || selectedTheme != nil
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Filter chips
-            if !stories.isEmpty || showFavoritesOnly {
+            // Filter chips - show if stories exist OR any filters are active
+            if !stories.isEmpty || hasActiveFilters {
                 filterChipsView
             }
 
@@ -164,17 +169,17 @@ struct BedtimeStoriesLibraryView: View {
     // MARK: - Empty State
     private var emptyStateView: some View {
         VStack(spacing: AppSpacing.lg) {
-            Image(systemName: showFavoritesOnly ? "heart.slash" : "moon.stars")
+            Image(systemName: hasActiveFilters ? "tray.fill" : "moon.stars")
                 .font(.system(size: 60))
                 .foregroundColor(Color(hex: "#6366F1").opacity(0.6))
 
             VStack(spacing: AppSpacing.sm) {
-                Text(showFavoritesOnly ? "No Favorite Stories" : "No Bedtime Stories Yet")
+                Text(emptyStateTitle)
                     .font(AppTypography.headlineMedium)
                     .foregroundColor(AppColors.textPrimary)
                     .multilineTextAlignment(.center)
 
-                Text(showFavoritesOnly ? "Tap the heart icon to save your favorites" : "Create your first bedtime story with AI")
+                Text(emptyStateMessage)
                     .font(AppTypography.bodyMedium)
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -182,18 +187,17 @@ struct BedtimeStoriesLibraryView: View {
             }
 
             Button {
-                if showFavoritesOnly {
-                    showFavoritesOnly = false
-                    applyFilters()
+                if hasActiveFilters {
+                    clearAllFilters()
                 } else {
                     showCreateStory = true
                 }
             } label: {
                 HStack(spacing: AppSpacing.sm) {
-                    Image(systemName: showFavoritesOnly ? "xmark.circle" : "plus.circle.fill")
+                    Image(systemName: hasActiveFilters ? "xmark.circle" : "plus.circle.fill")
                         .font(.system(size: 16, weight: .semibold))
 
-                    Text(showFavoritesOnly ? "Clear Filters" : "Create Story")
+                    Text(hasActiveFilters ? "Clear Filters" : "Create Story")
                         .font(AppTypography.titleMedium)
                         .fontWeight(.semibold)
                 }
@@ -207,6 +211,33 @@ struct BedtimeStoriesLibraryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, AppSpacing.xl)
+    }
+
+    // MARK: - Empty State Helpers
+    private var emptyStateTitle: String {
+        if showFavoritesOnly && selectedTheme != nil {
+            // Both filters active
+            let themeName = service.themes.first(where: { $0.id == selectedTheme })?.name ?? "Theme"
+            return "No Favorite \(themeName) Stories"
+        } else if showFavoritesOnly {
+            // Only favorites filter
+            return "No Favorite Stories"
+        } else if let themeId = selectedTheme {
+            // Only theme filter
+            let themeName = service.themes.first(where: { $0.id == themeId })?.name ?? "Theme"
+            return "No \(themeName) Stories Yet"
+        } else {
+            // No filters
+            return "No Bedtime Stories Yet"
+        }
+    }
+
+    private var emptyStateMessage: String {
+        if hasActiveFilters {
+            return "Try adjusting your filters or create a new story"
+        } else {
+            return "Create your first bedtime story with AI"
+        }
     }
 
     // MARK: - Data Methods
@@ -296,6 +327,12 @@ struct BedtimeStoriesLibraryView: View {
         Task {
             await loadStories()
         }
+    }
+
+    private func clearAllFilters() {
+        showFavoritesOnly = false
+        selectedTheme = nil
+        applyFilters()
     }
 
     private func openStoryPlayer(storyId: String) async {
