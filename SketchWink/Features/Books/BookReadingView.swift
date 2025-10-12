@@ -29,12 +29,26 @@ struct BookReadingView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.surfaceLight)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                     }
-                    .foregroundColor(.white)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if let bookWithPages = bookWithPages {
                         pageCounter(bookWithPages)

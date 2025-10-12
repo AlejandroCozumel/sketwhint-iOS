@@ -58,11 +58,24 @@ struct StoryDraftDetailView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
+                    Button(action: {
                         onDismiss()
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.surfaceLight)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                     }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.textSecondary)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -554,9 +567,24 @@ struct BookGenerationOptionsView: View {
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Close") {
+                        Button(action: {
                             onDismiss()
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(AppColors.surfaceLight)
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.borderLight, lineWidth: 1)
+                            )
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Close")
                     }
                 }
         }

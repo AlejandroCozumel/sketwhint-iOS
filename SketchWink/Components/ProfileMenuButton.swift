@@ -76,11 +76,24 @@ struct ProfileMenuSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Close") {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.surfaceLight)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                     }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.primaryBlue)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
                 }
             }
         }
