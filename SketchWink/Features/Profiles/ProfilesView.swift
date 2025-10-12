@@ -14,7 +14,6 @@ struct ProfilesView: View {
     @State private var showingMaxProfilesAlert = false
     @State private var showingProfileSelection = false
     @State private var showingAdminOnlyAlert = false
-    @State private var showingSignOutAlert = false
     @State private var profileToSelect: FamilyProfile? {
         didSet {
             // Profile selection changed
@@ -23,6 +22,8 @@ struct ProfilesView: View {
     @State private var currentProfile: FamilyProfile?
     @State private var isSwitchingProfile = false
     @State private var showingProfileMenu = false
+    @State private var showPainting = false
+    @State private var showSettings = false
 
     @StateObject private var authService = AuthService.shared
     @StateObject private var profileService = ProfileService.shared
@@ -61,7 +62,19 @@ struct ProfilesView: View {
             await loadData()
         }
         .sheet(isPresented: $showingProfileMenu) {
-            ProfileMenuSheet(selectedTab: .constant(4), showPainting: .constant(false))
+            ProfileMenuSheet(
+                selectedTab: .constant(4),
+                showPainting: $showPainting,
+                showSettings: $showSettings
+            )
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
+        .fullScreenCover(isPresented: $showPainting) {
+            NavigationView {
+                PaintingView()
+            }
         }
         .onAppear {
             loadCurrentProfile()
@@ -75,14 +88,6 @@ struct ProfilesView: View {
             Button("OK") { }
         } message: {
             Text("You've reached the maximum of \(userPermissions?.maxFamilyProfiles ?? 5) family profiles for your plan.")
-        }
-        .alert("Sign Out", isPresented: $showingSignOutAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Sign Out", role: .destructive) {
-                authService.signOut()
-            }
-        } message: {
-            Text("Are you sure you want to sign out? You can always sign back in anytime.")
         }
         .sheet(isPresented: $showingCreateProfile) {
             CreateProfileView(
@@ -429,17 +434,6 @@ struct ProfilesView: View {
                     .cornerRadius(AppSizing.cornerRadius.md)
                 }
 
-                // Sign Out Button
-                Button("Sign Out") {
-                    showingSignOutAlert = true
-                }
-                .largeButtonStyle(backgroundColor: AppColors.errorRed)
-                .childSafeTouchTarget()
-
-                Text("You can always sign back in anytime")
-                    .captionLarge()
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
             }
         }
         .cardStyle()

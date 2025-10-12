@@ -14,6 +14,8 @@ struct BooksView: View {
     @State private var bookToMove: StoryBook?
     @State private var showSubscriptionPlans = false
     @State private var showingProfileMenu = false
+    @State private var showPainting = false
+    @State private var showSettings = false
     
     // Filter states
     @State private var showFavoritesOnly = false
@@ -154,7 +156,19 @@ struct BooksView: View {
             SubscriptionPlansView()
         }
         .sheet(isPresented: $showingProfileMenu) {
-            ProfileMenuSheet(selectedTab: .constant(2), showPainting: .constant(false))
+            ProfileMenuSheet(
+                selectedTab: .constant(2),
+                showPainting: $showPainting,
+                showSettings: $showSettings
+            )
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
+        .fullScreenCover(isPresented: $showPainting) {
+            NavigationView {
+                PaintingView()
+            }
         }
     }
     

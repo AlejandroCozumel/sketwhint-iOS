@@ -122,11 +122,26 @@ struct StoryDraftCreationView: View {
                                 .font(.headline)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal)
-                            Button("Close") {
+                            Button(action: {
                                 showingPreview = false
                                 userTheme = ""
                                 onDraftCreated(draft)
+                            }) {
+                                ZStack {
+                                    Circle()
+                                        .fill(AppColors.surfaceLight)
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(AppColors.textSecondary)
+                                }
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .stroke(AppColors.borderLight, lineWidth: 1)
+                                )
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Close")
                             .padding(.top, 12)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)

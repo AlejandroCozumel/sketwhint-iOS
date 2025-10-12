@@ -21,6 +21,7 @@ struct CategorySelectionView: View {
     @State private var navigateToBookGeneration = false
     @State private var showingProfileMenu = false
     @State private var showPainting = false
+    @State private var showSettings = false
     @State private var showSubscriptionPlans = false
     @State private var showBedtimeStories = false
     
@@ -58,7 +59,11 @@ struct CategorySelectionView: View {
             )
         }
         .sheet(isPresented: $showingProfileMenu) {
-            ProfileMenuSheet(selectedTab: $selectedTab, showPainting: $showPainting)
+            ProfileMenuSheet(
+                selectedTab: $selectedTab,
+                showPainting: $showPainting,
+                showSettings: $showSettings
+            )
         }
         .sheet(isPresented: $showSubscriptionPlans) {
             SubscriptionPlansView()
@@ -67,6 +72,9 @@ struct CategorySelectionView: View {
             NavigationView {
                 PaintingView()
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
         .sheet(isPresented: $showBedtimeStories) {
             NavigationView {

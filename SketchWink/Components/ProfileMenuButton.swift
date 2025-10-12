@@ -6,6 +6,7 @@ struct ProfileMenuButton: View {
     @Binding var selectedTab: Int
     @State private var showingProfileMenu = false
     @State private var showPainting = false
+    @State private var showSettings = false
 
     var body: some View {
         Button(action: { showingProfileMenu = true }) {
@@ -22,7 +23,14 @@ struct ProfileMenuButton: View {
             }
         }
         .sheet(isPresented: $showingProfileMenu) {
-            ProfileMenuSheet(selectedTab: $selectedTab, showPainting: $showPainting)
+            ProfileMenuSheet(
+                selectedTab: $selectedTab,
+                showPainting: $showPainting,
+                showSettings: $showSettings
+            )
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
         .fullScreenCover(isPresented: $showPainting) {
             NavigationView {
@@ -38,34 +46,30 @@ struct ProfileMenuSheet: View {
     @StateObject private var profileService = ProfileService.shared
     @Binding var selectedTab: Int
     @Binding var showPainting: Bool
+    @Binding var showSettings: Bool
 
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 // Menu items
                 VStack(spacing: 0) {
-                    Button(action: {
-                        dismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            showPainting = true
-                        }
-                    }) {
-                        HStack(spacing: AppSpacing.md) {
-                            Image(systemName: "paintbrush.pointed.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(AppColors.textSecondary)
-                                .frame(width: 32)
-
-                            Text("Painting")
-                                .font(AppTypography.titleMedium)
-                                .foregroundColor(AppColors.textPrimary)
-
-                            Spacer()
-                        }
-                        .padding(.horizontal, AppSpacing.lg)
-                        .padding(.vertical, AppSpacing.md)
+                    menuButton(
+                        icon: "paintbrush.pointed.fill",
+                        title: "Painting",
+                        showsChevron: true
+                    ) {
+                        showPainting = true
                     }
-                    .buttonStyle(PlainButtonStyle())
+
+                    Divider()
+
+                    menuButton(
+                        icon: "gearshape.fill",
+                        title: "Settings",
+                        showsChevron: true
+                    ) {
+                        showSettings = true
+                    }
                 }
                 .padding(.top, AppSpacing.lg)
 
@@ -97,5 +101,45 @@ struct ProfileMenuSheet: View {
                 }
             }
         }
+    }
+}
+
+extension ProfileMenuSheet {
+    private func menuButton(
+        icon: String,
+        title: String,
+        showsChevron: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: {
+            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                action()
+            }
+        }) {
+            HStack(spacing: AppSpacing.md) {
+                Image(systemName: icon)
+                    .font(.system(size: 24))
+                    .foregroundColor(AppColors.textSecondary)
+                    .frame(width: 32)
+
+                Text(title)
+                    .font(AppTypography.titleMedium)
+                    .foregroundColor(AppColors.textPrimary)
+
+                Spacer()
+
+                if showsChevron {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(AppColors.textSecondary)
+                }
+            }
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }

@@ -23,6 +23,7 @@ struct GalleryView: View {
     @State private var isSearchActive = false
     @State private var selectedProfileFilter: String? = nil  // NEW: Profile filter
     @State private var showPainting = false
+    @State private var showSettings = false
     @FocusState private var isSearchFocused: Bool
 
     // Auto-search with debouncing
@@ -242,12 +243,19 @@ struct GalleryView: View {
             }
         }
         .sheet(isPresented: $showingProfileMenu) {
-            ProfileMenuSheet(selectedTab: $selectedTab, showPainting: $showPainting)
+            ProfileMenuSheet(
+                selectedTab: $selectedTab,
+                showPainting: $showPainting,
+                showSettings: $showSettings
+            )
         }
         .fullScreenCover(isPresented: $showPainting) {
             NavigationView {
                 PaintingView()
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
         }
         .task {
             await loadCategories()

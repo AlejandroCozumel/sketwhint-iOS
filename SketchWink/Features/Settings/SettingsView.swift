@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var authService = AuthService.shared
     @State private var showingSignOutAlert = false
     
@@ -132,16 +133,10 @@ struct SettingsView: View {
                     
                     // Sign Out Section
                     VStack(spacing: AppSpacing.sm) {
-                        Button(action: { showingSignOutAlert = true }) {
-                            Text("Sign Out")
-                                .font(AppTypography.bodyMedium)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, AppSpacing.md)
-                                .background(AppColors.errorRed)
-                                .clipShape(Capsule())
+                        Button("Sign Out") {
+                            showingSignOutAlert = true
                         }
+                        .largeButtonStyle(backgroundColor: AppColors.errorRed)
                         .childSafeTouchTarget()
 
                         Text("You can always sign back in anytime")
@@ -157,6 +152,27 @@ struct SettingsView: View {
             .background(AppColors.backgroundLight)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.surfaceLight)
+
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close")
+                }
+            }
         }
         .alert("Sign Out", isPresented: $showingSignOutAlert) {
             Button("Cancel", role: .cancel) { }

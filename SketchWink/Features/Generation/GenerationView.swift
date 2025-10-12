@@ -58,6 +58,8 @@ struct GenerationView: View {
     @State private var showingImagePicker = false
     @State private var showingCamera = false
     @State private var showingImagePreview = false
+    @State private var currentStep = 1
+    @State private var transitionEdge: Edge = .trailing
 
     @FocusState private var isPromptFocused: Bool
 
@@ -140,16 +142,52 @@ struct GenerationView: View {
                     showingPhotoSourceSelection = false
                 }
             }
+            .onChange(of: selectedOption?.id) { _, newValue in
+                if newValue == nil && currentStep > 1 {
+                    transitionEdge = .leading
+                    withAnimation(.easeInOut) {
+                        currentStep = 1
+                    }
+                }
+            }
     }
 
     // MARK: - View Components
 
     private var mainContent: some View {
         NavigationView {
-            scrollContent
-                .navigationTitle(selectedCategory?.category.name ?? "Create Art")
+            VStack(spacing: 0) {
+                progressBar
+                stepContent
+            }
+                .navigationTitle(navigationTitleText)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        if currentStep > 1 {
+                            Button(action: {
+                                transitionEdge = .leading
+                                withAnimation(.easeInOut) {
+                                    currentStep -= 1
+                                }
+                            }) {
+                                ZStack {
+                                    Circle()
+                                        .fill(AppColors.surfaceLight)
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(AppColors.primaryBlue)
+                                }
+                                .frame(width: 36, height: 36)
+                                .overlay(
+                                    Circle()
+                                        .stroke(AppColors.borderLight, lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Back")
+                        }
+                    }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         doneButton
                     }
@@ -159,29 +197,84 @@ struct GenerationView: View {
         }
         .background(AppColors.backgroundLight)
         .cornerRadius(20)
+        .ignoresSafeArea(edges: .bottom)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
 
-    private var scrollContent: some View {
-        ScrollView {
-            VStack(spacing: AppSpacing.sectionSpacing) {
-                if isLoading {
-                    loadingView
-                } else if let category = selectedCategory {
-                    generationFormView(category: category)
-                } else {
-                    errorStateView
+    private var progressBar: some View {
+        VStack(spacing: AppSpacing.xs) {
+            HStack(spacing: 4) {
+                ForEach(1...2, id: \.self) { step in
+                    Rectangle()
+                        .fill(step <= currentStep ? AppColors.primaryBlue : AppColors.borderLight)
+                        .frame(height: 4)
+                        .frame(maxWidth: .infinity)
                 }
             }
-            .pageMargins()
-            .padding(.vertical, AppSpacing.sectionSpacing)
+
+            Text("Step \(currentStep) of 2")
+                .font(AppTypography.captionLarge)
+                .foregroundColor(AppColors.textSecondary)
+                .padding(.top, 4)
         }
-        .dismissKeyboardOnScroll()
-        .simultaneousGesture(
-            DragGesture().onChanged { _ in
-                // Dismiss keyboard when user starts scrolling
-                isPromptFocused = false
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.top, AppSpacing.sm)
+        .padding(.bottom, AppSpacing.sm)
+        .background(AppColors.backgroundLight)
+    }
+
+    private var stepContent: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: AppSpacing.sectionSpacing) {
+                    if isLoading {
+                        loadingView
+                    } else if let category = selectedCategory {
+                        switch currentStep {
+                        case 1:
+                            stepOneStyleSelection(category: category)
+                                .transition(
+                                    .asymmetric(
+                                        insertion: .move(edge: transitionEdge),
+                                        removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)
+                                    )
+                                )
+                                .id("step1")
+                        case 2:
+                            generationFormView(category: category)
+                                .transition(
+                                    .asymmetric(
+                                        insertion: .move(edge: transitionEdge),
+                                        removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)
+                                    )
+                                )
+                                .id("step2")
+                        default:
+                            EmptyView()
+                        }
+                    } else {
+                        errorStateView
+                    }
+                }
+                .pageMargins()
+                .padding(.top, AppSpacing.sectionSpacing)
+                .padding(.bottom, currentStep == 1 ? AppSpacing.md : AppSpacing.sectionSpacing)
             }
-        )
+            .dismissKeyboardOnScroll()
+            .simultaneousGesture(
+                DragGesture().onChanged { _ in
+                    // Dismiss keyboard when user starts scrolling
+                    isPromptFocused = false
+                }
+            )
+            .onChange(of: currentStep) { _, newValue in
+                withAnimation(.easeInOut) {
+                    proxy.scrollTo("step\(newValue)", anchor: .top)
+                }
+            }
+            .animation(.easeInOut, value: currentStep)
+            .background(AppColors.backgroundLight)
+        }
     }
 
     private var doneButton: some View {
@@ -190,6 +283,7 @@ struct GenerationView: View {
             print("🔗 GenerationView: User tapped Done, disconnecting SSE and dismissing")
             #endif
             GenerationProgressSSEService.shared.disconnect()
+            currentStep = 1
             onDismiss()
         }) {
             Image(systemName: "xmark")
@@ -243,6 +337,7 @@ struct GenerationView: View {
                     userPrompt = ""
                     selectedInputImage = nil
                     isPromptFocused = false
+                    currentStep = 1
                 }
             }
         )
@@ -259,16 +354,19 @@ struct GenerationView: View {
                     userPrompt = ""
                     selectedInputImage = nil
                     isPromptFocused = false
+                    currentStep = 1
                 },
                 onGenerateAnother: {
                     generationState = .idle
                     userPrompt = ""
                     selectedInputImage = nil
                     isPromptFocused = false
+                    currentStep = 1
                 },
                 onDismissParent: {
                     // Dismiss the parent GenerationView sheet
                     GenerationProgressSSEService.shared.disconnect()
+                    currentStep = 1
                     onDismiss()
                 }
             )
@@ -281,6 +379,7 @@ struct GenerationView: View {
         showingSuccess = false
         successMessage = nil
         hasLoadedPromptSetting = false
+        currentStep = 1
     }
 
     private func handleOnDisappear() {
@@ -310,10 +409,6 @@ struct GenerationView: View {
     @ViewBuilder
     private func generationFormView(category: CategoryWithOptions) -> some View {
         VStack(spacing: AppSpacing.sectionSpacing) {
-
-            // Style Selection
-            styleSelectionView(options: category.options)
-
             // Input Method Selection
             self.inputMethodSelectionView
 
@@ -338,6 +433,20 @@ struct GenerationView: View {
         }
     }
 
+    // MARK: - Step One Style Selection
+    @ViewBuilder
+    private func stepOneStyleSelection(category: CategoryWithOptions) -> some View {
+        VStack(spacing: AppSpacing.sectionSpacing) {
+            styleSelectionView(options: category.options)
+
+            Text("Pick a style to continue")
+                .font(AppTypography.bodyMedium)
+                .foregroundColor(AppColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.bottom, AppSpacing.sm)
+        }
+    }
+
     // MARK: - Style Selection
     @ViewBuilder
     private func styleSelectionView(options: [GenerationOption]) -> some View {
@@ -355,11 +464,29 @@ struct GenerationView: View {
                         isSelected: selectedOption?.id == option.id,
                         categoryColor: categoryColor
                     ) {
-                        selectedOption = option
+                        handleStyleSelection(option)
                     }
                 }
             }
         }
+    }
+
+    private func handleStyleSelection(_ option: GenerationOption) {
+        selectedOption = option
+
+        if currentStep == 1 {
+            transitionEdge = .trailing
+            withAnimation(.easeInOut) {
+                currentStep = 2
+            }
+        }
+    }
+
+    private var navigationTitleText: String {
+        if currentStep == 2, let selectedOption {
+            return selectedOption.name
+        }
+        return selectedCategory?.category.name ?? "Create Art"
     }
 
     // MARK: - Prompt Input
@@ -859,16 +986,6 @@ struct GenerationView: View {
             #endif
 
             do {
-                // Set default selected option if not already set
-                if selectedOption == nil, let selectedCategory = selectedCategory {
-                    if let firstOption = selectedCategory.options.first(where: { $0.isDefault }) ?? selectedCategory.options.first {
-                        selectedOption = firstOption
-                        #if DEBUG
-                        print("🎯 GenerationView: Default option selected: \(firstOption.name)")
-                        #endif
-                    }
-                }
-
                 // Set default dimensions based on category
                 if let selectedCategory = selectedCategory {
                     switch selectedCategory.category.id {
@@ -926,22 +1043,11 @@ struct GenerationView: View {
                 }
                 #endif
 
-                // Set default selected option for the preselected category
-                if let firstOption = preselectedCategory.options.first(where: { $0.isDefault }) ?? preselectedCategory.options.first {
-                    selectedOption = firstOption
-                    #if DEBUG
-                    print("🎯 GenerationView: Default option selected: \(firstOption.name)")
-                    #endif
-                }
             } else {
                 // Fallback: load categories and find coloring pages (for backward compatibility)
                 let categories = try await generationService.getCategoriesWithOptions()
                 selectedCategory = categories.first { $0.category.id == "coloring_pages" }
 
-                // Set default selected option
-                if let firstOption = selectedCategory?.options.first(where: { $0.isDefault }) ?? selectedCategory?.options.first {
-                    selectedOption = firstOption
-                }
             }
 
             // Load prompt enhancement setting and user permissions
