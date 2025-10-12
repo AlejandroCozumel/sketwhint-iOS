@@ -67,7 +67,7 @@ struct GenerationResultView: View {
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(AppColors.textSecondary)
                             .padding(8)
-                            .background(AppColors.buttonSecondary)
+                            .background(AppColors.surfaceLight)
                             .clipShape(Circle())
                             .overlay(
                                 Circle()

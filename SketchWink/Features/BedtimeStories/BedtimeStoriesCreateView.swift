@@ -114,28 +114,39 @@ struct BedtimeStoriesCreateView: View {
                         transitionEdge = .leading
                         currentStep -= 1
                     }) {
-                        HStack {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.surfaceLight)
                             Image(systemName: "chevron.left")
-                            Text("Back")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(AppColors.primaryBlue)
                         }
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                     }
-                    .foregroundColor(AppColors.primaryBlue)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Back")
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     dismiss()
                 }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(AppColors.textSecondary)
-                        .padding(8)
-                        .background(AppColors.buttonSecondary)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(AppColors.borderLight, lineWidth: 1)
-                        )
+                    ZStack {
+                        Circle()
+                            .fill(AppColors.surfaceLight)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppColors.textSecondary)
+                    }
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        Circle()
+                            .stroke(AppColors.borderLight, lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")
