@@ -636,6 +636,103 @@ class ProfileService: ObservableObject {
             throw ProfileError.decodingError
         }
     }
+
+    /// Update or clear the PIN for a family profile
+    func updateProfilePIN(profileId: String, newPIN: String?) async throws -> FamilyProfile {
+        let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.familyProfiles)/\(profileId)"
+
+        guard let url = URL(string: endpoint) else {
+            throw ProfileError.invalidURL
+        }
+
+        guard let token = try KeychainManager.shared.retrieveToken() else {
+            throw ProfileError.noToken
+        }
+
+        guard let adminProfile = self.currentProfile, adminProfile.isDefault else {
+            throw ProfileError.apiError("Only the main family profile can manage family settings.")
+        }
+
+        var httpRequest = URLRequest(url: url)
+        httpRequest.httpMethod = "PUT"
+        httpRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        httpRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        httpRequest.setValue(adminProfile.id, forHTTPHeaderField: "X-Profile-ID")
+
+        var payload: [String: Any] = [:]
+        if let newPIN {
+            payload["pin"] = newPIN
+        } else {
+            payload["pin"] = NSNull()
+        }
+
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: payload)
+            httpRequest.httpBody = jsonData
+
+            #if DEBUG
+            print("📤 Update Profile PIN Request")
+            print("   - Profile ID: \(profileId)")
+            print("   - Action: \(newPIN == nil ? "remove" : "set")")
+            print("   - Endpoint: \(endpoint)")
+            #endif
+        } catch {
+            throw ProfileError.encodingError
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: httpRequest)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ProfileError.invalidResponse
+        }
+
+        #if DEBUG
+        print("📥 Update Profile PIN API Response: \(httpResponse.statusCode)")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📥 Response Body: \(responseString)")
+        }
+        #endif
+
+        guard 200...299 ~= httpResponse.statusCode else {
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                AuthService.handleUnauthorizedResponse()
+            }
+
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw ProfileError.apiError(apiError.userMessage)
+            } else {
+                throw ProfileError.httpError(httpResponse.statusCode)
+            }
+        }
+
+        do {
+            let jsonObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
+            guard let profileDictionary = jsonObject?["profile"] as? [String: Any] else {
+                throw ProfileError.decodingError
+            }
+
+            let profileData = try JSONSerialization.data(withJSONObject: profileDictionary)
+            let adminProfileResponse = try JSONDecoder().decode(AdminProfile.self, from: profileData)
+            let updatedProfile = adminProfileResponse.toFamilyProfile()
+
+            await MainActor.run {
+                if let index = self.availableProfiles.firstIndex(where: { $0.id == profileId }) {
+                    self.availableProfiles[index] = updatedProfile
+                }
+
+                if self.currentProfile?.id == updatedProfile.id {
+                    self.currentProfile = updatedProfile
+                }
+            }
+
+            return updatedProfile
+        } catch {
+            #if DEBUG
+            print("❌ Failed to decode updateProfilePIN response: \(error)")
+            #endif
+            throw ProfileError.decodingError
+        }
+    }
     
     /// Delete family profile
     func deleteFamilyProfile(profileId: String) async throws {
