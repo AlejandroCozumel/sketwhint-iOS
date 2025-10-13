@@ -226,19 +226,12 @@ struct FolderView: View {
             Button(action: { showingCreateFolder = true }) {
                 HStack(spacing: AppSpacing.sm) {
                     Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .semibold))
-                    
                     Text("Create Folder")
-                        .font(AppTypography.titleMedium)
-                        .fontWeight(.semibold)
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, AppSpacing.lg)
-                .padding(.vertical, AppSpacing.md)
-                .background(AppColors.primaryBlue)
-                .clipShape(Capsule())
+                .largeButtonStyle(
+                    backgroundColor: AppColors.primaryBlue
+                )
             }
-            .childSafeTouchTarget()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, AppSpacing.xl)

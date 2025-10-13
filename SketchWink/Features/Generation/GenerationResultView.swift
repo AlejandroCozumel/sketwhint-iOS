@@ -157,17 +157,12 @@ struct GenerationResultView: View {
             isShowingShareSheet = true
         } label: {
             Text("Share")
-                .font(AppTypography.bodyMedium)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.md)
-                .background(AppColors.primaryPurple)
-                .clipShape(Capsule())
+                .largeButtonStyle(
+                    backgroundColor: AppColors.primaryPurple,
+                    isDisabled: shareableImage == nil
+                )
         }
         .disabled(shareableImage == nil)
-        .opacity(shareableImage == nil ? 0.6 : 1.0)
-        .childSafeTouchTarget()
     }
     
     // MARK: - Image Selection (Multiple Images)
@@ -271,15 +266,10 @@ struct GenerationResultView: View {
                 onDismissParent() // Dismiss parent GenerationView
             } label: {
                 Text("View My Gallery")
-                    .font(AppTypography.bodyMedium)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, AppSpacing.md)
-                    .background(AppColors.primaryBlue)
-                    .clipShape(Capsule())
+                    .largeButtonStyle(
+                        backgroundColor: AppColors.primaryBlue
+                    )
             }
-            .childSafeTouchTarget()
         }
     }
     

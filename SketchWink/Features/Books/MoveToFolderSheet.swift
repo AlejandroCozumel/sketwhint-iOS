@@ -175,14 +175,13 @@ struct MoveToFolderSheet: View {
                     }
                     
                     Text(isMoving ? "Moving..." : "Move to Folder")
-                        .font(AppTypography.titleMedium)
-                        .fontWeight(.semibold)
                 }
-                .frame(maxWidth: .infinity)
+                .largeButtonStyle(
+                    backgroundColor: AppColors.primaryBlue,
+                    isDisabled: selectedFolder == nil || isMoving
+                )
             }
-            .largeButtonStyle(backgroundColor: selectedFolder != nil ? AppColors.primaryBlue : AppColors.buttonDisabled)
             .disabled(selectedFolder == nil || isMoving)
-            .childSafeTouchTarget()
         }
     }
     

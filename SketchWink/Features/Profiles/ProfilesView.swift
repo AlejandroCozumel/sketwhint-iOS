@@ -252,15 +252,16 @@ struct ProfilesView: View {
             .cardStyle()
 
             // Create First Profile Button
-            Button("Create Your First Profile") {
+            Button {
                 if canCreateProfile {
                     showingCreateProfile = true
                 } else {
                     handleProfileCreationLimit()
                 }
+            } label: {
+                Text("Create Your First Profile")
+                    .largeButtonStyle(backgroundColor: AppColors.primaryPink)
             }
-            .largeButtonStyle(backgroundColor: AppColors.primaryPink)
-            .childSafeTouchTarget()
         }
     }
 
@@ -379,9 +380,8 @@ struct ProfilesView: View {
 
                     Text(canCreateProfile ? "Add Family Profile" : (isFreePlan ? "Upgrade to Add Profiles" : "Profile Limit Reached"))
                 }
+                .largeButtonStyle(backgroundColor: canCreateProfile ? AppColors.primaryBlue : AppColors.warningOrange)
             }
-            .largeButtonStyle(backgroundColor: canCreateProfile ? AppColors.primaryBlue : AppColors.warningOrange)
-            .childSafeTouchTarget()
 
             if !canCreateProfile && isFreePlan {
                 Text("Upgrade your plan to create more family profiles")
@@ -395,7 +395,6 @@ struct ProfilesView: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .contentPadding()
     }
 
     // MARK: - Account Section
@@ -1251,15 +1250,12 @@ struct CreateProfileView: View {
 
                     Text(isCreating ? "Creating Profile..." : "Create Profile")
                 }
-                .font(AppTypography.titleMedium)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(canCreateProfile ? AppColors.primaryBlue : AppColors.buttonDisabled)
-                .cornerRadius(AppSizing.cornerRadius.lg)
+                .largeButtonStyle(
+                    backgroundColor: AppColors.primaryBlue,
+                    isDisabled: !canCreateProfile
+                )
             }
             .disabled(!canCreateProfile || isCreating)
-            .childSafeTouchTarget()
 
             if !canCreateProfile {
                 Text("Please fill in all required fields")
@@ -1268,7 +1264,6 @@ struct CreateProfileView: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .contentPadding()
     }
 
     // MARK: - Computed Properties
@@ -1818,7 +1813,6 @@ struct EditProfileView: View {
                         .foregroundColor(AppColors.textPrimary)
                 }
                 .tint(AppColors.primaryBlue)
-                .childSafeTouchTarget()
                 .onChange(of: pinEnabled) { _, newValue in
                     newPin = ""
                     confirmNewPin = ""
@@ -1851,12 +1845,12 @@ struct EditProfileView: View {
                                 Image(systemName: "lock.rotation")
                                 Text("Update PIN")
                             }
+                            .largeButtonStyle(
+                                backgroundColor: AppColors.primaryBlue,
+                                foregroundColor: .white,
+                                isDisabled: false
+                            )
                         }
-                        .largeButtonStyle(
-                            backgroundColor: AppColors.primaryBlue,
-                            foregroundColor: .white
-                        )
-                        .childSafeTouchTarget()
 
                         Text("Turn off the toggle above if you want to remove the current PIN.")
                             .captionMedium()
@@ -1956,15 +1950,12 @@ struct EditProfileView: View {
 
                             Text(pinActionButtonTitle)
                         }
+                        .largeButtonStyle(
+                            backgroundColor: pinEnabled ? AppColors.primaryBlue : AppColors.errorRed,
+                            isDisabled: !canSavePinSettings || isUpdatingPin
+                        )
                     }
-                    .largeButtonStyle(
-                        backgroundColor: canSavePinSettings
-                            ? (pinEnabled ? AppColors.primaryBlue : AppColors.errorRed)
-                            : AppColors.buttonDisabled,
-                        foregroundColor: .white
-                    )
                     .disabled(!canSavePinSettings || isUpdatingPin)
-                    .childSafeTouchTarget()
                 }
 
                 if pinSettingsDirty {
@@ -1983,7 +1974,8 @@ struct EditProfileView: View {
                             .captionMedium()
                             .foregroundColor(AppColors.textSecondary)
                     }
-                } else if originalPinEnabled {
+                }
+                else if originalPinEnabled {
                     Text("Re-enable the toggle anytime to protect this profile again.")
                         .captionMedium()
                         .foregroundColor(AppColors.textSecondary)
@@ -2007,9 +1999,7 @@ struct EditProfileView: View {
             }
         }
         .cardStyle()
-        .animation(.easeInOut(duration: 0.25), value: pinEnabled)
-        .animation(.easeInOut(duration: 0.25), value: newPin)
-        .animation(.easeInOut(duration: 0.25), value: showPinEditor)
+        .animation(.easeInOut, value: showPinEditor)
     }
 
     private var pinSettingsDirty: Bool {
@@ -2088,35 +2078,30 @@ struct EditProfileView: View {
         .cardStyle()
     }
 
-    // MARK: - Delete Profile Section
+    // MARK: - Delete Section
     private var deleteProfileSection: some View {
-        VStack(spacing: AppSpacing.md) {
-            Text("Delete This Profile")
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            Text("Delete Profile")
                 .headlineMedium()
                 .foregroundColor(AppColors.errorRed)
+
+            Text("This action is permanent and cannot be undone. The profile will be hidden from view.")
+                .captionLarge()
+                .foregroundColor(AppColors.textSecondary)
 
             Button {
                 showingDeleteAlert = true
             } label: {
-                HStack {
+                HStack(spacing: AppSpacing.sm) {
                     Image(systemName: "trash.fill")
-                    Text("Delete Profile")
+                    Text("Delete This Profile")
                 }
+                .largeButtonStyle(
+                    backgroundColor: AppColors.errorRed,
+                    isDisabled: isDeleting
+                )
             }
-            .largeButtonStyle(backgroundColor: AppColors.errorRed)
-            .childSafeTouchTarget()
-
-            VStack(spacing: AppSpacing.xs) {
-                Text("Delete this profile from the family list. Parents will still be able to access the artwork it created.")
-                    .captionMedium()
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
-
-                Text("You can create a new profile immediately after deleting this one.")
-                    .captionMedium()
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
+            .disabled(isDeleting)
         }
         .cardStyle()
     }
@@ -2138,10 +2123,10 @@ struct EditProfileView: View {
             }
             .largeButtonStyle(
                 backgroundColor: AppColors.buttonDisabled,
-                foregroundColor: AppColors.textSecondary
+                foregroundColor: AppColors.textSecondary,
+                isDisabled: true
             )
             .disabled(true)
-            .childSafeTouchTarget()
 
             VStack(spacing: AppSpacing.xs) {
                 Text("This is your main family profile and cannot be deleted.")
@@ -2563,27 +2548,19 @@ struct PINEntryView: View {
 
                 // Action Buttons
                 VStack(spacing: AppSpacing.md) {
-                    Button {
-                        verifyPIN()
-                    } label: {
-                        HStack {
-                            if isVerifying {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                    .tint(.white)
-                            } else {
-                                Image(systemName: "lock.open.fill")
-                            }
-                            Text(isVerifying ? "Verifying..." : "Unlock Profile")
-                        }
-                        .font(AppTypography.titleMedium)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(enteredPIN.count == 4 && !isVerifying ? AppColors.primaryBlue : AppColors.buttonDisabled)
-                        .cornerRadius(AppSizing.cornerRadius.lg)
-                    }
-                    .disabled(enteredPIN.count != 4 || isVerifying)
+        Button(action: {
+            verifyPIN()
+        }) {
+            HStack {
+                Image(systemName: "lock.open.fill")
+                Text("Unlock Profile")
+            }
+            .largeButtonStyle(
+                backgroundColor: AppColors.primaryBlue,
+                isDisabled: enteredPIN.count != 4
+            )
+        }
+        .disabled(enteredPIN.count != 4)
                     .childSafeTouchTarget()
 
                     Button("Cancel") {

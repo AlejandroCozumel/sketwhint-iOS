@@ -327,46 +327,29 @@ struct EditFolderView: View {
                             .tint(.white)
                     } else {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 16, weight: .semibold))
                     }
                     
                     Text(isUpdating ? "Updating..." : "Update Folder")
-                        .font(AppTypography.titleMedium)
-                        .fontWeight(.semibold)
                 }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.md)
-                .background(
-                    hasChanges && isValidInput && !isUpdating ? AppColors.primaryBlue : AppColors.buttonDisabled
+                .largeButtonStyle(
+                    backgroundColor: AppColors.primaryBlue,
+                    isDisabled: !hasChanges || !isValidInput || isUpdating
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             .disabled(!hasChanges || !isValidInput || isUpdating)
-            .childSafeTouchTarget()
             
             // Delete Button
             Button(action: { showingDeleteConfirmation = true }) {
                 HStack(spacing: AppSpacing.sm) {
                     Image(systemName: "trash")
-                        .font(.system(size: 16, weight: .semibold))
-                    
                     Text("Delete Folder")
-                        .font(AppTypography.titleMedium)
-                        .fontWeight(.semibold)
                 }
-                .foregroundColor(AppColors.errorRed)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.md)
-                .background(AppColors.errorRed.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(AppColors.errorRed.opacity(0.3), lineWidth: 1)
+                .largeButtonStyle(
+                    backgroundColor: AppColors.errorRed,
+                    isDisabled: isUpdating
                 )
             }
             .disabled(isUpdating)
-            .childSafeTouchTarget()
         }
     }
     

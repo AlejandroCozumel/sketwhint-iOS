@@ -124,22 +124,30 @@ struct ColoringView: View {
                     Button("Undo") {
                         undoLastStroke()
                     }
-                    .largeButtonStyle(backgroundColor: AppColors.buttonSecondary)
+                    .largeButtonStyle(
+                        backgroundColor: AppColors.buttonSecondary,
+                        isDisabled: drawnPaths.isEmpty
+                    )
                     .disabled(drawnPaths.isEmpty)
                     
                     Button("Clear All") {
                         clearAll()
                     }
-                    .largeButtonStyle(backgroundColor: AppColors.errorRed)
+                    .largeButtonStyle(
+                        backgroundColor: AppColors.errorRed,
+                        isDisabled: drawnPaths.isEmpty
+                    )
                     .disabled(drawnPaths.isEmpty)
                     
                     Button("Save") {
                         saveColoredImage()
                     }
-                    .largeButtonStyle(backgroundColor: AppColors.coloringPagesColor)
+                    .largeButtonStyle(
+                        backgroundColor: AppColors.coloringPagesColor,
+                        isDisabled: drawnPaths.isEmpty
+                    )
                     .disabled(drawnPaths.isEmpty)
                 }
-                .childSafeTouchTarget()
             }
             .pageMargins()
             .padding(.vertical, AppSpacing.md)

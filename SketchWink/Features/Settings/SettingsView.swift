@@ -133,11 +133,12 @@ struct SettingsView: View {
                     
                     // Sign Out Section
                     VStack(spacing: AppSpacing.sm) {
-                        Button("Sign Out") {
+                        Button {
                             showingSignOutAlert = true
+                        } label: {
+                            Text("Sign Out")
+                                .largeButtonStyle(backgroundColor: AppColors.errorRed)
                         }
-                        .largeButtonStyle(backgroundColor: AppColors.errorRed)
-                        .childSafeTouchTarget()
 
                         Text("You can always sign back in anytime")
                             .captionLarge()
@@ -178,6 +179,7 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) { }
             Button("Sign Out", role: .destructive) {
                 authService.signOut()
+                dismiss()
             }
         } message: {
             Text("Are you sure you want to sign out?")

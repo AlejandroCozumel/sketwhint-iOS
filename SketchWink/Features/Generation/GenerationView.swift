@@ -877,18 +877,13 @@ struct GenerationView: View {
                     }
 
                     Text(generationState == .loading ? "Creating..." : "Create My \(selectedCategory?.category.name ?? "Art")")
-                        .font(AppTypography.titleMedium)
-                        .fontWeight(.semibold)
                 }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.lg)
-                .background(canGenerate && generationState != .loading ? categoryColor : AppColors.buttonDisabled)
-                .clipShape(Capsule())
+                .largeButtonStyle(
+                    backgroundColor: categoryColor,
+                    isDisabled: !canGenerate || generationState == .loading
+                )
             }
             .disabled(!canGenerate || generationState == .loading)
-            .opacity(canGenerate && generationState != .loading ? 1.0 : 0.6)
-            .childSafeTouchTarget()
 
             if !canGenerate {
                 Text(generateButtonValidationText)

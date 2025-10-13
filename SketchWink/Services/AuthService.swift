@@ -331,9 +331,30 @@ class KeychainManager {
 // MARK: - Authentication Service
 class AuthService: ObservableObject {
     static let shared = AuthService()
-    private init() {}
+    private let userDefaultsKey = "currentUser"
+    private init() {
+        if let data = UserDefaults.standard.data(forKey: userDefaultsKey) {
+            do {
+                self.currentUser = try JSONDecoder().decode(User.self, from: data)
+            } catch {
+                #if DEBUG
+                print("Failed to decode user from UserDefaults: \(error)")
+                #endif
+            }
+        }
+    }
     
-    @Published var currentUser: User?
+    @Published var currentUser: User? {
+        didSet {
+            if let user = currentUser {
+                if let data = try? encoder.encode(user) {
+                    UserDefaults.standard.set(data, forKey: userDefaultsKey)
+                }
+            } else {
+                UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+            }
+        }
+    }
     @Published var isAuthenticated = false
     @Published var networkStatus: NetworkStatus = .connected
     @Published var lastAuthCheckError: AuthError?
@@ -800,6 +821,10 @@ class AuthService: ObservableObject {
                     self.networkStatus = .connected
                     self.lastAuthCheckError = nil
                 }
+                // If currentUser is not set, fetch it
+                if self.currentUser == nil {
+                    await self.fetchAndSetCurrentUser()
+                }
             } else if httpResponse.statusCode >= 500 {
                 // Server error - keep user logged in
                 await handleNetworkIssue(.serverUnavailable)
@@ -875,6 +900,42 @@ class AuthService: ObservableObject {
         }
     }
     
+    // MARK: - Fetch Current User
+    private func fetchAndSetCurrentUser() async {
+        guard let token = try? KeychainManager.shared.retrieveToken() else {
+            return
+        }
+
+        do {
+            let endpoint = AppConfig.apiURL(for: "/auth/me")
+            guard let url = URL(string: endpoint) else {
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                // Handle error silently
+                return
+            }
+
+            let user = try decoder.decode(User.self, from: data)
+
+            await MainActor.run {
+                self.currentUser = user
+            }
+        } catch {
+            // Handle error silently, as this is a background task
+            #if DEBUG
+            print("Failed to fetch current user: \(error)")
+            #endif
+        }
+    }
+
     // MARK: - Get Current Token
     func getCurrentToken() throws -> String {
         guard let token = try KeychainManager.shared.retrieveToken() else {

@@ -290,21 +290,16 @@ struct CreateFolderView: View {
                         .tint(.white)
                 } else {
                     Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .semibold))
                 }
                 
                 Text(isCreating ? "Creating..." : "Create Folder")
-                    .font(AppTypography.titleMedium)
-                    .fontWeight(.semibold)
             }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, AppSpacing.md)
-            .background(isValidInput && !isCreating ? AppColors.primaryBlue : AppColors.buttonDisabled)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .largeButtonStyle(
+                backgroundColor: AppColors.primaryBlue,
+                isDisabled: !isValidInput || isCreating
+            )
         }
         .disabled(!isValidInput || isCreating)
-        .childSafeTouchTarget()
     }
     
     // MARK: - Actions

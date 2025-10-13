@@ -628,19 +628,12 @@ struct GalleryView: View {
                     }) {
                         HStack(spacing: AppSpacing.sm) {
                             Image(systemName: hasActiveFilters ? "xmark.circle" : "paintbrush.fill")
-                                .font(.system(size: 16, weight: .semibold))
-
                             Text(emptyStateButtonTitle)
-                                .font(AppTypography.titleMedium)
-                                .fontWeight(.semibold)
                         }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, AppSpacing.lg)
-                        .padding(.vertical, AppSpacing.md)
-                        .background(AppColors.primaryBlue)
-                        .clipShape(Capsule())
+                        .largeButtonStyle(
+                            backgroundColor: AppColors.primaryBlue
+                        )
                     }
-                    .childSafeTouchTarget()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, AppSpacing.xl)
@@ -780,19 +773,12 @@ struct GalleryView: View {
                 Button(action: { showingFolderPicker = true }) {
                     HStack(spacing: AppSpacing.xs) {
                         Image(systemName: "folder")
-                            .font(.system(size: 18, weight: .semibold))
-
                         Text("Move to Folder")
-                            .font(AppTypography.titleMedium)
-                            .fontWeight(.semibold)
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, AppSpacing.lg) // Slightly larger for single button
-                    .background(AppColors.primaryPurple)
-                    .clipShape(Capsule())
+                    .largeButtonStyle(
+                        backgroundColor: AppColors.primaryPurple
+                    )
                 }
-                .childSafeTouchTarget()
             }
             .padding(AppSpacing.md)
             .background(AppColors.backgroundLight)
@@ -1947,12 +1933,9 @@ struct ImageDetailView: View {
                         HStack(spacing: AppSpacing.sm) {
                             Text("📥")
                             Text("Download")
-                                .font(AppTypography.titleMedium)
                         }
-                        .frame(maxWidth: .infinity)
+                        .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
                     }
-                    .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
-                    .childSafeTouchTarget()
 
                     // Delete button (right side)
                     Button {
@@ -1967,13 +1950,13 @@ struct ImageDetailView: View {
                                 Text("🗑️")
                             }
                             Text(isDeleting ? "Deleting..." : "Delete")
-                                .font(AppTypography.titleMedium)
                         }
-                        .frame(maxWidth: .infinity)
+                        .largeButtonStyle(
+                            backgroundColor: AppColors.errorRed,
+                            isDisabled: isDeleting
+                        )
                     }
-                    .largeButtonStyle(backgroundColor: AppColors.errorRed)
                     .disabled(isDeleting)
-                    .childSafeTouchTarget()
                 }
             }
             .pageMargins()

@@ -399,17 +399,12 @@ struct BedtimeStoriesCreateView: View {
                     }
                     Text(isLoading ? "Creating Draft..." : "Create Draft (Free)")
                 }
-                .font(AppTypography.titleMedium)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
-                .background(canCreateDraft && !isLoading ? AppColors.primaryIndigo : AppColors.buttonDisabled)
-                .clipShape(Capsule())
+                .largeButtonStyle(
+                    backgroundColor: AppColors.primaryIndigo,
+                    isDisabled: !canCreateDraft || isLoading
+                )
             }
             .disabled(!canCreateDraft || isLoading)
-            .opacity(canCreateDraft && !isLoading ? 1.0 : 0.6)
-            .childSafeTouchTarget()
 
             if !canCreateDraft {
                 Text("Please enter a story idea")
@@ -508,36 +503,29 @@ struct BedtimeStoriesCreateView: View {
                 Text("Edit")
                 .font(AppTypography.titleMedium)
                 .fontWeight(.semibold)
-                .foregroundColor(AppColors.primaryIndigo)
+                .foregroundColor(AppColors.textSecondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
                 .background(AppColors.backgroundLight)
                 .clipShape(Capsule())
                 .overlay(
                     Capsule()
-                        .stroke(AppColors.primaryIndigo, lineWidth: 2)
+                        .stroke(AppColors.borderLight, lineWidth: 2)
                 )
             }
             .disabled(isLoading)
-            .opacity(!isLoading ? 1.0 : 0.6)
-            .childSafeTouchTarget()
 
             // Generate Story Button
             Button {
                 showingTokenConfirmation = true
             } label: {
                 Text(isLoading ? "Generating Story..." : "Generate Story")
-                .font(AppTypography.titleMedium)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
-                .background(!isLoading ? AppColors.primaryIndigo : AppColors.buttonDisabled)
-                .clipShape(Capsule())
+                    .largeButtonStyle(
+                        backgroundColor: AppColors.primaryIndigo,
+                        isDisabled: isLoading
+                    )
             }
             .disabled(isLoading)
-            .opacity(!isLoading ? 1.0 : 0.6)
-            .childSafeTouchTarget()
         }
     }
 
@@ -562,25 +550,18 @@ struct BedtimeStoriesCreateView: View {
                 )
             }
             .disabled(isLoading)
-            .opacity(!isLoading ? 1.0 : 0.6)
-            .childSafeTouchTarget()
 
             // Save Button
             Button {
                 Task { await saveDraft() }
             } label: {
                 Text(isLoading ? "Saving..." : "Save")
-                .font(AppTypography.titleMedium)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
-                .background(!isLoading && canSave ? AppColors.primaryIndigo : AppColors.buttonDisabled)
-                .clipShape(Capsule())
+                    .largeButtonStyle(
+                        backgroundColor: AppColors.primaryIndigo,
+                        isDisabled: !canSave || isLoading
+                    )
             }
             .disabled(!canSave || isLoading)
-            .opacity(!isLoading && canSave ? 1.0 : 0.6)
-            .childSafeTouchTarget()
 
             if !canSave {
                 Text("Title and story text cannot be empty")

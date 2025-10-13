@@ -259,19 +259,21 @@ extension View {
     /// Apply large button styling for primary actions
     func largeButtonStyle(
         backgroundColor: Color = AppColors.primaryBlue,
-        foregroundColor: Color = .white
+        foregroundColor: Color = .white,
+        isDisabled: Bool = false
     ) -> some View {
-        self
+        let currentBackgroundColor = isDisabled ? AppColors.buttonDisabled : backgroundColor
+        return self
             .font(AppTypography.titleMedium)
             .fontWeight(.semibold)
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, AppSpacing.buttonPadding.large.horizontal)
             .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
-            .background(backgroundColor)
+            .background(currentBackgroundColor)
             .foregroundColor(foregroundColor)
+            .contentShape(Capsule())
             .clipShape(Capsule())
             .shadow(
-                color: Color.black.opacity(AppSizing.shadows.medium.opacity),
+                color: currentBackgroundColor.opacity(0.4),
                 radius: AppSizing.shadows.medium.radius,
                 x: AppSizing.shadows.medium.x,
                 y: AppSizing.shadows.medium.y
