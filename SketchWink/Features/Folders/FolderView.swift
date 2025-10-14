@@ -111,7 +111,7 @@ struct FolderView: View {
                             icon: "person.circle.fill",
                             isSelected: selectedProfileFilter == profile.id
                         ) {
-                            selectedProfileFilter = profile.id
+                            selectedProfileFilter = selectedProfileFilter == profile.id ? nil : profile.id
                         }
                     }
                 }

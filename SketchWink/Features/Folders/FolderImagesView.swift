@@ -604,7 +604,7 @@ struct FolderImagesView: View {
                     icon: "heart.fill",
                     isSelected: showFavoritesOnly
                 ) {
-                    showFavoritesOnly = true
+                    showFavoritesOnly.toggle()
                     applyFilters()
                 }
                 
@@ -633,7 +633,7 @@ struct FolderImagesView: View {
                             icon: "person.circle.fill",
                             isSelected: selectedProfileFilter == profile.id
                         ) {
-                            selectedProfileFilter = profile.id
+                            selectedProfileFilter = selectedProfileFilter == profile.id ? nil : profile.id
                             applyFilters()
                         }
                     }

@@ -324,7 +324,7 @@ struct GalleryView: View {
                     icon: "heart.fill",
                     isSelected: showFavoritesOnly
                 ) {
-                    showFavoritesOnly = true
+                    showFavoritesOnly.toggle()
                     applyFilters()
                 }
 
@@ -353,7 +353,7 @@ struct GalleryView: View {
                             icon: "person.circle.fill",
                             isSelected: selectedProfileFilter == profile.id
                         ) {
-                            selectedProfileFilter = profile.id
+                            selectedProfileFilter = selectedProfileFilter == profile.id ? nil : profile.id
                             applyFilters()
                         }
                     }
@@ -951,7 +951,7 @@ struct GalleryView: View {
                     icon: "heart.fill",
                     isSelected: showFavoritesOnly,
                     action: {
-                        showFavoritesOnly = true
+                        showFavoritesOnly.toggle()
                         applyFilters()
                     }
                 )
@@ -1045,7 +1045,7 @@ struct GalleryView: View {
             .childSafeTouchTarget()
 
             Button {
-                showFavoritesOnly = true
+                showFavoritesOnly.toggle()
                 applyFilters()
             } label: {
                 HStack(spacing: AppSpacing.xs) {

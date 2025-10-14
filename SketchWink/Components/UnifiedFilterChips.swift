@@ -54,7 +54,8 @@ struct UnifiedFilterChips: View {
                 icon: "heart.fill",
                 isSelected: config.showFavoritesOnly,
                 action: {
-                    config.onFavoritesToggle(true)
+                    let newValue = config.showFavoritesOnly ? false : true
+                    config.onFavoritesToggle(newValue)
                 }
             )
         }
@@ -80,7 +81,8 @@ struct UnifiedFilterChips: View {
                     icon: profile.avatar ?? "person.circle.fill",
                     isSelected: config.selectedProfileFilter == profile.id,
                     action: {
-                        config.onProfileFilterChange(profile.id)
+                        let newSelection = config.selectedProfileFilter == profile.id ? nil : profile.id
+                        config.onProfileFilterChange(newSelection)
                     }
                 )
             }
