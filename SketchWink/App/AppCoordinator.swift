@@ -438,10 +438,10 @@ struct ProfileSelectionRequiredView: View {
             VStack(spacing: AppSpacing.lg) {
                 ZStack {
                     Circle()
-                        .fill(AppColors.primaryPink)
+                        .fill(AppColors.primaryPurple)
                         .frame(width: 120, height: 120)
                         .shadow(
-                            color: AppColors.primaryPink.opacity(0.3),
+                            color: AppColors.primaryPurple.opacity(0.3),
                             radius: AppSizing.shadows.large.radius,
                             x: AppSizing.shadows.large.x,
                             y: AppSizing.shadows.large.y
@@ -453,25 +453,57 @@ struct ProfileSelectionRequiredView: View {
                 
                 VStack(spacing: AppSpacing.sm) {
                     Text("Welcome to SketchWink!")
-                        .displayMedium()
+                        .displaySmaller()
                         .foregroundColor(AppColors.textPrimary)
                         .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                     
                     Text("Create your first family profile to start your creative journey")
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .contentPadding()
+            
+            VStack(spacing: AppSpacing.sm) {
+                Text("SketchWink works best with a family profile")
+                    .headlineSmall()
+                    .foregroundColor(AppColors.primaryPurple)
+                    .multilineTextAlignment(.center)
+                
+                Text("Create your profile so we can save drawings, favorites, and rewards in one safe spot for your family.")
+                    .bodyMedium()
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(AppSpacing.lg)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.xl, style: .continuous)
+                    .fill(AppColors.primaryPurple.opacity(0.1))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.xl, style: .continuous)
+                    .stroke(AppColors.primaryPurple.opacity(0.15), lineWidth: 1)
+            )
             .contentPadding()
             
             Spacer()
             
             // Create Profile Button
-            Button("Create Your First Profile") {
+            Button(action: {
                 onShowCreateProfile()
+            }) {
+                Text("Create Your First Profile")
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .largeButtonStyle(backgroundColor: AppColors.primaryPink)
+            .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
             .childSafeTouchTarget()
             .contentPadding()
         }
