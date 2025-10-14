@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SwiftUI
 
 // MARK: - Profile Service
 class ProfileService: ObservableObject {
@@ -393,8 +394,10 @@ class ProfileService: ObservableObject {
         try KeychainManager.shared.storeSelectedProfile(profile.id)
         
         await MainActor.run {
-            self.currentProfile = profile
-            self.hasSelectedProfile = true
+            withAnimation(.easeInOut(duration: 0.35)) {
+                self.currentProfile = profile
+                self.hasSelectedProfile = true
+            }
         }
         
         #if DEBUG

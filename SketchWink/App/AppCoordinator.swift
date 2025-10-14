@@ -44,11 +44,6 @@ struct AppCoordinator: View {
                         await retryServerConnection()
                     }
                 )
-            } else if authService.isAuthenticated && !authService.hasCompletedOnboarding {
-                OnboardingView {
-                    authService.markOnboardingComplete()
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
             } else if !profileService.hasSelectedProfile || profileService.currentProfile == nil {
                 // User authenticated but no profile selected OR profile couldn't be restored - FORCE profile selection
                 #if DEBUG
@@ -87,8 +82,13 @@ struct AppCoordinator: View {
                 )
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),
-                    removal: .move(edge: .trailing).combined(with: .opacity)
+                    removal: .move(edge: .bottom).combined(with: .opacity)
                 ))
+            } else if authService.isAuthenticated && !authService.hasCompletedOnboarding {
+                OnboardingView {
+                    authService.markOnboardingComplete()
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             } else {
                 // User authenticated AND has selected profile - show main app
                 MainAppView()
@@ -101,7 +101,6 @@ struct AppCoordinator: View {
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: authService.isAuthenticated)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: authService.hasCompletedOnboarding)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: profileService.hasSelectedProfile)
         .onAppear {
             // Only check authentication once on initial load
             guard !hasCheckedAuth else { return }
@@ -155,6 +154,10 @@ struct AppCoordinator: View {
             }
         }
         .interactiveDismissDisabled($showingPINEntry.wrappedValue) // Prevent swipe-to-dismiss for PIN entry
+        .onChange(of: authService.hasCompletedOnboarding) { newValue in
+            guard newValue else { return }
+            performPostOnboardingSetup()
+        }
     }
     
     private func checkAuthenticationStatus() async {
@@ -162,24 +165,10 @@ struct AppCoordinator: View {
         
         // If authenticated, properly load and validate stored profile
         if authService.isAuthenticated {
+            await loadStoredProfile()
+
             if authService.hasCompletedOnboarding {
-                await loadStoredProfile()
-
-                // Initialize token balance after authentication
-                Task {
-                    await tokenBalanceManager.initialize()
-                }
-
-                // Load Bedtime Stories config
-                Task {
-                    do {
-                        _ = try await BedtimeStoriesService.shared.loadConfig()
-                    } catch {
-                        #if DEBUG
-                        print("❌ Failed to load Bedtime Stories config: \(error)")
-                        #endif
-                    }
-                }
+                performPostOnboardingSetup()
             } else {
                 #if DEBUG
                 print("⏸️ Skipping profile/token preload until onboarding completes")
@@ -280,6 +269,22 @@ struct AppCoordinator: View {
             #endif
             // ProfileService will automatically set isServerUnavailable = true
             // The UI will remain in ServerUnavailableView state
+        }
+    }
+
+    private func performPostOnboardingSetup() {
+        Task {
+            await tokenBalanceManager.initialize()
+        }
+
+        Task {
+            do {
+                _ = try await BedtimeStoriesService.shared.loadConfig()
+            } catch {
+                #if DEBUG
+                print("❌ Failed to load Bedtime Stories config: \(error)")
+                #endif
+            }
         }
     }
 }
