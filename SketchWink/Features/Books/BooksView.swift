@@ -199,7 +199,8 @@ struct BooksView: View {
                     selectedCategory = categoryId
                     applyFilters()
                 },
-                onSearchToggle: { }
+                onSearchToggle: { },
+                chipSelectedColor: AppColors.primaryBlue
             )
         )
         .id("books-filter-chips-\(availableCategories.count)-\(profileService.availableProfiles.count)")

@@ -322,6 +322,7 @@ class BedtimeStoriesService: ObservableObject {
         favorites: Bool? = nil,
         search: String? = nil,
         theme: String? = nil,
+        filterByProfile: String? = nil,
         length: BedtimeStoryLength? = nil,
         status: String = "completed"
     ) async throws -> BedtimeStoriesResponse {
@@ -344,6 +345,9 @@ class BedtimeStoriesService: ObservableObject {
         }
         if let theme = theme {
             queryItems.append(URLQueryItem(name: "theme", value: theme))
+        }
+        if let filterByProfile = filterByProfile {
+            queryItems.append(URLQueryItem(name: "filterByProfile", value: filterByProfile))
         }
         if let length = length {
             queryItems.append(URLQueryItem(name: "length", value: length.rawValue))

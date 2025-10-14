@@ -44,6 +44,7 @@ struct UnifiedFilterChips: View {
                 title: "All",
                 icon: "square.grid.2x2",
                 isSelected: !config.showFavoritesOnly,
+                selectedColor: config.chipSelectedColor,
                 action: {
                     config.onFavoritesToggle(false)
                 }
@@ -53,6 +54,7 @@ struct UnifiedFilterChips: View {
                 title: "Favorites",
                 icon: "heart.fill",
                 isSelected: config.showFavoritesOnly,
+                selectedColor: config.chipSelectedColor,
                 action: {
                     let newValue = config.showFavoritesOnly ? false : true
                     config.onFavoritesToggle(newValue)
@@ -69,6 +71,7 @@ struct UnifiedFilterChips: View {
                 title: "All Profiles",
                 icon: "person.2.fill",
                 isSelected: config.selectedProfileFilter == nil,
+                selectedColor: config.chipSelectedColor,
                 action: {
                     config.onProfileFilterChange(nil)
                 }
@@ -80,6 +83,7 @@ struct UnifiedFilterChips: View {
                     title: profile.name,
                     icon: profile.avatar ?? "person.circle.fill",
                     isSelected: config.selectedProfileFilter == profile.id,
+                    selectedColor: config.chipSelectedColor,
                     action: {
                         let newSelection = config.selectedProfileFilter == profile.id ? nil : profile.id
                         config.onProfileFilterChange(newSelection)
@@ -111,6 +115,7 @@ struct UnifiedFilterChips: View {
             title: config.isSearchActive ? "Hide Search" : "Search",
             icon: config.isSearchActive ? "xmark.circle" : "magnifyingglass",
             isSelected: config.isSearchActive,
+            selectedColor: config.chipSelectedColor,
             action: {
                 config.onSearchToggle()
             }
@@ -157,6 +162,7 @@ struct FilterConfig {
     let onProfileFilterChange: (String?) -> Void
     let onCategoryFilterChange: (String?) -> Void
     let onSearchToggle: () -> Void
+    let chipSelectedColor: Color
 }
 
 // MARK: - Category Filter Chip
@@ -217,8 +223,23 @@ struct FilterChip: View {
     let title: String
     let icon: String
     let isSelected: Bool
+    let selectedColor: Color
     let action: () -> Void
-    
+
+    init(
+        title: String,
+        icon: String,
+        isSelected: Bool,
+        selectedColor: Color = AppColors.primaryBlue,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.icon = icon
+        self.isSelected = isSelected
+        self.selectedColor = selectedColor
+        self.action = action
+    }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: AppSpacing.xs) {
@@ -232,7 +253,7 @@ struct FilterChip: View {
             .padding(.horizontal, AppSpacing.md)
             .padding(.vertical, AppSpacing.sm)
             .background(
-                isSelected ? AppColors.primaryBlue : Color.clear,
+                isSelected ? selectedColor : Color.clear,
                 in: Capsule()
             )
             .foregroundColor(isSelected ? .white : AppColors.textPrimary)
@@ -289,7 +310,8 @@ extension FilterConfig {
             onFavoritesToggle: onFavoritesToggle,
             onProfileFilterChange: onProfileFilterChange,
             onCategoryFilterChange: onCategoryFilterChange,
-            onSearchToggle: onSearchToggle
+            onSearchToggle: onSearchToggle,
+            chipSelectedColor: AppColors.primaryBlue
         )
     }
     
@@ -316,7 +338,39 @@ extension FilterConfig {
             onFavoritesToggle: onFavoritesToggle,
             onProfileFilterChange: onProfileFilterChange,
             onCategoryFilterChange: { _ in },
-            onSearchToggle: { }
+            onSearchToggle: { },
+            chipSelectedColor: AppColors.primaryBlue
+        )
+    }
+
+    // Bedtime stories configuration
+    static func bedtimeStories(
+        profileService: ProfileService,
+        showFavoritesOnly: Bool,
+        selectedProfileFilter: String?,
+        selectedTheme: String?,
+        availableThemes: [FilterCategory],
+        onFavoritesToggle: @escaping (Bool) -> Void,
+        onProfileFilterChange: @escaping (String?) -> Void,
+        onThemeChange: @escaping (String?) -> Void
+    ) -> FilterConfig {
+        FilterConfig(
+            profileService: profileService,
+            showFavoritesOnly: showFavoritesOnly,
+            selectedProfileFilter: selectedProfileFilter,
+            selectedCategory: selectedTheme,
+            isSearchActive: false,
+            availableProfiles: profileService.availableProfiles,
+            availableCategories: availableThemes,
+            showFavoritesToggle: true,
+            showProfileFilters: true,
+            showCategoryFilters: !availableThemes.isEmpty,
+            showSearchToggle: false,
+            onFavoritesToggle: onFavoritesToggle,
+            onProfileFilterChange: onProfileFilterChange,
+            onCategoryFilterChange: onThemeChange,
+            onSearchToggle: { },
+            chipSelectedColor: AppColors.primaryIndigo
         )
     }
 }

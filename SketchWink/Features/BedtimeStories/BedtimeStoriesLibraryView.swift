@@ -15,6 +15,7 @@ struct BedtimeStoriesLibraryView: View {
     // Filters
     @State private var showFavoritesOnly = false
     @State private var selectedTheme: String?
+    @State private var selectedProfileFilter: String? = nil
     @State private var searchText = ""
 
     // Local stories array (managed by view, not service)
@@ -28,7 +29,7 @@ struct BedtimeStoriesLibraryView: View {
 
     // Computed property to check if any filters are active
     private var hasActiveFilters: Bool {
-        showFavoritesOnly || selectedTheme != nil
+        showFavoritesOnly || selectedTheme != nil || selectedProfileFilter != nil
     }
 
     var body: some View {
@@ -83,36 +84,37 @@ struct BedtimeStoriesLibraryView: View {
 
     // MARK: - Filter Chips
     private var filterChipsView: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppSpacing.sm) {
-                // Favorites filter
-                FilterChip(
-                    title: "Favorites",
-                    icon: "heart.fill",
-                    isSelected: showFavoritesOnly
-                ) {
-                    showFavoritesOnly.toggle()
+        UnifiedFilterChips(
+            config: .bedtimeStories(
+                profileService: profileService,
+                showFavoritesOnly: showFavoritesOnly,
+                selectedProfileFilter: selectedProfileFilter,
+                selectedTheme: selectedTheme,
+                availableThemes: themeFilterCategories,
+                onFavoritesToggle: { favoritesOnly in
+                    showFavoritesOnly = favoritesOnly
+                    applyFilters()
+                },
+                onProfileFilterChange: { profileId in
+                    selectedProfileFilter = profileId
+                    applyFilters()
+                },
+                onThemeChange: { themeId in
+                    selectedTheme = themeId
                     applyFilters()
                 }
+            )
+        )
+    }
 
-                // Theme filters (if available)
-                ForEach(service.themes) { theme in
-                    FilterChip(
-                        title: theme.name,
-                        icon: "book.fill",
-                        isSelected: selectedTheme == theme.id
-                    ) {
-                        if selectedTheme == theme.id {
-                            selectedTheme = nil
-                        } else {
-                            selectedTheme = theme.id
-                        }
-                        applyFilters()
-                    }
-                }
-            }
-            .padding(.horizontal, AppSpacing.md)
-            .padding(.vertical, AppSpacing.sm)
+    private var themeFilterCategories: [FilterCategory] {
+        service.themes.map { theme in
+            FilterCategory(
+                id: theme.id,
+                name: theme.name,
+                icon: "moon.stars.fill",
+                color: theme.color.map { Color(hex: $0) } ?? AppColors.primaryIndigo
+            )
         }
     }
 
@@ -215,19 +217,27 @@ struct BedtimeStoriesLibraryView: View {
 
     // MARK: - Empty State Helpers
     private var emptyStateTitle: String {
-        if showFavoritesOnly && selectedTheme != nil {
-            // Both filters active
-            let themeName = service.themes.first(where: { $0.id == selectedTheme })?.name ?? "Theme"
-            return "No Favorite \(themeName) Stories"
-        } else if showFavoritesOnly {
-            // Only favorites filter
+        let themeName = selectedTheme.flatMap { id in
+            service.themes.first(where: { $0.id == id })?.name
+        }
+        let profileName = selectedProfileName
+
+        switch (showFavoritesOnly, themeName, profileName) {
+        case (true, let theme?, let profile?):
+            return "No Favorite \(theme) Stories for \(profile)"
+        case (true, let theme?, nil):
+            return "No Favorite \(theme) Stories"
+        case (true, nil, let profile?):
+            return "No Favorite Stories for \(profile)"
+        case (true, nil, nil):
             return "No Favorite Stories"
-        } else if let themeId = selectedTheme {
-            // Only theme filter
-            let themeName = service.themes.first(where: { $0.id == themeId })?.name ?? "Theme"
-            return "No \(themeName) Stories Yet"
-        } else {
-            // No filters
+        case (false, let theme?, let profile?):
+            return "No \(theme) Stories for \(profile)"
+        case (false, let theme?, nil):
+            return "No \(theme) Stories Yet"
+        case (false, nil, let profile?):
+            return "No Stories for \(profile)"
+        default:
             return "No Bedtime Stories Yet"
         }
     }
@@ -255,7 +265,8 @@ struct BedtimeStoriesLibraryView: View {
             let response = try await service.getStories(
                 page: currentPage,
                 favorites: showFavoritesOnly ? true : nil,
-                theme: selectedTheme
+                theme: selectedTheme,
+                filterByProfile: selectedProfileFilter
             )
 
             await MainActor.run {
@@ -279,7 +290,8 @@ struct BedtimeStoriesLibraryView: View {
             let response = try await service.getStories(
                 page: currentPage,
                 favorites: showFavoritesOnly ? true : nil,
-                theme: selectedTheme
+                theme: selectedTheme,
+                filterByProfile: selectedProfileFilter
             )
 
             await MainActor.run {
@@ -307,7 +319,8 @@ struct BedtimeStoriesLibraryView: View {
             let response = try await service.getStories(
                 page: currentPage,
                 favorites: showFavoritesOnly ? true : nil,
-                theme: selectedTheme
+                theme: selectedTheme,
+                filterByProfile: selectedProfileFilter
             )
 
             await MainActor.run {
@@ -332,7 +345,13 @@ struct BedtimeStoriesLibraryView: View {
     private func clearAllFilters() {
         showFavoritesOnly = false
         selectedTheme = nil
+        selectedProfileFilter = nil
         applyFilters()
+    }
+
+    private var selectedProfileName: String? {
+        guard let profileId = selectedProfileFilter else { return nil }
+        return profileService.availableProfiles.first(where: { $0.id == profileId })?.name
     }
 
     private func openStoryPlayer(storyId: String) async {
@@ -402,32 +421,24 @@ struct StoryCard: View {
             VStack(spacing: 0) {
                 // Image with favorite button overlay
                 ZStack {
-                    AsyncImage(url: URL(string: story.imageUrl)) { imagePhase in
-                        switch imagePhase {
-                        case .success(let image):
-                            image
+                    OptimizedAsyncImage(
+                        url: URL(string: story.imageUrl),
+                        thumbnailSize: 240,
+                        quality: 0.7,
+                        content: { optimizedImage in
+                            optimizedImage
                                 .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(height: 120)
-                                .clipped()
-                        case .failure(_):
-                            Rectangle()
-                                .fill(Color(hex: "#6366F1").opacity(0.2))
-                                .frame(height: 120)
-                                .overlay(
-                                    Image(systemName: "moon.stars")
-                                        .font(.system(size: 32))
-                                        .foregroundColor(Color(hex: "#6366F1"))
-                                )
-                        case .empty:
-                            Rectangle()
-                                .fill(AppColors.surfaceLight)
-                                .frame(height: 120)
-                                .shimmer()
-                        @unknown default:
-                            EmptyView()
+                                .scaledToFill()
+                        },
+                        placeholder: {
+                            storyLoadingPlaceholder
+                        },
+                        failure: {
+                            storyFailurePlaceholder
                         }
-                    }
+                    )
+                    .frame(height: 120)
+                    .clipped()
 
                     // Favorite button overlay (top-right)
                     VStack {
@@ -478,12 +489,32 @@ struct StoryCard: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
-    }
+}
 
     private func formatDuration(_ seconds: Int) -> String {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return String(format: "%d:%02d min", minutes, remainingSeconds)
+    }
+
+    private var storyLoadingPlaceholder: some View {
+        Rectangle()
+            .fill(AppColors.surfaceLight)
+            .overlay(
+                ProgressView()
+                    .tint(AppColors.primaryIndigo)
+            )
+            .shimmer()
+    }
+
+    private var storyFailurePlaceholder: some View {
+        Rectangle()
+            .fill(AppColors.primaryIndigo.opacity(0.2))
+            .overlay(
+                Image(systemName: "moon.stars")
+                    .font(.system(size: 32))
+                    .foregroundColor(AppColors.primaryIndigo)
+            )
     }
 }
 

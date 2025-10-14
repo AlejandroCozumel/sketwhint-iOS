@@ -3,12 +3,13 @@ import UIKit
 
 /// Optimized AsyncImage for gallery thumbnails - reduces 1MB images to ~200KB
 /// Use regular AsyncImage for full-size detail views
-struct OptimizedAsyncImage<Content: View, Placeholder: View>: View {
+struct OptimizedAsyncImage<Content: View, Placeholder: View, Failure: View>: View {
     let url: URL?
     let thumbnailSize: CGFloat
     let quality: CGFloat
     @ViewBuilder let content: (Image) -> Content
     @ViewBuilder let placeholder: () -> Placeholder
+    @ViewBuilder let failure: () -> Failure
     
     @State private var uiImage: UIImage?
     @State private var isLoading = false
@@ -19,13 +20,15 @@ struct OptimizedAsyncImage<Content: View, Placeholder: View>: View {
         thumbnailSize: CGFloat = 160, // Gallery card height
         quality: CGFloat = 0.6,
         @ViewBuilder content: @escaping (Image) -> Content,
-        @ViewBuilder placeholder: @escaping () -> Placeholder
+        @ViewBuilder placeholder: @escaping () -> Placeholder,
+        @ViewBuilder failure: @escaping () -> Failure
     ) {
         self.url = url
         self.thumbnailSize = thumbnailSize
         self.quality = quality
         self.content = content
         self.placeholder = placeholder
+        self.failure = failure
     }
     
     var body: some View {
@@ -34,6 +37,8 @@ struct OptimizedAsyncImage<Content: View, Placeholder: View>: View {
                 content(Image(uiImage: uiImage))
             } else if isLoading {
                 placeholder()
+            } else if error != nil {
+                failure()
             } else {
                 placeholder()
                     .onAppear {
@@ -43,15 +48,17 @@ struct OptimizedAsyncImage<Content: View, Placeholder: View>: View {
         }
         .onChange(of: url) {
             uiImage = nil
+            error = nil
             loadOptimizedThumbnail()
         }
     }
     
     private func loadOptimizedThumbnail() {
         guard let url = url else { return }
-        
+
         isLoading = true
-        
+        error = nil
+
         // Check thumbnail cache first
         if let cachedThumbnail = ThumbnailCache.shared.thumbnail(for: url.absoluteString) {
             self.uiImage = cachedThumbnail
@@ -111,6 +118,25 @@ struct OptimizedAsyncImage<Content: View, Placeholder: View>: View {
 
 // MARK: - Convenience Initializers for Gallery Use
 // Use the main OptimizedAsyncImage initializer directly in views
+
+extension OptimizedAsyncImage where Failure == EmptyView {
+    init(
+        url: URL?,
+        thumbnailSize: CGFloat = 160,
+        quality: CGFloat = 0.6,
+        @ViewBuilder content: @escaping (Image) -> Content,
+        @ViewBuilder placeholder: @escaping () -> Placeholder
+    ) {
+        self.init(
+            url: url,
+            thumbnailSize: thumbnailSize,
+            quality: quality,
+            content: content,
+            placeholder: placeholder,
+            failure: { EmptyView() }
+        )
+    }
+}
 
 // MARK: - Dedicated Thumbnail Cache (Separate from full images)
 
