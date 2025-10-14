@@ -105,6 +105,14 @@ struct SignInResponse: Codable {
     let redirect: Bool?
 }
 
+struct OnboardingStatusRequest: Codable {
+    let completed: Bool
+}
+
+struct OnboardingStatusResponse: Codable {
+    let user: User
+}
+
 struct User: Codable {
     let id: String
     let email: String
@@ -115,14 +123,28 @@ struct User: Codable {
     let updatedAt: String
     let role: String?
     let promptEnhancementEnabled: Bool?
+    let hasCompletedOnboarding: Bool?
+    let onboardingCompletedAt: String?
     
     // CodingKeys to handle missing fields gracefully
     enum CodingKeys: String, CodingKey {
-        case id, email, name, image, emailVerified, createdAt, updatedAt, role, promptEnhancementEnabled
+        case id, email, name, image, emailVerified, createdAt, updatedAt, role, promptEnhancementEnabled, hasCompletedOnboarding, onboardingCompletedAt
     }
     
     // Regular initializer for creating User instances
-    init(id: String, email: String, name: String, image: String? = nil, emailVerified: Bool, createdAt: String, updatedAt: String, role: String? = "user", promptEnhancementEnabled: Bool? = true) {
+    init(
+        id: String,
+        email: String,
+        name: String,
+        image: String? = nil,
+        emailVerified: Bool,
+        createdAt: String,
+        updatedAt: String,
+        role: String? = "user",
+        promptEnhancementEnabled: Bool? = true,
+        hasCompletedOnboarding: Bool? = nil,
+        onboardingCompletedAt: String? = nil
+    ) {
         self.id = id
         self.email = email
         self.name = name
@@ -132,6 +154,8 @@ struct User: Codable {
         self.updatedAt = updatedAt
         self.role = role
         self.promptEnhancementEnabled = promptEnhancementEnabled
+        self.hasCompletedOnboarding = hasCompletedOnboarding
+        self.onboardingCompletedAt = onboardingCompletedAt
     }
     
     init(from decoder: Decoder) throws {
@@ -145,6 +169,26 @@ struct User: Codable {
         updatedAt = try container.decode(String.self, forKey: .updatedAt)
         role = try container.decodeIfPresent(String.self, forKey: .role) ?? "user"
         promptEnhancementEnabled = try container.decodeIfPresent(Bool.self, forKey: .promptEnhancementEnabled) ?? true
+        hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding)
+        onboardingCompletedAt = try container.decodeIfPresent(String.self, forKey: .onboardingCompletedAt)
+    }
+}
+
+extension User {
+    func updatingOnboarding(completed: Bool, completedAt: String? = nil) -> User {
+        User(
+            id: id,
+            email: email,
+            name: name,
+            image: image,
+            emailVerified: emailVerified,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            role: role,
+            promptEnhancementEnabled: promptEnhancementEnabled,
+            hasCompletedOnboarding: completed,
+            onboardingCompletedAt: completedAt ?? onboardingCompletedAt
+        )
     }
 }
 
@@ -326,6 +370,7 @@ class KeychainManager {
         
         SecItemDelete(query as CFDictionary)
     }
+
 }
 
 // MARK: - Authentication Service
@@ -350,14 +395,17 @@ class AuthService: ObservableObject {
                 if let data = try? encoder.encode(user) {
                     UserDefaults.standard.set(data, forKey: userDefaultsKey)
                 }
+                hasCompletedOnboarding = user.hasCompletedOnboarding ?? false
             } else {
                 UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+                hasCompletedOnboarding = false
             }
         }
     }
     @Published var isAuthenticated = false
     @Published var networkStatus: NetworkStatus = .connected
     @Published var lastAuthCheckError: AuthError?
+    @Published var hasCompletedOnboarding = false
     
     private let session = URLSession.shared
     private let decoder = JSONDecoder()
@@ -764,6 +812,7 @@ class AuthService: ObservableObject {
             withAnimation(.easeInOut(duration: 0.5)) {
                 self.currentUser = nil
                 self.isAuthenticated = false
+                self.hasCompletedOnboarding = false
             }
         }
 
@@ -1064,6 +1113,101 @@ class AuthService: ObservableObject {
                 throw AuthError.networkError(apiError.error)
             }
             throw AuthError.networkError("Failed to reset password")
+        }
+    }
+}
+
+// MARK: - Onboarding Helpers
+extension AuthService {
+    func markOnboardingComplete() {
+        Task {
+            await updateOnboardingStatus(completed: true)
+        }
+    }
+
+    func resetOnboardingProgress() {
+        Task {
+            await updateOnboardingStatus(completed: false)
+        }
+    }
+
+    private func updateOnboardingStatus(completed: Bool) async {
+        guard let url = URL(string: AppConfig.apiURL(for: AppConfig.API.Endpoints.onboarding)) else {
+            return
+        }
+
+        guard let token = try? KeychainManager.shared.retrieveToken() else {
+            #if DEBUG
+            print("⚠️ Unable to update onboarding status: missing token")
+            #endif
+            return
+        }
+
+        await MainActor.run {
+            if let user = self.currentUser {
+                self.currentUser = user.updatingOnboarding(completed: completed)
+            } else {
+                self.hasCompletedOnboarding = completed
+            }
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = AppConfig.API.timeout
+
+        let body = OnboardingStatusRequest(completed: completed)
+        do {
+            request.httpBody = try encoder.encode(body)
+        } catch {
+            #if DEBUG
+            print("❌ Failed to encode onboarding request: \(error)")
+            #endif
+            return
+        }
+
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            #if DEBUG
+            if let bodyString = String(data: request.httpBody ?? Data(), encoding: .utf8) {
+                print("➡️ Onboarding status request: completed=\(completed) body=\(bodyString)")
+            }
+            if let httpResponse = response as? HTTPURLResponse {
+                print("⬅️ Onboarding status response code: \(httpResponse.statusCode)")
+            }
+            if !data.isEmpty, let responseString = String(data: data, encoding: .utf8) {
+                print("⬅️ Onboarding status response body: \(responseString)")
+            }
+            #endif
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AuthError.invalidResponse
+            }
+
+            guard (200...299).contains(httpResponse.statusCode) else {
+                if let apiError = try? decoder.decode(APIError.self, from: data) {
+                    throw AuthError.networkError(apiError.userMessage)
+                }
+                throw AuthError.networkError("Server error: \(httpResponse.statusCode)")
+            }
+
+            if httpResponse.statusCode == 204 {
+                return
+            }
+
+            if let updated = try? decoder.decode(OnboardingStatusResponse.self, from: data) {
+                await MainActor.run {
+                    self.currentUser = updated.user
+                }
+            } else {
+                // Response had no body but request succeeded; nothing else to do
+            }
+        } catch {
+            #if DEBUG
+            print("❌ Failed to update onboarding status: \(error)")
+            #endif
         }
     }
 }

@@ -32,6 +32,7 @@ struct AppConfig {
             static let verifyOTP = "/verify-otp"         // POST - Verify email OTP
             static let resendOTP = "/auth/resend-otp"    // POST - Resend verification OTP
             static let refreshToken = "/auth/refresh"     // POST - Refresh access token
+            static let onboarding = "/users/me/onboarding" // POST - Update onboarding completion
 
             // User & Profiles
             static let profiles = "/profiles"

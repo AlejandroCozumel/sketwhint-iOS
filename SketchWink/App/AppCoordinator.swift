@@ -44,6 +44,11 @@ struct AppCoordinator: View {
                         await retryServerConnection()
                     }
                 )
+            } else if authService.isAuthenticated && !authService.hasCompletedOnboarding {
+                OnboardingView {
+                    authService.markOnboardingComplete()
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             } else if !profileService.hasSelectedProfile || profileService.currentProfile == nil {
                 // User authenticated but no profile selected OR profile couldn't be restored - FORCE profile selection
                 #if DEBUG
@@ -95,6 +100,7 @@ struct AppCoordinator: View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: authService.isAuthenticated)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: authService.hasCompletedOnboarding)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: profileService.hasSelectedProfile)
         .onAppear {
             // Only check authentication once on initial load
@@ -156,23 +162,30 @@ struct AppCoordinator: View {
         
         // If authenticated, properly load and validate stored profile
         if authService.isAuthenticated {
-            await loadStoredProfile()
-            
-                    // Initialize token balance after authentication
-                    Task {
-                        await tokenBalanceManager.initialize()
+            if authService.hasCompletedOnboarding {
+                await loadStoredProfile()
+
+                // Initialize token balance after authentication
+                Task {
+                    await tokenBalanceManager.initialize()
+                }
+
+                // Load Bedtime Stories config
+                Task {
+                    do {
+                        _ = try await BedtimeStoriesService.shared.loadConfig()
+                    } catch {
+                        #if DEBUG
+                        print("❌ Failed to load Bedtime Stories config: \(error)")
+                        #endif
                     }
-            
-                    // Load Bedtime Stories config
-                    Task {
-                        do {
-                            _ = try await BedtimeStoriesService.shared.loadConfig()
-                        } catch {
-                            #if DEBUG
-                            print("❌ Failed to load Bedtime Stories config: \(error)")
-                            #endif
-                        }
-                    }        } else {
+                }
+            } else {
+                #if DEBUG
+                print("⏸️ Skipping profile/token preload until onboarding completes")
+                #endif
+            }
+        } else {
             // Clear token balance state when not authenticated
             tokenBalanceManager.clearState()
         }
