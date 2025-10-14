@@ -61,8 +61,9 @@ struct BedtimeStoriesLibraryView: View {
                     showCreateStory = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 24))
+                        .font(.system(size: 28))
                         .foregroundColor(Color(hex: "#6366F1"))
+                        .frame(width: 36, height: 36)
                 }
             }
         }

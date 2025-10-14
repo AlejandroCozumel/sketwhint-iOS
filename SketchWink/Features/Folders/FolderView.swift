@@ -162,8 +162,9 @@ struct FolderView: View {
     private var createFolderButton: some View {
         Button(action: { showingCreateFolder = true }) {
             Image(systemName: "plus.circle.fill")
-                .font(.system(size: 24))
+                .font(.system(size: 28))
                 .foregroundColor(AppColors.primaryBlue)
+                .frame(width: 36, height: 36)
         }
         .buttonStyle(PlainButtonStyle())
     }

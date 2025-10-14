@@ -135,10 +135,18 @@ struct BedtimeStoriesCreateView: View {
                 Button(action: {
                     dismiss()
                 }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(AppColors.textSecondary)
-                        .frame(width: 44, height: 44)
+                    ZStack {
+                        Circle()
+                            .fill(AppColors.surfaceLight)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppColors.textSecondary)
+                    }
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        Circle()
+                            .stroke(AppColors.borderLight, lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")

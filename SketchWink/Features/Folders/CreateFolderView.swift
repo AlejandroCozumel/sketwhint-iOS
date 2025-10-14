@@ -52,10 +52,16 @@ struct CreateFolderView: View {
                     Button(action: {
                         dismiss()
                     }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(AppColors.textSecondary)
-                            .frame(width: 44, height: 44)
+                            .padding(8)
+                            .background(AppColors.surfaceLight)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.borderLight, lineWidth: 1)
+                            )
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Close")
