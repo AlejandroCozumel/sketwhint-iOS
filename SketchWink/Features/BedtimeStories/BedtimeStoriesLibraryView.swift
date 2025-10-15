@@ -73,7 +73,10 @@ struct BedtimeStoriesLibraryView: View {
             }
         }
         .sheet(item: $selectedStory) { story in
-            StoryPlayerView(story: story)
+            StoryPlayerView(story: story) { deletedStoryId in
+                stories.removeAll { $0.id == deletedStoryId }
+                selectedStory = nil
+            }
         }
         .sheet(isPresented: $showSubscriptionPlans) {
             SubscriptionPlansView()

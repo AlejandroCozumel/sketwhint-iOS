@@ -1,15 +1,26 @@
 import SwiftUI
+import UIKit
 import AVFoundation
 import Combine
 
 struct StoryPlayerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @StateObject private var audioPlayer: LyricsAudioPlayer
+    @State private var isPreparingShare = false
+    @State private var isDeleting = false
+    @State private var showingShareSheet = false
+    @State private var showingDeleteConfirmation = false
+    @State private var showingErrorAlert = false
+    @State private var errorMessage: String?
+    @State private var shareableAudioURL: URL?
 
     let story: BedtimeStory
+    private let onStoryDeleted: ((String) -> Void)?
 
-    init(story: BedtimeStory) {
+    init(story: BedtimeStory, onStoryDeleted: ((String) -> Void)? = nil) {
         self.story = story
+        self.onStoryDeleted = onStoryDeleted
         self._audioPlayer = StateObject(wrappedValue: LyricsAudioPlayer(story: story))
 
         #if DEBUG
@@ -53,24 +64,51 @@ struct StoryPlayerView: View {
             .navigationTitle(audioPlayer.hasLyrics ? "" : "Story Player")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         audioPlayer.stop()
                         dismiss()
                     }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(AppColors.textSecondary)
-                            .padding(8)
-                            .background(AppColors.surfaceLight)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(AppColors.borderLight, lineWidth: 1)
-                            )
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.surfaceLight)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Close")
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button(action: downloadStory) {
+                            Label("Download", systemImage: "arrow.down.circle")
+                        }
+
+                        Button(action: { Task { await prepareShare() } }) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                        .disabled(isPreparingShare)
+
+                        Button(role: .destructive, action: { showingDeleteConfirmation = true }) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .tint(AppColors.errorRed)
+                        .disabled(isDeleting)
+                    } label: {
+                        Image(systemName: "ellipsis.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(AppColors.primaryBlue)
+                            .frame(width: 36, height: 36)
+                    }
+                    .disabled(isPreparingShare || isDeleting)
                 }
             }
             .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
@@ -83,6 +121,24 @@ struct StoryPlayerView: View {
             }
             .onDisappear {
                 audioPlayer.stop()
+            }
+            .alert("Error", isPresented: $showingErrorAlert) {
+                Button("OK") { }
+            } message: {
+                Text(errorMessage ?? "Something went wrong. Please try again.")
+            }
+            .alert("Delete Story", isPresented: $showingDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    Task { await deleteStory() }
+                }
+            } message: {
+                Text("Are you sure you want to delete this bedtime story? This cannot be undone.")
+            }
+            .sheet(isPresented: $showingShareSheet) {
+                if let shareableAudioURL = shareableAudioURL {
+                    ActivityViewController(activityItems: [shareableAudioURL])
+                }
             }
         }
     }
@@ -258,6 +314,123 @@ struct StoryPlayerView: View {
         let minutes = Int(seconds) / 60
         let secs = Int(seconds) % 60
         return String(format: "%d:%02d", minutes, secs)
+    }
+}
+
+// MARK: - Share & Actions
+private extension StoryPlayerView {
+    func downloadStory() {
+        guard let url = URL(string: story.audioUrl) else {
+            presentError(StoryShareError.invalidURL)
+            return
+        }
+        openURL(url)
+    }
+
+    func prepareShare() async {
+        if await MainActor.run(body: { shareableAudioURL != nil }) {
+            await MainActor.run { showingShareSheet = true }
+            return
+        }
+
+        if await MainActor.run(body: { isPreparingShare }) {
+            return
+        }
+
+        await MainActor.run { isPreparingShare = true }
+
+        do {
+            let fileURL = try await fetchAudioFile()
+            await MainActor.run {
+                shareableAudioURL = fileURL
+                showingShareSheet = true
+            }
+        } catch {
+            await MainActor.run {
+                presentError(error)
+            }
+        }
+
+        await MainActor.run { isPreparingShare = false }
+    }
+
+    func fetchAudioFile() async throws -> URL {
+        guard let url = URL(string: story.audioUrl) else {
+            throw StoryShareError.invalidURL
+        }
+
+        let (temporaryURL, response) = try await URLSession.shared.download(from: url)
+
+        if let httpResponse = response as? HTTPURLResponse,
+           !(200...299).contains(httpResponse.statusCode) {
+            throw StoryShareError.failedRequest(status: httpResponse.statusCode)
+        }
+
+        let filename = makeSafeFilename(from: story.title)
+        let destinationURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+
+        if FileManager.default.fileExists(atPath: destinationURL.path) {
+            try? FileManager.default.removeItem(at: destinationURL)
+        }
+
+        try FileManager.default.copyItem(at: temporaryURL, to: destinationURL)
+        return destinationURL
+    }
+
+    func deleteStory() async {
+        if await MainActor.run(body: { isDeleting }) {
+            return
+        }
+
+        await MainActor.run { isDeleting = true }
+
+        do {
+            try await BedtimeStoriesService.shared.deleteStory(id: story.id)
+
+            await MainActor.run {
+                audioPlayer.stop()
+                isDeleting = false
+                onStoryDeleted?(story.id)
+                dismiss()
+            }
+        } catch {
+            await MainActor.run {
+                isDeleting = false
+                presentError(error)
+            }
+        }
+    }
+
+    func makeSafeFilename(from title: String) -> String {
+        let sanitized = title
+            .components(separatedBy: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_")).inverted)
+            .joined(separator: "-")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+
+        let baseName = sanitized.isEmpty ? "BedtimeStory" : sanitized
+        return "\(baseName).mp3"
+    }
+
+    func presentError(_ error: Error) {
+        errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        showingErrorAlert = true
+    }
+}
+
+private enum StoryShareError: LocalizedError {
+    case invalidURL
+    case failedRequest(status: Int)
+    case invalidData
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "We couldn't access this story's audio file."
+        case .failedRequest(let status):
+            return "Audio download failed (status code: \(status)). Please try again."
+        case .invalidData:
+            return "The audio file is corrupted. Please try again."
+        }
     }
 }
 

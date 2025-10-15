@@ -339,7 +339,16 @@ struct ProfilesView: View {
                     isLoading: isSwitchingProfile,
                     canEdit: currentProfile?.isDefault == true,
                     onTap: {
-                        // Switch to profile
+                        let isAlreadySelected = currentProfile?.id == profile.id
+
+                        if isAlreadySelected {
+                            #if DEBUG
+                            print("   - Current profile tapped again; opening settings for \(profile.name)")
+                            #endif
+                            selectedProfile = profile
+                            profileToSelect = nil
+                            return
+                        }
 
                         if profile.hasPin {
                             #if DEBUG

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import Combine
 
 struct FolderImagesView: View {
@@ -166,20 +167,22 @@ struct FolderImagesView: View {
             .navigationTitle(folder.name)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         dismiss()
                     }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(AppColors.textSecondary)
-                            .padding(8)
-                            .background(AppColors.surfaceLight)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(AppColors.borderLight, lineWidth: 1)
-                            )
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.surfaceLight)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Close")
@@ -201,9 +204,10 @@ struct FolderImagesView: View {
                                 }
                             }
                         } label: {
-                            Image(systemName: "ellipsis.circle")
-                                .font(AppTypography.titleMedium)
+                            Image(systemName: "ellipsis.circle.fill")
+                                .font(.system(size: 28))
                                 .foregroundColor(AppColors.primaryBlue)
+                                .frame(width: 36, height: 36)
                         }
                     }
                 }
@@ -227,6 +231,7 @@ struct FolderImagesView: View {
                     if let imageIndex = images.firstIndex(where: { $0.id == folderImage.id }) {
                         FolderImageDetailView(
                             folderImage: $images[imageIndex],
+                            folderId: folder.id,
                             searchTerm: searchText,
                             onImageDeleted: { deletedImageId in
                                 removeImageFromLocalState(deletedImageId)
@@ -939,17 +944,23 @@ struct FolderImageDetailView: View {
     @StateObject private var profileService = ProfileService.shared
     @State private var isTogglingFavorite = false
     @State private var isDeleting = false
+    @State private var isPreparingShare = false
+    @State private var isMovingToGallery = false
     @State private var error: Error?
     @State private var showingError = false
     @State private var showingDownloadView = false
+    @State private var showingShareSheet = false
     @State private var showingDeleteConfirmation = false
+    @State private var shareableImage: UIImage?
     @Environment(\.dismiss) private var dismiss
 
+    let folderId: String
     let searchTerm: String
     let onImageDeleted: ((String) -> Void)?
 
-    init(folderImage: Binding<FolderImage>, searchTerm: String = "", onImageDeleted: ((String) -> Void)? = nil) {
+    init(folderImage: Binding<FolderImage>, folderId: String, searchTerm: String = "", onImageDeleted: ((String) -> Void)? = nil) {
         self._folderImage = folderImage
+        self.folderId = folderId
         self.searchTerm = searchTerm
         self.onImageDeleted = onImageDeleted
     }
@@ -1070,23 +1081,55 @@ struct FolderImageDetailView: View {
         .navigationTitle("Image Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: {
                     dismiss()
                 }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(AppColors.textSecondary)
-                        .padding(8)
-                        .background(AppColors.surfaceLight)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(AppColors.borderLight, lineWidth: 1)
-                        )
+                    ZStack {
+                        Circle()
+                            .fill(AppColors.surfaceLight)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(AppColors.textSecondary)
+                    }
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        Circle()
+                            .stroke(AppColors.borderLight, lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")
+            }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button(action: { showingDownloadView = true }) {
+                        Label("Download", systemImage: "arrow.down.circle")
+                    }
+
+                    Button(action: { Task { await prepareShare() } }) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(isPreparingShare)
+
+                    Button(action: { Task { await moveImageToGallery() } }) {
+                        Label("Move to Gallery", systemImage: "photo.on.rectangle")
+                    }
+                    .disabled(isMovingToGallery)
+
+                    Button(role: .destructive, action: { showingDeleteConfirmation = true }) {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    .tint(AppColors.errorRed)
+                    .disabled(isDeleting)
+                } label: {
+                    Image(systemName: "ellipsis.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(AppColors.primaryBlue)
+                        .frame(width: 36, height: 36)
+                }
+                .disabled(isMovingToGallery || isTogglingFavorite || isPreparingShare)
             }
         }
         .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
@@ -1095,6 +1138,11 @@ struct FolderImageDetailView: View {
             Button("OK") { }
         } message: {
             Text(error?.localizedDescription ?? "An error occurred")
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            if let shareableImage = shareableImage {
+                ActivityViewController(activityItems: [shareableImage])
+            }
         }
         .sheet(isPresented: $showingDownloadView) {
             // Convert FolderImage to GeneratedImage for download view
@@ -1135,7 +1183,61 @@ struct FolderImageDetailView: View {
             }
         }
     }
-    
+
+    private func prepareShare() async {
+        if await MainActor.run(body: { shareableImage != nil }) {
+            await MainActor.run {
+                showingShareSheet = true
+            }
+            return
+        }
+
+        if await MainActor.run(body: { isPreparingShare }) {
+            return
+        }
+
+        await MainActor.run {
+            isPreparingShare = true
+        }
+
+        do {
+            let imageData = try await fetchOriginalImageData()
+
+            guard let uiImage = UIImage(data: imageData) else {
+                throw FolderImageShareError.invalidData
+            }
+
+            await MainActor.run {
+                shareableImage = uiImage
+                showingShareSheet = true
+            }
+        } catch {
+            await MainActor.run {
+                self.error = error
+                showingError = true
+            }
+        }
+
+        await MainActor.run {
+            isPreparingShare = false
+        }
+    }
+
+    private func fetchOriginalImageData() async throws -> Data {
+        guard let url = URL(string: folderImage.imageUrl) else {
+            throw FolderImageShareError.invalidURL
+        }
+
+        let (data, response) = try await URLSession.shared.data(from: url)
+
+        if let httpResponse = response as? HTTPURLResponse,
+           !(200...299).contains(httpResponse.statusCode) {
+            throw FolderImageShareError.failedRequest(status: httpResponse.statusCode)
+        }
+
+        return data
+    }
+
     private func deleteImage() async {
         isDeleting = true
         
@@ -1157,7 +1259,38 @@ struct FolderImageDetailView: View {
             }
         }
     }
-    
+
+    private func moveImageToGallery() async {
+        if await MainActor.run(body: { isMovingToGallery }) {
+            return
+        }
+
+        await MainActor.run {
+            isMovingToGallery = true
+        }
+
+        do {
+            let folderService = FolderService.shared
+
+            _ = try await folderService.removeImagesFromFolder(
+                folderId: folderId,
+                imageIds: [folderImage.id]
+            )
+
+            await MainActor.run {
+                isMovingToGallery = false
+                onImageDeleted?(folderImage.id)
+                dismiss()
+            }
+        } catch {
+            await MainActor.run {
+                self.error = error
+                showingError = true
+                isMovingToGallery = false
+            }
+        }
+    }
+
     private func formatDate(_ dateString: String) -> String {
         // Try ISO8601 formatter first
         let iso8601Formatter = ISO8601DateFormatter()
@@ -1219,6 +1352,23 @@ struct FolderImageDetailView: View {
                 profileAvatar: nil // Not available in folder image
             )
         )
+    }
+}
+
+private enum FolderImageShareError: LocalizedError {
+    case invalidURL
+    case failedRequest(status: Int)
+    case invalidData
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "We couldn't access this image."
+        case .failedRequest(let status):
+            return "Sharing failed (status code: \(status)). Please try again."
+        case .invalidData:
+            return "The image data appears to be corrupted. Please try again."
+        }
     }
 }
 
