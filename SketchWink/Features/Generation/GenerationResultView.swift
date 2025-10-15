@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct GenerationResultView: View {
     let generation: Generation
@@ -11,6 +12,14 @@ struct GenerationResultView: View {
     @State private var isShowingShareSheet = false
     @State private var isShowingColoringView = false
     @State private var shareableImage: UIImage?
+    @State private var isPreparingShare = false
+    @State private var showingDownloadView = false
+    @State private var showingMoveToFolder = false
+    @State private var showingDeleteConfirmation = false
+    @State private var isMovingToFolder = false
+    @State private var isDeleting = false
+    @State private var error: Error?
+    @State private var showingError = false
     @Environment(\.dismiss) private var dismiss
     
     private var currentImage: GeneratedImage? {
@@ -58,24 +67,65 @@ struct GenerationResultView: View {
             .navigationTitle(categoryConfig.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
                         dismiss()
                         onDismiss()
                     }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(AppColors.textSecondary)
-                            .padding(8)
-                            .background(AppColors.surfaceLight)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(AppColors.borderLight, lineWidth: 1)
-                            )
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.surfaceLight)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Close")
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button(action: {
+                            showingDownloadView = true
+                        }) {
+                            Label("Download", systemImage: "arrow.down.circle")
+                        }
+                        .disabled(currentImage == nil)
+
+                        Button(action: {
+                            Task { await prepareShare() }
+                        }) {
+                            Label("Share", systemImage: "square.and.arrow.up")
+                        }
+                        .disabled(isPreparingShare || currentImage == nil)
+
+                        Button(action: {
+                            showingMoveToFolder = true
+                        }) {
+                            Label("Move to Folder", systemImage: "folder")
+                        }
+                        .disabled(isMovingToFolder || currentImage == nil)
+
+                        Button(role: .destructive, action: {
+                            showingDeleteConfirmation = true
+                        }) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .tint(AppColors.errorRed)
+                        .disabled(isDeleting || currentImage == nil)
+                    } label: {
+                        Image(systemName: "ellipsis.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(AppColors.primaryBlue)
+                            .frame(width: 36, height: 36)
+                    }
+                    .disabled(isMovingToFolder || isPreparingShare || isDeleting)
                 }
             }
             .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
@@ -85,6 +135,38 @@ struct GenerationResultView: View {
             if let shareableImage = shareableImage {
                 ActivityViewController(activityItems: [shareableImage])
             }
+        }
+        .sheet(isPresented: $showingDownloadView) {
+            if let image = currentImage {
+                ImageDownloadView(image: image)
+            }
+        }
+        .sheet(isPresented: $showingMoveToFolder) {
+            if let image = currentImage {
+                FolderPickerView(
+                    selectedImages: [image.id],
+                    onFolderSelected: { folder in
+                        Task {
+                            await moveImageToFolder(folder: folder, image: image)
+                        }
+                    }
+                )
+            }
+        }
+        .alert("Delete Image", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await deleteCurrentImage()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this generated image? This action cannot be undone.")
+        }
+        .alert("Error", isPresented: $showingError) {
+            Button("OK") { }
+        } message: {
+            Text(error?.localizedDescription ?? "Something went wrong. Please try again.")
         }
         .fullScreenCover(isPresented: $isShowingColoringView) {
             if let currentImage = currentImage,
@@ -153,16 +235,8 @@ struct GenerationResultView: View {
 
     // MARK: - Share Button
     private var shareButtonView: some View {
-        Button {
-            isShowingShareSheet = true
-        } label: {
-            Text("Share")
-                .largeButtonStyle(
-                    backgroundColor: AppColors.primaryPurple,
-                    isDisabled: shareableImage == nil
-                )
-        }
-        .disabled(shareableImage == nil)
+        // Primary share button hidden; sharing is available via the toolbar menu.
+        EmptyView()
     }
     
     // MARK: - Image Selection (Multiple Images)
@@ -272,7 +346,133 @@ struct GenerationResultView: View {
             }
         }
     }
-    
+
+    // MARK: - Menu Actions
+    private func prepareShare() async {
+        if await MainActor.run(body: { shareableImage != nil }) {
+            await MainActor.run {
+                isShowingShareSheet = true
+            }
+            return
+        }
+
+        if await MainActor.run(body: { isPreparingShare }) {
+            return
+        }
+
+        await MainActor.run {
+            isPreparingShare = true
+        }
+
+        do {
+            let data = try await fetchCurrentImageData()
+
+            guard let uiImage = UIImage(data: data) else {
+                throw GenerationResultError.invalidData
+            }
+
+            await MainActor.run {
+                shareableImage = uiImage
+                isShowingShareSheet = true
+            }
+        } catch {
+            await MainActor.run {
+                presentError(error)
+            }
+        }
+
+        await MainActor.run {
+            isPreparingShare = false
+        }
+    }
+
+    private func fetchCurrentImageData() async throws -> Data {
+        guard let image = currentImage else {
+            throw GenerationResultError.noImageSelected
+        }
+
+        guard let url = URL(string: image.imageUrl) else {
+            throw GenerationResultError.invalidURL
+        }
+
+        let (data, response) = try await URLSession.shared.data(from: url)
+
+        if let httpResponse = response as? HTTPURLResponse,
+           !(200...299).contains(httpResponse.statusCode) {
+            throw GenerationResultError.failedRequest(status: httpResponse.statusCode)
+        }
+
+        return data
+    }
+
+    private func moveImageToFolder(folder: UserFolder, image: GeneratedImage) async {
+        if await MainActor.run(body: { isMovingToFolder }) {
+            return
+        }
+
+        await MainActor.run {
+            isMovingToFolder = true
+        }
+
+        do {
+            let folderService = FolderService.shared
+            _ = try await folderService.moveImagesToFolder(
+                folderId: folder.id,
+                imageIds: [image.id]
+            )
+
+            await MainActor.run {
+                isMovingToFolder = false
+                showingMoveToFolder = false
+            }
+        } catch {
+            await MainActor.run {
+                isMovingToFolder = false
+                showingMoveToFolder = false
+                presentError(error)
+            }
+        }
+    }
+
+    private func deleteCurrentImage() async {
+        guard let image = currentImage else {
+            await MainActor.run {
+                presentError(GenerationResultError.noImageSelected)
+            }
+            return
+        }
+
+        if await MainActor.run(body: { isDeleting }) {
+            return
+        }
+
+        await MainActor.run {
+            isDeleting = true
+        }
+
+        do {
+            try await GenerationService.shared.deleteImage(imageId: image.id)
+
+            await MainActor.run {
+                isDeleting = false
+                showingDeleteConfirmation = false
+                dismiss()
+                onDismiss()
+            }
+        } catch {
+            await MainActor.run {
+                isDeleting = false
+                showingDeleteConfirmation = false
+                presentError(error)
+            }
+        }
+    }
+
+    private func presentError(_ error: Error) {
+        self.error = error
+        showingError = true
+    }
+
     // MARK: - Helper Methods
     private func formatDate(_ dateString: String) -> String {
         // Try ISO8601 formatter first
@@ -301,6 +501,26 @@ struct GenerationResultView: View {
 
         // Last resort: return original string
         return dateString
+    }
+}
+
+private enum GenerationResultError: LocalizedError {
+    case noImageSelected
+    case invalidURL
+    case failedRequest(status: Int)
+    case invalidData
+
+    var errorDescription: String? {
+        switch self {
+        case .noImageSelected:
+            return "No generated image is currently selected."
+        case .invalidURL:
+            return "We couldn't access the generated image."
+        case .failedRequest(let status):
+            return "The server responded with status code \(status). Please try again."
+        case .invalidData:
+            return "The generated image data appears to be corrupted."
+        }
     }
 }
 
