@@ -410,40 +410,46 @@ struct ProfilesView: View {
     private var accountSection: some View {
         Group {
             if let user = authService.currentUser {
-                VStack(spacing: AppSpacing.sm) {
-                    HStack(spacing: AppSpacing.md) {
-                        ZStack {
-                            Circle()
-                                .fill(AppColors.primaryBlue)
-                                .frame(width: 50, height: 50)
+                Button(action: {
+                    showSettings = true
+                }) {
+                    VStack(spacing: AppSpacing.sm) {
+                        HStack(spacing: AppSpacing.md) {
+                            ZStack {
+                                Circle()
+                                    .fill(AppColors.primaryBlue)
+                                    .frame(width: 50, height: 50)
 
-                            Text("👤")
-                                .font(.system(size: 24))
+                                Text("👤")
+                                    .font(.system(size: 24))
+                            }
+
+                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                                Text(user.name)
+                                    .bodyLarge()
+                                    .foregroundColor(AppColors.textPrimary)
+
+                                Text(user.email)
+                                    .captionLarge()
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+
+                            Spacer()
+
+                            if user.emailVerified {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundColor(AppColors.successGreen)
+                                    .font(.system(size: 16))
+                            }
                         }
-
-                        VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                            Text(user.name)
-                                .bodyLarge()
-                                .foregroundColor(AppColors.textPrimary)
-
-                            Text(user.email)
-                                .captionLarge()
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-
-                        Spacer()
-
-                        if user.emailVerified {
-                            Image(systemName: "checkmark.seal.fill")
-                                .foregroundColor(AppColors.successGreen)
-                                .font(.system(size: 16))
-                        }
+                        .contentPadding()
+                        .background(AppColors.backgroundLight)
+                        .cornerRadius(AppSizing.cornerRadius.md)
                     }
-                    .contentPadding()
-                    .background(AppColors.backgroundLight)
-                    .cornerRadius(AppSizing.cornerRadius.md)
+                    .cardStyle()
                 }
-                .cardStyle()
+                .buttonStyle(PlainButtonStyle())
+                .childSafeTouchTarget()
             }
         }
     }
@@ -2454,6 +2460,9 @@ struct PINEntryView: View {
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var attempts = 0
+    @State private var showingForgotPINConfirmation = false
+    @State private var isSendingPINRecovery = false
+    @State private var showingForgotPINSuccess = false
 
     private let maxAttempts = 3
 
@@ -2572,6 +2581,16 @@ struct PINEntryView: View {
         .disabled(enteredPIN.count != 4)
                     .childSafeTouchTarget()
 
+                    // Forgot PIN Button
+                    Button {
+                        showingForgotPINConfirmation = true
+                    } label: {
+                        Text("Forgot PIN?")
+                            .font(AppTypography.bodyMedium)
+                            .foregroundColor(AppColors.primaryBlue)
+                    }
+                    .childSafeTouchTarget()
+
                     Button("Cancel") {
                         onCancel()
                         dismiss()
@@ -2589,6 +2608,19 @@ struct PINEntryView: View {
             }
         } message: {
             Text(errorMessage)
+        }
+        .alert("Reset PIN", isPresented: $showingForgotPINConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Send Email") {
+                requestPINRecovery()
+            }
+        } message: {
+            Text("We'll send the PIN to the account owner's email address. This helps keep profiles secure for everyone in your family.")
+        }
+        .alert("PIN Sent!", isPresented: $showingForgotPINSuccess) {
+            Button("OK") { }
+        } message: {
+            Text("Check your email for the PIN. The email was sent to the account owner's email address.")
         }
     }
 
@@ -2628,6 +2660,27 @@ struct PINEntryView: View {
                     }
 
                     isVerifying = false
+                }
+            }
+        }
+    }
+
+    private func requestPINRecovery() {
+        isSendingPINRecovery = true
+
+        Task {
+            do {
+                try await ProfileService.shared.forgotProfilePIN(profileId: profile.id)
+
+                await MainActor.run {
+                    isSendingPINRecovery = false
+                    showingForgotPINSuccess = true
+                }
+            } catch {
+                await MainActor.run {
+                    isSendingPINRecovery = false
+                    errorMessage = error.localizedDescription
+                    showingError = true
                 }
             }
         }

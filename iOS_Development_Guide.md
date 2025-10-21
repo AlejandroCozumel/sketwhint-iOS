@@ -438,7 +438,7 @@ struct CreateGenerationRequest: Codable {
     let quality: String?     // "standard", "high", "ultra" (requires subscription)
     let dimensions: String?  // "1:1", "2:3", "3:2", "a4"
     let maxImages: Int?      // 1-4 images per generation
-    let model: String?       // "seedream", "flux" (flux requires Business+ subscription)
+    let model: String?       // "seedream", "gemini" (all plans), "flux" (Business+ only)
 }
 
 struct Generation: Codable {
@@ -742,7 +742,7 @@ struct PromptStats: Codable {
 }
 
 struct ModelStats: Codable {
-    let model: String      // "seedream", "flux"
+    let model: String      // "seedream", "gemini", "flux"
     let count: Int
     let percentage: Double
 }

@@ -1847,13 +1847,16 @@ struct ImageDetailView: View {
     @State private var isPreparingShare = false
     @State private var isTogglingFavorite = false
     @State private var isDeleting = false
+    @State private var isDownloading = false
     @State private var error: Error?
     @State private var showingError = false
-    @State private var showingDownloadView = false
     @State private var showingShareSheet = false
     @State private var showingMoveToFolder = false
     @State private var showingDeleteConfirmation = false
     @State private var shareableImage: UIImage?
+    @State private var showingToast = false
+    @State private var toastMessage = ""
+    @State private var toastType: ToastModifier.ToastType = .success
     @Environment(\.dismiss) private var dismiss
 
     let searchTerm: String
@@ -1912,7 +1915,19 @@ struct ImageDetailView: View {
                         .foregroundColor(AppColors.textPrimary)
 
                     VStack(spacing: AppSpacing.sm) {
-                        DetailRowHighlighted(label: "Title", value: image.generation?.title ?? image.originalUserPrompt ?? "Unknown", searchTerm: searchTerm)
+                        // Show full prompt (backend now sends complete title without truncation)
+                        CopyableDetailRowHighlighted(
+                            label: "Prompt",
+                            value: image.generation?.title ?? "Unknown",
+                            searchTerm: searchTerm,
+                            onCopy: { copiedText in
+                                toastMessage = "Prompt copied! 📋"
+                                toastType = .success
+                                showingToast = true
+                            },
+                            lineLimit: 2
+                        )
+
                         DetailRowHighlighted(label: "Category", value: image.generation?.category ?? "Unknown", searchTerm: searchTerm)
                         DetailRowHighlighted(label: "Style", value: image.generation?.option ?? "Unknown", searchTerm: searchTerm)
 
@@ -1934,14 +1949,26 @@ struct ImageDetailView: View {
                 HStack(spacing: AppSpacing.md) {
                     // Download button (left side)
                     Button {
-                        showingDownloadView = true
+                        Task {
+                            await downloadImageDirectly()
+                        }
                     } label: {
                         HStack(spacing: AppSpacing.sm) {
-                            Text("📥")
-                            Text("Download")
+                            if isDownloading {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .tint(.white)
+                            } else {
+                                Text("📥")
+                            }
+                            Text(isDownloading ? "Downloading..." : "Download")
                         }
-                        .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
+                        .largeButtonStyle(
+                            backgroundColor: AppColors.primaryPurple,
+                            isDisabled: isDownloading
+                        )
                     }
+                    .disabled(isDownloading)
 
                     // Delete button (right side)
                     Button {
@@ -1995,9 +2022,10 @@ struct ImageDetailView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
-                    Button(action: { showingDownloadView = true }) {
-                        Label("Download", systemImage: "arrow.down.circle")
+                    Button(action: { Task { await downloadImageDirectly() } }) {
+                        Label("Download to Photos", systemImage: "arrow.down.circle")
                     }
+                    .disabled(isDownloading)
 
                     Button(action: { Task { await prepareShare() } }) {
                         Label("Share", systemImage: "square.and.arrow.up")
@@ -2019,18 +2047,16 @@ struct ImageDetailView: View {
                         .foregroundColor(AppColors.primaryBlue)
                         .frame(width: 36, height: 36)
                 }
-                .disabled(isMovingToFolder || isTogglingFavorite || isPreparingShare)
+                .disabled(isMovingToFolder || isTogglingFavorite || isPreparingShare || isDownloading)
             }
         }
         .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .toast(isShowing: $showingToast, message: toastMessage, type: toastType)
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
         } message: {
             Text(error?.localizedDescription ?? "Failed to update favorite status")
-        }
-        .sheet(isPresented: $showingDownloadView) {
-            ImageDownloadView(image: image)
         }
         .sheet(isPresented: $showingShareSheet) {
             if let shareableImage = shareableImage {
@@ -2056,6 +2082,53 @@ struct ImageDetailView: View {
             }
         } message: {
             Text("Are you sure you want to delete this image? This action cannot be undone.")
+        }
+    }
+
+    // MARK: - Download Management
+    private func downloadImageDirectly() async {
+        guard !isDownloading else { return }
+
+        isDownloading = true
+
+        do {
+            // Get auth token
+            guard let authToken = try KeychainManager.shared.retrieveToken() else {
+                throw ImageDownloadError.unauthorized
+            }
+
+            // Download as PNG with high quality (95%)
+            let data = try await ImageDownloadService.shared.downloadImage(
+                imageId: image.id,
+                format: .png,
+                quality: 95,
+                authToken: authToken
+            )
+
+            // Save to Photos
+            try await ImageDownloadService.shared.saveImageToPhotos(data, format: .png)
+
+            await MainActor.run {
+                isDownloading = false
+                toastMessage = "Saved to Photos! 📸"
+                toastType = .success
+                showingToast = true
+            }
+
+        } catch let error as ImageDownloadError {
+            await MainActor.run {
+                isDownloading = false
+                toastMessage = error.userFriendlyMessage
+                toastType = .error
+                showingToast = true
+            }
+        } catch {
+            await MainActor.run {
+                isDownloading = false
+                toastMessage = "Download failed. Please try again."
+                toastType = .error
+                showingToast = true
+            }
         }
     }
 
@@ -2231,52 +2304,6 @@ private enum ShareError: LocalizedError {
         }
     }
 }
-
-struct DetailRow: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack {
-            Text(label + ":")
-                .font(AppTypography.titleSmall)
-                .foregroundColor(AppColors.textSecondary)
-
-            Spacer()
-
-            Text(value)
-                .font(AppTypography.bodyMedium)
-                .foregroundColor(AppColors.textPrimary)
-                .multilineTextAlignment(.trailing)
-        }
-    }
-}
-
-// MARK: - DetailRow with Search Highlighting
-struct DetailRowHighlighted: View {
-    let label: String
-    let value: String
-    let searchTerm: String
-
-    var body: some View {
-        HStack {
-            Text(label + ":")
-                .font(AppTypography.titleSmall)
-                .foregroundColor(AppColors.textSecondary)
-
-            Spacer()
-
-            HighlightedText.caseInsensitive(
-                value,
-                searchTerm: searchTerm,
-                font: AppTypography.bodyMedium,
-                primaryColor: AppColors.textPrimary
-            )
-            .multilineTextAlignment(.trailing)
-        }
-    }
-}
-
 
 // MARK: - Modern Category Chip
 struct ModernCategoryChip: View {

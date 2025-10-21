@@ -326,6 +326,17 @@ struct SelectProfileResponse: Codable {
     let selectedProfile: FamilyProfile?
 }
 
+/// Forgot PIN request
+struct ForgotPINRequest: Codable {
+    let profileId: String
+}
+
+/// Forgot PIN response
+struct ForgotPINResponse: Codable {
+    let success: Bool
+    let message: String
+}
+
 // MARK: - Content Creation Models
 
 /// Information about who created a piece of content

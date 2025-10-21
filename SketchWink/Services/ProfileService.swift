@@ -740,53 +740,119 @@ class ProfileService: ObservableObject {
     /// Delete family profile
     func deleteFamilyProfile(profileId: String) async throws {
         let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.familyProfiles)/\(profileId)"
-        
+
         guard let url = URL(string: endpoint) else {
             throw ProfileError.invalidURL
         }
-        
+
         guard let token = try KeychainManager.shared.retrieveToken() else {
             throw ProfileError.noToken
         }
-        
+
         // Ensure we have a current profile with admin privileges
         guard let currentProfile = self.currentProfile, currentProfile.isDefault else {
             throw ProfileError.apiError("Only the main family profile can manage family settings.")
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue(currentProfile.id, forHTTPHeaderField: "X-Profile-ID") // Required for admin access
-        
+
         let (data, response) = try await URLSession.shared.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ProfileError.invalidResponse
         }
-        
+
         guard 200...299 ~= httpResponse.statusCode else {
             // Handle unauthorized responses by automatically logging out
             if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
                 AuthService.handleUnauthorizedResponse()
             }
-            
+
             if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
                 throw ProfileError.apiError(apiError.userMessage)
             } else {
                 throw ProfileError.httpError(httpResponse.statusCode)
             }
         }
-        
+
         // Remove from local profiles array
         await MainActor.run {
             self.availableProfiles.removeAll { $0.id == profileId }
-            
+
             // If we deleted the current profile, clear selection
             if self.currentProfile?.id == profileId {
                 self.clearSelectedProfile()
             }
         }
+    }
+
+    /// Request PIN recovery email for a family profile
+    /// Sends the profile's PIN to the account owner's email
+    func forgotProfilePIN(profileId: String) async throws {
+        let endpoint = "\(baseURL)\(AppConfig.API.Endpoints.forgotProfilePIN)"
+
+        guard let url = URL(string: endpoint) else {
+            throw ProfileError.invalidURL
+        }
+
+        guard let token = try KeychainManager.shared.retrieveToken() else {
+            throw ProfileError.noToken
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let requestBody = ForgotPINRequest(profileId: profileId)
+
+        do {
+            let jsonData = try JSONEncoder().encode(requestBody)
+            request.httpBody = jsonData
+
+            #if DEBUG
+            print("📤 Forgot Profile PIN API Request")
+            print("   - URL: \(endpoint)")
+            print("   - Profile ID: \(profileId)")
+            #endif
+        } catch {
+            throw ProfileError.encodingError
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ProfileError.invalidResponse
+        }
+
+        #if DEBUG
+        print("📥 Forgot Profile PIN API Response: \(httpResponse.statusCode)")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📥 Response Body: \(responseString)")
+        }
+        #endif
+
+        guard 200...299 ~= httpResponse.statusCode else {
+            // Handle unauthorized responses by automatically logging out
+            if httpResponse.statusCode == 401 {
+                AuthService.handleUnauthorizedResponse()
+            }
+
+            // Try to decode API error message first, fallback to generic error
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw ProfileError.apiError(apiError.userMessage)
+            } else {
+                throw ProfileError.httpError(httpResponse.statusCode)
+            }
+        }
+
+        // Success - PIN recovery email sent
+        #if DEBUG
+        print("✅ PIN recovery email sent successfully for profile: \(profileId)")
+        #endif
     }
 }
 

@@ -32,6 +32,7 @@ struct FolderImage: Codable, Identifiable {
     var isFavorite: Bool  // Make mutable for favorite toggle
     let movedAt: String
     let notes: String?
+    let originalUserPrompt: String?  // Full original prompt from user
     let generation: GenerationInfo  // Use GenerationInfo instead of Generation to match API response
     let createdBy: CreatedBy
 }

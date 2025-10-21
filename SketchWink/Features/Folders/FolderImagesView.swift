@@ -952,6 +952,9 @@ struct FolderImageDetailView: View {
     @State private var showingShareSheet = false
     @State private var showingDeleteConfirmation = false
     @State private var shareableImage: UIImage?
+    @State private var showingToast = false
+    @State private var toastMessage = ""
+    @State private var toastType: ToastModifier.ToastType = .success
     @Environment(\.dismiss) private var dismiss
 
     let folderId: String
@@ -1012,7 +1015,18 @@ struct FolderImageDetailView: View {
                         .foregroundColor(AppColors.textPrimary)
                     
                     VStack(spacing: AppSpacing.sm) {
-                        DetailRowHighlighted(label: "Title", value: folderImage.generation.title, searchTerm: searchTerm)
+                        // Show full prompt (backend now sends complete title without truncation)
+                        CopyableDetailRowHighlighted(
+                            label: "Prompt",
+                            value: folderImage.generation.title,
+                            searchTerm: searchTerm,
+                            onCopy: { copiedText in
+                                toastMessage = "Prompt copied! 📋"
+                                toastType = .success
+                                showingToast = true
+                            }
+                        )
+
                         DetailRowHighlighted(label: "Category", value: folderImage.generation.category, searchTerm: searchTerm)
                         DetailRowHighlighted(label: "Style", value: folderImage.generation.option, searchTerm: searchTerm)
                         DetailRow(label: "Model", value: folderImage.generation.modelUsed)
@@ -1160,6 +1174,7 @@ struct FolderImageDetailView: View {
         } message: {
             Text("Are you sure you want to delete this image? This action cannot be undone.")
         }
+        .toast(isShowing: $showingToast, message: toastMessage, type: toastType)
     }
     
     // MARK: - Helper Methods

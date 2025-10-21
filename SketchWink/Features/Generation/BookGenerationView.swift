@@ -294,7 +294,7 @@ struct BookGenerationView: View {
             }
             
             VStack(spacing: AppSpacing.xs) {
-                ForEach(["seedream", "flux"], id: \.self) { model in
+                ForEach(["seedream", "gemini", "flux"], id: \.self) { model in
                     Button(action: {
                         selectedModel = model
                     }) {
@@ -461,8 +461,9 @@ struct BookGenerationView: View {
     
     private func modelDescription(_ model: String) -> String {
         switch model {
-        case "seedream": return "Fast, family-friendly illustrations"
-        case "flux": return "Advanced model with more detail"
+        case "seedream": return "Advanced model with high-quality illustrations"
+        case "gemini": return "Balanced speed and quality"
+        case "flux": return "Fast generation with good quality"
         default: return ""
         }
     }

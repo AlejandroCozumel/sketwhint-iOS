@@ -39,6 +39,7 @@ struct AppConfig {
             static let availableProfiles = "/profiles/available"
             static let selectProfile = "/profiles/select"
             static let familyProfiles = "/family-profiles"
+            static let forgotProfilePIN = "/family-profiles/forgot-pin" // POST - Request PIN recovery email
 
             // Content Generation
             static let categories = "/categories/with-options"
@@ -141,9 +142,10 @@ struct AppConfig {
 
         struct Models {
             static let seedream = "seedream"
+            static let gemini = "gemini"
             static let flux = "flux"
 
-            static let all = [seedream, flux]
+            static let all = [seedream, gemini, flux]
         }
 
         // Token costs per generation

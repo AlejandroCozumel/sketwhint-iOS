@@ -756,9 +756,9 @@ struct GenerationView: View {
             }
 
             VStack(spacing: AppSpacing.xs) {
-                ForEach(["seedream", "flux"], id: \.self) { model in
-                    let isAvailable = userPermissions?.availableModels.contains(model) ?? (model == "seedream")
-                    
+                ForEach(["seedream", "gemini", "flux"], id: \.self) { model in
+                    let isAvailable = userPermissions?.availableModels.contains(model) ?? (model == "seedream" || model == "gemini")
+
                     Button(action: {
                         if isAvailable {
                             selectedModel = model
@@ -1089,8 +1089,9 @@ struct GenerationView: View {
 
     private func modelDescription(_ model: String) -> String {
         switch model {
-        case "seedream": return "Fast, family-friendly AI model"
-        case "flux": return "Advanced model with more detail"
+        case "seedream": return "Advanced model with high-quality results"
+        case "gemini": return "Balanced speed and quality"
+        case "flux": return "Fast generation with good quality"
         default: return ""
         }
     }
@@ -1423,14 +1424,10 @@ struct GenerationView: View {
     // MARK: - Input Method Handling
     private func handleInputMethodSelection(_ method: InputMethod) {
         self.inputMethod = method
-        
-        // Clear the other input method's data
-        if method == .text {
-            selectedInputImage = nil
-        } else {
-            userPrompt = ""
-        }
-        
+
+        // Don't clear data when switching - preserve user's work
+        // The API will use the appropriate field based on input method
+
         // Auto-show photo selection for image method
         if method == .image && selectedInputImage == nil {
             handleImageUploadTap()

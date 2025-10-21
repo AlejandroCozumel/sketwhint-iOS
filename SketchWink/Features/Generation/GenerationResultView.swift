@@ -13,13 +13,16 @@ struct GenerationResultView: View {
     @State private var isShowingColoringView = false
     @State private var shareableImage: UIImage?
     @State private var isPreparingShare = false
-    @State private var showingDownloadView = false
     @State private var showingMoveToFolder = false
     @State private var showingDeleteConfirmation = false
     @State private var isMovingToFolder = false
     @State private var isDeleting = false
+    @State private var isDownloading = false
     @State private var error: Error?
     @State private var showingError = false
+    @State private var showingToast = false
+    @State private var toastMessage = ""
+    @State private var toastType: ToastModifier.ToastType = .success
     @Environment(\.dismiss) private var dismiss
     
     private var currentImage: GeneratedImage? {
@@ -92,11 +95,11 @@ struct GenerationResultView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button(action: {
-                            showingDownloadView = true
+                            Task { await downloadImageDirectly() }
                         }) {
-                            Label("Download", systemImage: "arrow.down.circle")
+                            Label("Download to Photos", systemImage: "arrow.down.circle")
                         }
-                        .disabled(currentImage == nil)
+                        .disabled(isDownloading || currentImage == nil)
 
                         Button(action: {
                             Task { await prepareShare() }
@@ -125,20 +128,16 @@ struct GenerationResultView: View {
                             .foregroundColor(AppColors.primaryBlue)
                             .frame(width: 36, height: 36)
                     }
-                    .disabled(isMovingToFolder || isPreparingShare || isDeleting)
+                    .disabled(isMovingToFolder || isPreparingShare || isDeleting || isDownloading)
                 }
             }
             .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
         }
+        .toast(isShowing: $showingToast, message: toastMessage, type: toastType)
         .sheet(isPresented: $isShowingShareSheet) {
             if let shareableImage = shareableImage {
                 ActivityViewController(activityItems: [shareableImage])
-            }
-        }
-        .sheet(isPresented: $showingDownloadView) {
-            if let image = currentImage {
-                ImageDownloadView(image: image)
             }
         }
         .sheet(isPresented: $showingMoveToFolder) {
@@ -246,36 +245,51 @@ struct GenerationResultView: View {
             Text("Tap to View")
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
-            
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppSpacing.md) {
                     ForEach(Array(images.enumerated()), id: \.element.id) { index, image in
-                        AsyncImage(url: URL(string: image.imageUrl)) { imagePhase in
-                            switch imagePhase {
-                            case .success(let swiftUIImage):
-                                swiftUIImage
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 80, height: 80)
-                                    .clipped()
-                                    .cornerRadius(AppSizing.cornerRadius.sm)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                            .stroke(
-                                                selectedImageIndex == index ? categoryConfig.primaryColor : Color.clear,
-                                                lineWidth: 3
-                                            )
-                                    )
-                            case .failure(_), .empty:
-                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                    .fill(AppColors.textSecondary.opacity(0.1))
-                                    .frame(width: 80, height: 80)
-                            @unknown default:
-                                EmptyView()
+                        // Use OptimizedImageView for thumbnails
+                        OptimizedImageView(
+                            url: URL(string: image.imageUrl),
+                            size: CGSize(width: 80, height: 80),
+                            contentMode: .fill,
+                            cornerRadius: AppSizing.cornerRadius.sm
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
+                                .stroke(
+                                    selectedImageIndex == index ? categoryConfig.primaryColor : Color.clear,
+                                    lineWidth: 3
+                                )
+                        )
+                        .overlay(
+                            // Selected indicator
+                            Group {
+                                if selectedImageIndex == index {
+                                    VStack {
+                                        HStack {
+                                            Spacer()
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundColor(categoryConfig.primaryColor)
+                                                .background(
+                                                    Circle()
+                                                        .fill(Color.white)
+                                                        .frame(width: 16, height: 16)
+                                                )
+                                                .padding(4)
+                                        }
+                                        Spacer()
+                                    }
+                                }
                             }
-                        }
+                        )
                         .onTapGesture {
                             selectedImageIndex = index
+                            // Reset any active states when switching images
+                            shareableImage = nil
+                            isPreparingShare = false
                         }
                         .childSafeTouchTarget()
                     }
@@ -294,9 +308,15 @@ struct GenerationResultView: View {
 
             VStack(spacing: AppSpacing.sm) {
                 if let currentImage = currentImage {
-                    DetailRow(
-                        label: "Title",
-                        value: currentImage.generation?.title ?? currentImage.originalUserPrompt ?? "Unknown"
+                    // Show full prompt (backend now sends complete title without truncation)
+                    CopyableDetailRow(
+                        label: "Prompt",
+                        value: currentImage.generation?.title ?? "Unknown",
+                        onCopy: { copiedText in
+                            toastMessage = "Prompt copied! 📋"
+                            toastType = .success
+                            showingToast = true
+                        }
                     )
 
                     DetailRow(
@@ -348,6 +368,65 @@ struct GenerationResultView: View {
     }
 
     // MARK: - Menu Actions
+    private func downloadImageDirectly() async {
+        guard let image = currentImage else {
+            await MainActor.run {
+                toastMessage = "No image selected"
+                toastType = .error
+                showingToast = true
+            }
+            return
+        }
+
+        if await MainActor.run(body: { isDownloading }) {
+            return
+        }
+
+        await MainActor.run {
+            isDownloading = true
+        }
+
+        do {
+            // Get auth token
+            guard let authToken = try KeychainManager.shared.retrieveToken() else {
+                throw ImageDownloadError.unauthorized
+            }
+
+            // Download as PNG with high quality (95%)
+            let data = try await ImageDownloadService.shared.downloadImage(
+                imageId: image.id,
+                format: .png,
+                quality: 95,
+                authToken: authToken
+            )
+
+            // Save to Photos
+            try await ImageDownloadService.shared.saveImageToPhotos(data, format: .png)
+
+            await MainActor.run {
+                isDownloading = false
+                toastMessage = "Saved to Photos! 📸"
+                toastType = .success
+                showingToast = true
+            }
+
+        } catch let error as ImageDownloadError {
+            await MainActor.run {
+                isDownloading = false
+                toastMessage = error.userFriendlyMessage
+                toastType = .error
+                showingToast = true
+            }
+        } catch {
+            await MainActor.run {
+                isDownloading = false
+                toastMessage = "Download failed. Please try again."
+                toastType = .error
+                showingToast = true
+            }
+        }
+    }
+
     private func prepareShare() async {
         if await MainActor.run(body: { shareableImage != nil }) {
             await MainActor.run {
@@ -612,10 +691,10 @@ struct CategoryDisplayConfig {
 // MARK: - Activity View Controller
 struct ActivityViewController: UIViewControllerRepresentable {
     let activityItems: [Any]
-    
+
     func makeUIViewController(context: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
     }
-    
+
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

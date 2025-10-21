@@ -661,14 +661,15 @@ The iOS app now includes a comprehensive generation options system that perfectl
      - High: "Better quality, slower generation" 
      - Ultra: "Best quality, longest generation time"
 
-3. **🤖 AI Model Selector** (seedream/flux)
-   - **Free/Basic/Pro/Max Users**: Limited to "seedream" model only
-   - **Business Users**: Access to "flux" model for advanced generation
+3. **🤖 AI Model Selector** (seedream/gemini/flux)
+   - **All Users**: Access to "seedream" and "gemini" models
+   - **Business Users**: Additional access to "flux" model for advanced generation
    - **UI**: Vertical list with model descriptions and upgrade prompts
    - **API Field**: `model: String`
    - **Descriptions**:
-     - Seedream: "Fast, family-friendly AI model"
-     - Flux: "Advanced model with more detail"
+     - Seedream: "Advanced model with high-quality results"
+     - Gemini: "Balanced speed and quality" (Available to all plans)
+     - Flux: "Fast generation with good quality"
 
 4. **📐 Dimensions Selector** (1:1, 2:3, 3:2, A4)
    - **All Users**: Full access to all dimension options
@@ -706,7 +707,7 @@ The iOS app now sends the complete generation request matching the backend speci
 |---------|------|-------|-----|-----|----------|
 | **Max Images** | 1 only | 1-4 ✅ | 1-4 ✅ | 1-4 ✅ | 1-4 ✅ |
 | **Quality** | standard only | standard only | standard only | standard/high/ultra ✅ | standard/high/ultra ✅ |
-| **AI Models** | seedream only | seedream only | seedream only | seedream only | seedream/flux ✅ |
+| **AI Models** | seedream/gemini ✅ | seedream/gemini ✅ | seedream/gemini ✅ | seedream/gemini ✅ | seedream/gemini/flux ✅ |
 | **Dimensions** | All ✅ | All ✅ | All ✅ | All ✅ | All ✅ |
 
 #### **💡 User Experience Features**
