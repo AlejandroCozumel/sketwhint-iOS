@@ -149,7 +149,11 @@ private struct BackgroundView: View {
 private extension OnboardingSlideView {
     var isCurrent: Bool { index == currentIndex }
 
-    var buttonTitle: String { currentIndex == totalSlides - 1 ? "Get Started" : "Next" }
+    var buttonTitle: String {
+        currentIndex == totalSlides - 1
+            ? String(localized: "onboarding.button.get.started")
+            : String(localized: "onboarding.button.next")
+    }
 
     var buttonIcon: String { currentIndex == totalSlides - 1 ? "checkmark.circle.fill" : "arrow.right.circle.fill" }
 
@@ -192,7 +196,7 @@ private extension OnboardingSlideView {
         Button(action: {
             onFinish()
         }) {
-            Text("Skip")
+            Text(String(localized: "onboarding.button.skip"))
                 .buttonText()
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
@@ -235,36 +239,36 @@ private extension OnboardingView {
     static var defaultSlides: [OnboardingSlide] {
         [
             OnboardingSlide(
-                title: "Welcome to SketchWink",
-                message: "Start your creative journey with 3 free credits. Experiment with art styles and see what the AI can do without any commitment.",
+                title: String(localized: "onboarding.welcome.title"),
+                message: String(localized: "onboarding.welcome.message"),
                 emoji: "✨",
                 backgroundColor: AppColors.primaryBlue,
                 accentColor: AppColors.primaryPurple,
                 highlights: [
-                    OnboardingHighlight(icon: "sparkles", text: "3 credits ready to use"),
-                    OnboardingHighlight(icon: "hand.thumbsup.fill", text: "No card required to explore")
+                    OnboardingHighlight(icon: "sparkles", text: String(localized: "onboarding.welcome.highlight1")),
+                    OnboardingHighlight(icon: "hand.thumbsup.fill", text: String(localized: "onboarding.welcome.highlight2"))
                 ]
             ),
             OnboardingSlide(
-                title: "Create Magical Art",
-                message: "Turn ideas into coloring pages, stickers, and more. Customize prompts, pick palettes, and bring family projects to life in seconds.",
+                title: String(localized: "onboarding.create.title"),
+                message: String(localized: "onboarding.create.message"),
                 emoji: "🎨",
                 backgroundColor: AppColors.primaryPurple,
                 accentColor: AppColors.primaryPink,
                 highlights: [
-                    OnboardingHighlight(icon: "paintpalette.fill", text: "Kid-friendly art tools"),
-                    OnboardingHighlight(icon: "clock.badge.checkmark", text: "Lightning-fast generations")
+                    OnboardingHighlight(icon: "paintpalette.fill", text: String(localized: "onboarding.create.highlight1")),
+                    OnboardingHighlight(icon: "clock.badge.checkmark", text: String(localized: "onboarding.create.highlight2"))
                 ]
             ),
             OnboardingSlide(
-                title: "Stories & Family Profiles",
-                message: "Unlock bedtime stories, shared galleries, and PIN-protected profiles with a SketchWink plan. Perfect for families who create together.",
+                title: String(localized: "onboarding.stories.title"),
+                message: String(localized: "onboarding.stories.message"),
                 emoji: "🌙",
                 backgroundColor: AppColors.primaryIndigo,
                 accentColor: AppColors.primaryTeal,
                 highlights: [
-                    OnboardingHighlight(icon: "book.fill", text: "Bedtime stories on tap"),
-                    OnboardingHighlight(icon: "person.2.wave.2.fill", text: "Family profiles for premium members")
+                    OnboardingHighlight(icon: "book.fill", text: String(localized: "onboarding.stories.highlight1")),
+                    OnboardingHighlight(icon: "person.2.wave.2.fill", text: String(localized: "onboarding.stories.highlight2"))
                 ]
             )
         ]

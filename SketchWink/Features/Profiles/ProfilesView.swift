@@ -253,16 +253,14 @@ struct ProfilesView: View {
             .cardStyle()
 
             // Create First Profile Button
-            Button {
+            Button("profiles.create.first".localized) {
                 if canCreateProfile {
                     showingCreateProfile = true
                 } else {
                     handleProfileCreationLimit()
                 }
-            } label: {
-                Text("profiles.create.first".localized)
-                    .largeButtonStyle(backgroundColor: AppColors.primaryPink)
             }
+            .largeButtonStyle(backgroundColor: AppColors.primaryPink)
         }
     }
 

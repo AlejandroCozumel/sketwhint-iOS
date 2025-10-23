@@ -12,37 +12,13 @@ struct SettingsView: View {
                 VStack(spacing: AppSpacing.sectionSpacing) {
                     
                     // Header
-                    VStack(spacing: AppSpacing.lg) {
-                        ZStack {
-                            Circle()
-                                .fill(AppColors.primaryBlue)
-                                .frame(width: 120, height: 120)
-                                .shadow(
-                                    color: AppColors.primaryBlue.opacity(0.3),
-                                    radius: AppSizing.shadows.large.radius,
-                                    x: AppSizing.shadows.large.x,
-                                    y: AppSizing.shadows.large.y
-                                )
-                            
-                            Text("⚙️")
-                                .font(.system(size: 60))
-                        }
-                        
-                        VStack(spacing: AppSpacing.sm) {
-                            Text("settings.title".localized)
-                                .displayMedium()
-                                .foregroundColor(AppColors.textPrimary)
-                                .multilineTextAlignment(.center)
-
-                            if let user = authService.currentUser {
-                                Text(String(format: "settings.hello".localized, user.name))
-                                    .bodyMedium()
-                                    .foregroundColor(AppColors.textSecondary)
-                                    .multilineTextAlignment(.center)
-                            }
-                        }
+                    if let user = authService.currentUser {
+                        Text(String(format: "settings.hello".localized, user.name))
+                            .bodyMedium()
+                            .foregroundColor(AppColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .contentPadding()
                     }
-                    .contentPadding()
                     
                     // Account Section
                     VStack(alignment: .leading, spacing: AppSpacing.md) {

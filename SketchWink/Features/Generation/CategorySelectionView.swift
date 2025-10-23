@@ -204,7 +204,7 @@ struct CategorySelectionView: View {
     // MARK: - Categories Grid
     private var categoriesGridView: some View {
         VStack(alignment: .center, spacing: AppSpacing.md) {
-            Text("Creative Categories")
+            Text(String(localized: "generation.creative.categories"))
                 .font(AppTypography.categoryTitle)
                 .foregroundColor(AppColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -229,7 +229,7 @@ struct CategorySelectionView: View {
     // MARK: - Bedtime Stories Section
     private var bedtimeStoriesSection: some View {
         VStack(alignment: .center, spacing: AppSpacing.md) {
-            Text(bedtimeStoriesService.category?.name ?? "Bedtime Stories")
+            Text(bedtimeStoriesService.category?.name ?? String(localized: "stories.title"))
                 .font(AppTypography.categoryTitle)
                 .foregroundColor(AppColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -426,12 +426,12 @@ struct BedtimeStoryFeatureCard: View {
 
                 // Bottom half - Text
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    Text(category?.name ?? "Bedtime Stories")
+                    Text(category?.name ?? String(localized: "stories.title"))
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
                         .lineLimit(1)
 
-                    Text(category?.description ?? "AI-narrated bedtime stories with audio and cover image")
+                    Text(category?.description ?? String(localized: "stories.description"))
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                         .lineLimit(2)

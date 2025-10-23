@@ -41,7 +41,7 @@ struct UnifiedFilterChips: View {
     private var favoritesToggleSection: some View {
         HStack(spacing: AppSpacing.xs) {
             FilterChip(
-                title: "All",
+                title: String(localized: "gallery.filter.all"),
                 icon: "square.grid.2x2",
                 isSelected: !config.showFavoritesOnly,
                 selectedColor: config.chipSelectedColor,
@@ -49,9 +49,9 @@ struct UnifiedFilterChips: View {
                     config.onFavoritesToggle(false)
                 }
             )
-            
+
             FilterChip(
-                title: "Favorites",
+                title: String(localized: "gallery.filter.favorites"),
                 icon: "heart.fill",
                 isSelected: config.showFavoritesOnly,
                 selectedColor: config.chipSelectedColor,
@@ -68,7 +68,7 @@ struct UnifiedFilterChips: View {
         HStack(spacing: AppSpacing.xs) {
             // All Profiles chip
             FilterChip(
-                title: "All Profiles",
+                title: String(localized: "gallery.filter.all.profiles"),
                 icon: "person.2.fill",
                 isSelected: config.selectedProfileFilter == nil,
                 selectedColor: config.chipSelectedColor,
@@ -76,7 +76,7 @@ struct UnifiedFilterChips: View {
                     config.onProfileFilterChange(nil)
                 }
             )
-            
+
             // Individual profile chips
             ForEach(config.availableProfiles) { profile in
                 FilterChip(
@@ -112,7 +112,7 @@ struct UnifiedFilterChips: View {
     // MARK: - Search Toggle Section
     private var searchToggleSection: some View {
         FilterChip(
-            title: config.isSearchActive ? "Hide Search" : "Search",
+            title: config.isSearchActive ? String(localized: "common.hide.search") : String(localized: "common.search"),
             icon: config.isSearchActive ? "xmark.circle" : "magnifyingglass",
             isSelected: config.isSearchActive,
             selectedColor: config.chipSelectedColor,

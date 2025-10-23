@@ -26,6 +26,7 @@
 "common.select" = "Seleccionar";
 "common.clear" = "Limpiar";
 "common.search" = "Buscar";
+"common.hide.search" = "Ocultar Búsqueda";
 "common.filter" = "Filtrar";
 "common.all" = "Todo";
 "common.none" = "Ninguno";
@@ -148,6 +149,7 @@
 
 // MARK: - Generation View
 "generation.title" = "Crea tu Arte";
+"generation.creative.categories" = "Categorías Creativas";
 "generation.enter.prompt" = "Ingresar Descripción";
 "generation.upload.photo" = "Subir Foto";
 "generation.prompt.placeholder" = "Describe lo que quieres crear...";
@@ -294,6 +296,7 @@
 "results.generic.title" = "Tu Creación";
 "results.generic.success" = "¡Contenido Creado!";
 "results.generic.desc" = "¡Tu contenido generado con IA está listo!";
+"results.prompt.copied" = "¡Descripción copiada! 📋";
 
 // MARK: - Gallery View
 "gallery.title" = "Mi Galería";
@@ -624,6 +627,7 @@
 
 // MARK: - Bedtime Stories
 "stories.title" = "Cuentos para Dormir";
+"stories.description" = "Cuentos narrados con IA con audio e imagen de portada";
 "stories.library" = "Biblioteca de Cuentos";
 "stories.create" = "Crear Cuento";
 "stories.create.story" = "Crear Cuento";
@@ -853,16 +857,24 @@
 "toast.saved" = "Guardado exitosamente";
 
 // MARK: - Onboarding
-"onboarding.welcome.title" = "¡Bienvenido a SketchWink!";
-"onboarding.welcome.desc" = "Crea arte increíble con IA";
-"onboarding.create.title" = "Fácil de Crear";
-"onboarding.create.desc" = "Solo describe lo que quieres y lo crearemos";
-"onboarding.family.title" = "Para Toda la Familia";
-"onboarding.family.desc" = "Perfiles seguros para todos en la familia";
-"onboarding.organize.title" = "Mantente Organizado";
-"onboarding.organize.desc" = "Carpetas, favoritos y colecciones";
-"onboarding.get.started" = "Comenzar";
-"onboarding.skip" = "Saltar";
+"onboarding.welcome.title" = "Bienvenido a SketchWink";
+"onboarding.welcome.message" = "Comienza tu viaje creativo con 3 créditos gratis. Experimenta con estilos de arte y descubre lo que la IA puede hacer sin ningún compromiso.";
+"onboarding.welcome.highlight1" = "3 créditos listos para usar";
+"onboarding.welcome.highlight2" = "No se requiere tarjeta para explorar";
+
+"onboarding.create.title" = "Crea Arte Mágico";
+"onboarding.create.message" = "Convierte ideas en páginas para colorear, pegatinas y más. Personaliza descripciones, elige paletas y da vida a proyectos familiares en segundos.";
+"onboarding.create.highlight1" = "Herramientas de arte para niños";
+"onboarding.create.highlight2" = "Generaciones súper rápidas";
+
+"onboarding.stories.title" = "Cuentos y Perfiles Familiares";
+"onboarding.stories.message" = "Desbloquea cuentos para dormir, galerías compartidas y perfiles protegidos con PIN con un plan SketchWink. Perfecto para familias que crean juntas.";
+"onboarding.stories.highlight1" = "Cuentos para dormir disponibles";
+"onboarding.stories.highlight2" = "Perfiles familiares para miembros premium";
+
+"onboarding.button.next" = "Siguiente";
+"onboarding.button.get.started" = "Comenzar";
+"onboarding.button.skip" = "Saltar";
 
 // MARK: - Image Picker
 "picker.choose.source" = "Elegir Origen";

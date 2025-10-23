@@ -26,6 +26,7 @@
 "common.select" = "Select";
 "common.clear" = "Clear";
 "common.search" = "Search";
+"common.hide.search" = "Hide Search";
 "common.filter" = "Filter";
 "common.all" = "All";
 "common.none" = "None";
@@ -148,6 +149,7 @@
 
 // MARK: - Generation View
 "generation.title" = "Create Your Art";
+"generation.creative.categories" = "Creative Categories";
 "generation.enter.prompt" = "Enter Prompt";
 "generation.upload.photo" = "Upload Photo";
 "generation.prompt.placeholder" = "Describe what you want to create...";
@@ -294,6 +296,7 @@
 "results.generic.title" = "Your Creation";
 "results.generic.success" = "Content Created!";
 "results.generic.desc" = "Your AI-generated content is ready!";
+"results.prompt.copied" = "Prompt copied! 📋";
 
 // MARK: - Gallery View
 "gallery.title" = "My Gallery";
@@ -624,6 +627,7 @@
 
 // MARK: - Bedtime Stories
 "stories.title" = "Bedtime Stories";
+"stories.description" = "AI-narrated bedtime stories with audio and cover image";
 "stories.library" = "Story Library";
 "stories.create" = "Create Story";
 "stories.create.story" = "Create Story";
@@ -824,16 +828,24 @@
 "toast.saved" = "Saved successfully";
 
 // MARK: - Onboarding
-"onboarding.welcome.title" = "Welcome to SketchWink!";
-"onboarding.welcome.desc" = "Create amazing art with AI";
-"onboarding.create.title" = "Easy to Create";
-"onboarding.create.desc" = "Just describe what you want, and we'll create it";
-"onboarding.family.title" = "Family Friendly";
-"onboarding.family.desc" = "Safe profiles for everyone in the family";
-"onboarding.organize.title" = "Stay Organized";
-"onboarding.organize.desc" = "Folders, favorites, and collections";
-"onboarding.get.started" = "Get Started";
-"onboarding.skip" = "Skip";
+"onboarding.welcome.title" = "Welcome to SketchWink";
+"onboarding.welcome.message" = "Start your creative journey with 3 free credits. Experiment with art styles and see what the AI can do without any commitment.";
+"onboarding.welcome.highlight1" = "3 credits ready to use";
+"onboarding.welcome.highlight2" = "No card required to explore";
+
+"onboarding.create.title" = "Create Magical Art";
+"onboarding.create.message" = "Turn ideas into coloring pages, stickers, and more. Customize prompts, pick palettes, and bring family projects to life in seconds.";
+"onboarding.create.highlight1" = "Kid-friendly art tools";
+"onboarding.create.highlight2" = "Lightning-fast generations";
+
+"onboarding.stories.title" = "Stories & Family Profiles";
+"onboarding.stories.message" = "Unlock bedtime stories, shared galleries, and PIN-protected profiles with a SketchWink plan. Perfect for families who create together.";
+"onboarding.stories.highlight1" = "Bedtime stories on tap";
+"onboarding.stories.highlight2" = "Family profiles for premium members";
+
+"onboarding.button.next" = "Next";
+"onboarding.button.get.started" = "Get Started";
+"onboarding.button.skip" = "Skip";
 
 // MARK: - Image Picker
 "picker.choose.source" = "Choose Source";
