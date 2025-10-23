@@ -452,14 +452,14 @@ struct ProfileSelectionRequiredView: View {
                 }
                 
                 VStack(spacing: AppSpacing.sm) {
-                    Text("Welcome to SketchWink!")
+                    Text("profiles.welcome.title".localized)
                         .displaySmaller()
                         .foregroundColor(AppColors.textPrimary)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
-                    
-                    Text("Create your first family profile to start your creative journey")
+
+                    Text("profiles.welcome.subtitle".localized)
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -470,12 +470,12 @@ struct ProfileSelectionRequiredView: View {
             .contentPadding()
             
             VStack(spacing: AppSpacing.sm) {
-                Text("SketchWink works best with a family profile")
+                Text("profiles.welcome.info.title".localized)
                     .headlineSmall()
                     .foregroundColor(AppColors.primaryPurple)
                     .multilineTextAlignment(.center)
-                
-                Text("Create your profile so we can save drawings, favorites, and rewards in one safe spot for your family.")
+
+                Text("profiles.welcome.info.description".localized)
                     .bodyMedium()
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -498,7 +498,7 @@ struct ProfileSelectionRequiredView: View {
             Button(action: {
                 onShowCreateProfile()
             }) {
-                Text("Create Your First Profile")
+                Text("profiles.create.your.first".localized)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -514,7 +514,7 @@ struct ProfileSelectionRequiredView: View {
         VStack(spacing: 0) {
             // Header
             VStack(spacing: AppSpacing.sm) {
-                Text("Choose Your Profile")
+                Text("profiles.choose.title".localized)
                     .displaySmaller()
                     .foregroundColor(AppColors.textPrimary)
                     .multilineTextAlignment(.center)
@@ -525,7 +525,7 @@ struct ProfileSelectionRequiredView: View {
                     .frame(width: 180, height: 180)
                     .clipShape(Circle())
 
-                Text("Select a profile to continue")
+                Text("profiles.choose.subtitle".localized)
                     .bodyLarge()
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -554,7 +554,7 @@ struct ProfileSelectionRequiredView: View {
                                 HStack(spacing: AppSpacing.xs) {
                                     Image(systemName: profile.hasPin ? "lock.fill" : "lock.open.fill")
                                         .font(.system(size: 14, weight: .semibold))
-                                    Text(profile.hasPin ? "Protected" : "Open")
+                                    Text(profile.hasPin ? "profiles.protected".localized : "profiles.open".localized)
                                 }
                                 .font(AppTypography.captionLarge)
                                 .foregroundColor(AppColors.textSecondary)
@@ -576,7 +576,7 @@ struct ProfileSelectionRequiredView: View {
             Spacer()
 
             // Footer text
-            Text("Need help? Contact your family administrator")
+            Text("profiles.choose.help".localized)
                 .bodyMedium()
                 .foregroundColor(AppColors.textSecondary)
                 .multilineTextAlignment(.center)

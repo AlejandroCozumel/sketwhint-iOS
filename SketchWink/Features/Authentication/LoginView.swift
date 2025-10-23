@@ -3,6 +3,7 @@ import AuthenticationServices
 
 struct LoginView: View {
     @StateObject private var viewModel = LoginViewModel()
+    @StateObject private var localization = LocalizationManager.shared
     @State private var email = ""
     @State private var password = ""
     @State private var showPassword = false
@@ -18,7 +19,7 @@ struct LoginView: View {
         GeometryReader { geometry in
             let isIPad = geometry.size.width > 600
 
-            ZStack {
+            ZStack(alignment: .topTrailing) {
                 // Background for safe areas
                 VStack(spacing: 0) {
                     AppColors.primaryBlue
@@ -54,7 +55,7 @@ struct LoginView: View {
                                             .font(AppTypography.displayLarge)
                                             .foregroundColor(.white)
 
-                                        Text("Create, color, and imagine together")
+                                        Text("login.subtitle".localized)
                                             .font(AppTypography.bodyMedium)
                                             .foregroundColor(.white.opacity(0.9))
                                             .multilineTextAlignment(.center)
@@ -69,11 +70,11 @@ struct LoginView: View {
                         VStack(spacing: AppSpacing.md) {
                             // Email field
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Email")
+                                Text("common.email".localized)
                                     .font(AppTypography.captionLarge)
                                     .foregroundColor(AppColors.textSecondary)
 
-                                TextField("Enter your email", text: $email)
+                                TextField("login.email.placeholder".localized, text: $email)
                                     .keyboardType(.emailAddress)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
@@ -99,16 +100,16 @@ struct LoginView: View {
 
                             // Password field
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Password")
+                                Text("common.password".localized)
                                     .font(AppTypography.captionLarge)
                                     .foregroundColor(AppColors.textSecondary)
 
                                 HStack(spacing: 0) {
                                     Group {
                                         if showPassword {
-                                            TextField("Enter your password", text: $password)
+                                            TextField("login.password.placeholder".localized, text: $password)
                                         } else {
-                                            SecureField("Enter your password", text: $password)
+                                            SecureField("login.password.placeholder".localized, text: $password)
                                         }
                                     }
                                     .focused($focusedField, equals: .password)
@@ -142,7 +143,7 @@ struct LoginView: View {
                             }
 
                             // Forgot password button
-                            Button("Forgot Password?") {
+                            Button("login.forgot.password".localized) {
                                 showForgotPassword = true
                             }
                             .font(AppTypography.captionLarge)
@@ -177,7 +178,7 @@ struct LoginView: View {
                                     ProgressView()
                                         .tint(.white)
                                 } else {
-                                    Text("Sign In")
+                                    Text("login.signin.button".localized)
                                         .font(AppTypography.buttonText)
                                 }
                             }
@@ -207,7 +208,7 @@ struct LoginView: View {
                                 .fill(AppColors.borderLight)
                                 .frame(height: 1)
 
-                            Text("or")
+                            Text("login.or.divider".localized)
                                 .font(AppTypography.captionLarge)
                                 .foregroundColor(AppColors.textSecondary)
 
@@ -228,17 +229,12 @@ struct LoginView: View {
                         }
 
                         // Sign up link
-                        HStack(spacing: 4) {
-                            Text("Don't have an account?")
+                        Button(action: {
+                            showSignUp = true
+                        }) {
+                            Text("login.signup.prompt".localized)
                                 .font(AppTypography.bodyMedium)
-                                .foregroundColor(AppColors.textSecondary)
-
-                            Button("Sign up") {
-                                showSignUp = true
-                            }
-                            .font(AppTypography.bodyMedium)
-                            .fontWeight(.semibold)
-                            .foregroundColor(AppColors.primaryBlue)
+                                .foregroundColor(AppColors.primaryBlue)
                         }
                         .padding(.top, AppSpacing.xs)
                     }
@@ -252,6 +248,11 @@ struct LoginView: View {
                 .scrollIndicators(.hidden)
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollDismissesKeyboard(.interactively)
+
+                // Language switcher overlay (absolute position - top-right)
+                LanguageSwitcherButton()
+                    .padding(.trailing, AppSpacing.md)
+                    .padding(.top, 0)
             }
         }
         .navigationBarHidden(true)

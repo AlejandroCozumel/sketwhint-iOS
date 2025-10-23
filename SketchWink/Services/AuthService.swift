@@ -7,18 +7,21 @@ import SwiftUI
 struct SignInRequest: Codable {
     let email: String
     let password: String
+    let language: String? // Optional: Current app language ("en" or "es")
 }
 
 struct SignUpRequest: Codable {
     let email: String
     let password: String
     let name: String
+    let language: String // Device language: "en" or "es"
 }
 
 struct SocialSignInRequest: Codable {
     let provider: String
     let idToken: SocialIdToken
     let requestSignUp: Bool
+    let language: String? // Optional: Current app language ("en" or "es")
 }
 
 struct SocialIdToken: Codable {
@@ -125,10 +128,11 @@ struct User: Codable {
     let promptEnhancementEnabled: Bool?
     let hasCompletedOnboarding: Bool?
     let onboardingCompletedAt: String?
-    
+    let language: String?
+
     // CodingKeys to handle missing fields gracefully
     enum CodingKeys: String, CodingKey {
-        case id, email, name, image, emailVerified, createdAt, updatedAt, role, promptEnhancementEnabled, hasCompletedOnboarding, onboardingCompletedAt
+        case id, email, name, image, emailVerified, createdAt, updatedAt, role, promptEnhancementEnabled, hasCompletedOnboarding, onboardingCompletedAt, language
     }
     
     // Regular initializer for creating User instances
@@ -143,7 +147,8 @@ struct User: Codable {
         role: String? = "user",
         promptEnhancementEnabled: Bool? = true,
         hasCompletedOnboarding: Bool? = nil,
-        onboardingCompletedAt: String? = nil
+        onboardingCompletedAt: String? = nil,
+        language: String? = "en"
     ) {
         self.id = id
         self.email = email
@@ -156,6 +161,7 @@ struct User: Codable {
         self.promptEnhancementEnabled = promptEnhancementEnabled
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.onboardingCompletedAt = onboardingCompletedAt
+        self.language = language
     }
     
     init(from decoder: Decoder) throws {
@@ -171,6 +177,7 @@ struct User: Codable {
         promptEnhancementEnabled = try container.decodeIfPresent(Bool.self, forKey: .promptEnhancementEnabled) ?? true
         hasCompletedOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasCompletedOnboarding)
         onboardingCompletedAt = try container.decodeIfPresent(String.self, forKey: .onboardingCompletedAt)
+        language = try container.decodeIfPresent(String.self, forKey: .language) ?? "en"
     }
 }
 
@@ -187,7 +194,8 @@ extension User {
             role: role,
             promptEnhancementEnabled: promptEnhancementEnabled,
             hasCompletedOnboarding: completed,
-            onboardingCompletedAt: completedAt ?? onboardingCompletedAt
+            onboardingCompletedAt: completedAt ?? onboardingCompletedAt,
+            language: language
         )
     }
 }
@@ -412,20 +420,33 @@ class AuthService: ObservableObject {
     private let encoder = JSONEncoder()
     
     // MARK: - Sign Up
-    func signUp(email: String, password: String, name: String) async throws -> SignUpResponse {
-        let request = SignUpRequest(email: email, password: password, name: name)
-        
+    func signUp(email: String, password: String, name: String, language: String) async throws -> SignUpResponse {
+        let request = SignUpRequest(email: email, password: password, name: name, language: language)
+
+        #if DEBUG
+        print("📤 AuthService: Sign up request")
+        print("   - Email: \(email)")
+        print("   - Name: \(name)")
+        print("   - Language: \(language)")
+        #endif
+
         guard let url = URL(string: AppConfig.apiURL(for: AppConfig.API.Endpoints.signUp)) else {
             throw AuthError.invalidResponse
         }
-        
+
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.timeoutInterval = AppConfig.API.timeout
-        
+
         do {
             urlRequest.httpBody = try encoder.encode(request)
+
+            #if DEBUG
+            if let requestBody = String(data: urlRequest.httpBody ?? Data(), encoding: .utf8) {
+                print("   - Request body: \(requestBody)")
+            }
+            #endif
         } catch {
             throw AuthError.decodingError
         }
@@ -542,8 +563,16 @@ class AuthService: ObservableObject {
     
     // MARK: - Sign In
     func signIn(email: String, password: String) async throws -> User {
-        let request = SignInRequest(email: email, password: password)
-        
+        // Get current app language to sync with backend
+        let currentLanguage = LocalizationManager.shared.currentLanguage.rawValue
+        let request = SignInRequest(email: email, password: password, language: currentLanguage)
+
+        #if DEBUG
+        print("📤 AuthService: Sign in request")
+        print("   - Email: \(email)")
+        print("   - Language: \(currentLanguage)")
+        #endif
+
         guard let url = URL(string: AppConfig.apiURL(for: AppConfig.API.Endpoints.signIn)) else {
             throw AuthError.invalidResponse
         }
@@ -608,7 +637,7 @@ class AuthService: ObservableObject {
             }
 
             return signInResponse.user
-            
+
         } catch let error as AuthError {
             throw error
         } catch {
@@ -625,6 +654,9 @@ class AuthService: ObservableObject {
         email: String?,
         requestSignUp: Bool = true
     ) async throws -> User {
+        // Get current app language to sync with backend
+        let currentLanguage = LocalizationManager.shared.currentLanguage.rawValue
+
         let request = SocialSignInRequest(
             provider: "google",
             idToken: SocialIdToken(
@@ -635,8 +667,13 @@ class AuthService: ObservableObject {
                 expiresAt: nil,
                 user: makeSocialUser(givenName: givenName, familyName: familyName, email: email)
             ),
-            requestSignUp: requestSignUp
+            requestSignUp: requestSignUp,
+            language: currentLanguage
         )
+
+        #if DEBUG
+        print("📤 AuthService: Google sign-in request with language: \(currentLanguage)")
+        #endif
 
         guard let url = URL(string: AppConfig.apiURL(for: AppConfig.API.Endpoints.signInApple)) else {
             throw AuthError.invalidResponse
@@ -711,6 +748,9 @@ class AuthService: ObservableObject {
         email: String?,
         requestSignUp: Bool = true
     ) async throws -> User {
+        // Get current app language to sync with backend
+        let currentLanguage = LocalizationManager.shared.currentLanguage.rawValue
+
         let request = SocialSignInRequest(
             provider: "apple",
             idToken: SocialIdToken(
@@ -721,8 +761,13 @@ class AuthService: ObservableObject {
                 expiresAt: nil,
                 user: makeSocialUser(givenName: givenName, familyName: familyName, email: email)
             ),
-            requestSignUp: requestSignUp
+            requestSignUp: requestSignUp,
+            language: currentLanguage
         )
+
+        #if DEBUG
+        print("📤 AuthService: Apple sign-in request with language: \(currentLanguage)")
+        #endif
 
         guard let url = URL(string: AppConfig.apiURL(for: AppConfig.API.Endpoints.signInApple)) else {
             throw AuthError.invalidResponse
@@ -1025,6 +1070,75 @@ class AuthService: ObservableObject {
     var isNetworkAvailable: Bool {
         return networkStatus == .connected && lastAuthCheckError == nil
     }
+
+    // MARK: - Update User Language
+    func updateUserLanguage(_ language: String) async throws {
+        guard let token = try KeychainManager.shared.retrieveToken() else {
+            throw AuthError.noToken
+        }
+
+        let endpoint = "\(AppConfig.API.baseURL)/users/me/language"
+        guard let url = URL(string: endpoint) else {
+            throw AuthError.invalidResponse
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = AppConfig.API.timeout
+
+        let body = ["language": language]
+        request.httpBody = try encoder.encode(body)
+
+        #if DEBUG
+        print("🌍 AuthService: Updating user language to \(language)")
+        #endif
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.invalidResponse
+        }
+
+        #if DEBUG
+        print("📊 HTTP Status: \(httpResponse.statusCode)")
+        #endif
+
+        guard 200...299 ~= httpResponse.statusCode else {
+            if let apiError = try? decoder.decode(APIError.self, from: data) {
+                throw AuthError.networkError(apiError.userMessage)
+            } else {
+                throw AuthError.networkError("Failed to update language")
+            }
+        }
+
+        // Update local user object
+        await MainActor.run {
+            if var user = currentUser {
+                user = User(
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    image: user.image,
+                    emailVerified: user.emailVerified,
+                    createdAt: user.createdAt,
+                    updatedAt: user.updatedAt,
+                    role: user.role,
+                    promptEnhancementEnabled: user.promptEnhancementEnabled,
+                    hasCompletedOnboarding: user.hasCompletedOnboarding,
+                    onboardingCompletedAt: user.onboardingCompletedAt,
+                    language: language
+                )
+                self.currentUser = user
+            }
+        }
+
+        #if DEBUG
+        print("✅ Language updated successfully")
+        #endif
+    }
+
     // MARK: - Password Reset
 
     /// Request password reset code

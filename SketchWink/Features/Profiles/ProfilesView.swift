@@ -28,6 +28,7 @@ struct ProfilesView: View {
     @StateObject private var authService = AuthService.shared
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var tokenManager = TokenBalanceManager.shared
+    @StateObject private var localization = LocalizationManager.shared
 
     var body: some View {
         NavigationStack {
@@ -47,7 +48,7 @@ struct ProfilesView: View {
                 .padding(.bottom, AppSpacing.sectionSpacing)
             }
             .background(AppColors.backgroundLight)
-            .navigationTitle("Family Profiles")
+            .navigationTitle("profiles.title".localized)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 AppToolbarContent(
@@ -80,15 +81,15 @@ struct ProfilesView: View {
         .onAppear {
             loadCurrentProfile()
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert("common.error".localized, isPresented: $showingError) {
+            Button("common.ok".localized) { }
         } message: {
-            Text(error?.localizedDescription ?? "An error occurred")
+            Text(error?.localizedDescription ?? "common.unknown.error".localized)
         }
-        .alert("Maximum Profiles Reached", isPresented: $showingMaxProfilesAlert) {
-            Button("OK") { }
+        .alert("profiles.max.reached.title".localized, isPresented: $showingMaxProfilesAlert) {
+            Button("common.ok".localized) { }
         } message: {
-            Text("You've reached the maximum of \(userPermissions?.maxFamilyProfiles ?? 5) family profiles for your plan.")
+            Text(String(format: "profiles.max.reached.message".localized, userPermissions?.maxFamilyProfiles ?? 5))
         }
         .sheet(isPresented: $showingCreateProfile) {
             CreateProfileView(
@@ -194,7 +195,7 @@ struct ProfilesView: View {
                 .scaleEffect(1.5)
                 .tint(AppColors.primaryBlue)
 
-            Text("Loading family profiles...")
+            Text("profiles.loading".localized)
                 .font(AppTypography.bodyLarge)
                 .foregroundColor(AppColors.textSecondary)
         }
@@ -223,12 +224,12 @@ struct ProfilesView: View {
                 }
 
                 VStack(spacing: AppSpacing.sm) {
-                    Text("Create Family Profiles")
+                    Text("profiles.create.title".localized)
                         .displayMedium()
                         .foregroundColor(AppColors.textPrimary)
                         .multilineTextAlignment(.center)
 
-                    Text("Set up personalized profiles for each family member with custom avatars and parental controls")
+                    Text("profiles.create.subtitle".localized)
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -238,15 +239,15 @@ struct ProfilesView: View {
 
             // Benefits Card
             VStack(spacing: AppSpacing.md) {
-                Text("Family Profile Benefits")
+                Text("profiles.benefits.title".localized)
                     .headlineMedium()
                     .foregroundColor(AppColors.textPrimary)
 
                 VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                    ProfileBenefitItem(icon: "👶", title: "Child-Safe Profiles", description: "Age-appropriate content and controls")
-                    ProfileBenefitItem(icon: "🔒", title: "PIN Protection", description: "Secure profiles with optional PIN access")
-                    ProfileBenefitItem(icon: "🎨", title: "Personal Collections", description: "Individual art galleries and favorites")
-                    ProfileBenefitItem(icon: "📊", title: "Usage Tracking", description: "Monitor creative progress and activity")
+                    ProfileBenefitItem(icon: "👶", title: "profiles.benefit.child.safe".localized, description: "profiles.benefit.child.safe.desc".localized)
+                    ProfileBenefitItem(icon: "🔒", title: "profiles.benefit.pin.protection".localized, description: "profiles.benefit.pin.protection.desc".localized)
+                    ProfileBenefitItem(icon: "🎨", title: "profiles.benefit.personal.collections".localized, description: "profiles.benefit.personal.collections.desc".localized)
+                    ProfileBenefitItem(icon: "📊", title: "profiles.benefit.usage.tracking".localized, description: "profiles.benefit.usage.tracking.desc".localized)
                 }
             }
             .cardStyle()
@@ -259,7 +260,7 @@ struct ProfilesView: View {
                     handleProfileCreationLimit()
                 }
             } label: {
-                Text("Create Your First Profile")
+                Text("profiles.create.first".localized)
                     .largeButtonStyle(backgroundColor: AppColors.primaryPink)
             }
         }
@@ -286,7 +287,7 @@ struct ProfilesView: View {
     // MARK: - Profile Capacity Card
     private var planInformationCard: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text("Profile Capacity")
+            Text("profiles.capacity.title".localized)
                 .headlineMedium()
                 .foregroundColor(AppColors.textPrimary)
 
@@ -296,19 +297,19 @@ struct ProfilesView: View {
                     .scaleEffect(x: 1, y: 1.2, anchor: .center)
 
                 HStack {
-                    Text("Used: \(profiles.count)")
+                    Text(String(format: "profiles.capacity.used".localized, profiles.count))
                         .captionLarge()
                         .foregroundColor(AppColors.textSecondary)
 
                     Spacer()
 
-                    Text("Available: \(max(permissions.maxFamilyProfiles - profiles.count, 0))")
+                    Text(String(format: "profiles.capacity.available".localized, max(permissions.maxFamilyProfiles - profiles.count, 0)))
                         .captionLarge()
                         .foregroundColor(AppColors.textSecondary)
                 }
 
                 if profiles.count >= permissions.maxFamilyProfiles {
-                    Text("You've reached your profile limit for this plan.")
+                    Text("profiles.capacity.limit.reached".localized)
                         .captionMedium()
                         .foregroundColor(AppColors.warningOrange)
                 }
@@ -387,18 +388,18 @@ struct ProfilesView: View {
                 HStack(spacing: AppSpacing.sm) {
                     Image(systemName: canCreateProfile ? "plus" : (isFreePlan ? "lock.fill" : "exclamationmark.triangle.fill"))
 
-                    Text(canCreateProfile ? "Add Family Profile" : (isFreePlan ? "Upgrade to Add Profiles" : "Profile Limit Reached"))
+                    Text(canCreateProfile ? "profiles.add.family.profile".localized : (isFreePlan ? "profiles.upgrade.to.add".localized : "profiles.limit.reached".localized))
                 }
                 .largeButtonStyle(backgroundColor: canCreateProfile ? AppColors.primaryBlue : AppColors.warningOrange)
             }
 
             if !canCreateProfile && isFreePlan {
-                Text("Upgrade your plan to create more family profiles")
+                Text("profiles.upgrade.plan".localized)
                     .captionLarge()
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
             } else if !canCreateProfile {
-                Text("You've reached the maximum profiles for your plan")
+                Text("profiles.max.profiles.reached".localized)
                     .captionLarge()
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -761,7 +762,7 @@ struct ProfileCard: View {
                                 .multilineTextAlignment(.center)
 
                             if profile.isDefault {
-                                Text("MAIN")
+                                Text("profiles.main".localized)
                                     .font(AppTypography.captionSmall)
                                     .foregroundColor(.white)
                                     .padding(.horizontal, AppSpacing.xs)
@@ -772,11 +773,11 @@ struct ProfileCard: View {
                         }
 
                         if isCurrentProfile {
-                            Text("Active Profile")
+                            Text("profiles.active.profile".localized)
                                 .font(AppTypography.captionMedium)
                                 .foregroundColor(AppColors.successGreen)
                         } else {
-                            Text("Tap to switch")
+                            Text("profiles.tap.to.switch".localized)
                                 .font(AppTypography.captionMedium)
                                 .foregroundColor(AppColors.textSecondary)
                         }
@@ -928,7 +929,7 @@ struct CreateProfileView: View {
                 .padding(.vertical, AppSpacing.sectionSpacing)
             }
             .background(AppColors.backgroundLight)
-            .navigationTitle("Create Profile")
+            .navigationTitle("profiles.create.profile.title".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -953,8 +954,8 @@ struct CreateProfileView: View {
             .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert("profiles.error.title".localized, isPresented: $showingError) {
+            Button("common.ok".localized) { }
         } message: {
             Text(errorMessage)
         }
@@ -1005,29 +1006,29 @@ struct CreateProfileView: View {
             }
 
             VStack(spacing: AppSpacing.sm) {
-                Text(isFirstProfile ? "Create Your First Profile" : "Create Family Profile")
+                Text(isFirstProfile ? "profiles.create.your.first".localized : "profiles.create.title".localized)
                     .headlineLarge()
                     .foregroundColor(AppColors.textPrimary)
 
                 if isFirstProfile {
                     VStack(spacing: AppSpacing.xs) {
-                        Text("This is your main family profile with admin privileges")
+                        Text("profiles.main.description".localized)
                             .bodyMedium()
                             .foregroundColor(AppColors.textSecondary)
                             .multilineTextAlignment(.center)
 
-                        Text("• Can make purchases and manage subscriptions")
+                        Text("profiles.main.permissions.manage".localized)
                             .captionLarge()
                             .foregroundColor(AppColors.primaryBlue)
                             .multilineTextAlignment(.center)
 
-                        Text("• Cannot be deleted (required for account)")
+                        Text("profiles.main.cannot.delete".localized)
                             .captionLarge()
                             .foregroundColor(AppColors.primaryBlue)
                             .multilineTextAlignment(.center)
                     }
                 } else {
-                    Text("Set up a personalized profile with avatar and safety settings")
+                    Text("profiles.setup.personalized".localized)
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -1040,7 +1041,7 @@ struct CreateProfileView: View {
     // MARK: - Avatar Selection
     private var avatarSelectionSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Choose Avatar")
+            Text("profiles.choose.avatar".localized)
                 .headlineMedium()
                 .foregroundColor(AppColors.textPrimary)
 
@@ -1074,11 +1075,11 @@ struct CreateProfileView: View {
     // MARK: - Profile Name
     private var profileNameSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Profile Name")
+            Text("profiles.profile.name".localized)
                 .headlineMedium()
                 .foregroundColor(AppColors.textPrimary)
 
-            TextField("Enter name (e.g., Emma, Dad, Mom)", text: $profileName)
+            TextField("profiles.enter.name.example".localized, text: $profileName)
                 .textFieldStyle(PlainTextFieldStyle())
                 .font(AppTypography.bodyLarge)
                 .padding(AppSpacing.md)
@@ -1094,7 +1095,7 @@ struct CreateProfileView: View {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(AppColors.successGreen)
-                    Text("Name looks good!")
+                    Text("profiles.name.looks.good".localized)
                         .captionMedium()
                         .foregroundColor(AppColors.successGreen)
                     Spacer()
@@ -1108,7 +1109,7 @@ struct CreateProfileView: View {
     private var pinSetupSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             HStack {
-                Text("PIN Protection")
+                Text("profiles.pin.protection".localized)
                     .headlineMedium()
                     .foregroundColor(AppColors.textPrimary)
 
@@ -1120,7 +1121,7 @@ struct CreateProfileView: View {
                     .childSafeTouchTarget()
             }
 
-            Text("Add a 4-digit PIN to protect this profile from unauthorized access")
+            Text("profiles.pin.description".localized)
                 .captionLarge()
                 .foregroundColor(AppColors.textSecondary)
 
@@ -1128,7 +1129,7 @@ struct CreateProfileView: View {
                 VStack(spacing: AppSpacing.md) {
                     // PIN Input
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                        Text("Enter 4-digit PIN")
+                        Text("profiles.enter.pin".localized)
                             .titleMedium()
                             .foregroundColor(AppColors.textPrimary)
 
@@ -1158,7 +1159,7 @@ struct CreateProfileView: View {
                     // Confirm PIN
                     if pin.count == 4 {
                         VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                            Text("Confirm PIN")
+                            Text("profiles.confirm.pin".localized)
                                 .titleMedium()
                                 .foregroundColor(AppColors.textPrimary)
 
@@ -1191,7 +1192,7 @@ struct CreateProfileView: View {
                                 Image(systemName: confirmPin == pin ? "checkmark.circle.fill" : "xmark.circle.fill")
                                     .foregroundColor(confirmPin == pin ? AppColors.successGreen : AppColors.errorRed)
 
-                                Text(confirmPin == pin ? "PINs match!" : "PINs don't match")
+                                Text(confirmPin == pin ? "profiles.pins.match".localized : "profiles.pins.dont.match".localized)
                                     .captionMedium()
                                     .foregroundColor(confirmPin == pin ? AppColors.successGreen : AppColors.errorRed)
 
@@ -1210,7 +1211,7 @@ struct CreateProfileView: View {
     // MARK: - Parental Controls
     private var parentalControlsSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Permissions")
+            Text("profiles.permissions".localized)
                 .headlineMedium()
                 .foregroundColor(AppColors.textPrimary)
 
@@ -1219,18 +1220,18 @@ struct CreateProfileView: View {
                     // First profile: purchases always enabled, show locked state
                     PermissionToggleDisabled(
                         icon: "creditcard.fill",
-                        title: "Can Make Purchases",
-                        description: "Required for main profile - manages subscriptions and payments",
+                        title: "profiles.can.make.purchases".localized,
+                        description: "profiles.main.profile.required".localized,
                         isOn: true,
                         color: AppColors.warningOrange,
-                        lockedReason: "Required for main profile"
+                        lockedReason: "profiles.main.profile.required".localized
                     )
                 } else {
                     // Additional profiles: allow toggle
                     PermissionToggle(
                         icon: "creditcard.fill",
-                        title: "Can Make Purchases",
-                        description: "Allow this profile to make in-app purchases",
+                        title: "profiles.can.make.purchases".localized,
+                        description: "profiles.allow.purchases".localized,
                         isOn: $canMakePurchases,
                         color: AppColors.warningOrange
                     )
@@ -1238,8 +1239,8 @@ struct CreateProfileView: View {
 
                 PermissionToggle(
                     icon: "photo.fill",
-                    title: "Can Use Custom Content",
-                    description: "Allow uploading custom images for generation",
+                    title: "profiles.can.use.custom".localized,
+                    description: "profiles.allow.custom.images".localized,
                     isOn: $canUseCustomContent,
                     color: AppColors.primaryPurple
                 )
@@ -1263,7 +1264,7 @@ struct CreateProfileView: View {
                         Image(systemName: "person.badge.plus")
                     }
 
-                    Text(isCreating ? "Creating Profile..." : "Create Profile")
+                    Text(isCreating ? "profiles.creating.profile".localized : "profiles.create.button".localized)
                 }
                 .largeButtonStyle(
                     backgroundColor: AppColors.primaryBlue,
@@ -1273,7 +1274,7 @@ struct CreateProfileView: View {
             .disabled(!canCreateProfile || isCreating)
 
             if !canCreateProfile {
-                Text("Please fill in all required fields")
+                Text("profiles.fill.all.fields".localized)
                     .captionMedium()
                     .foregroundColor(AppColors.errorRed)
                     .multilineTextAlignment(.center)
@@ -1481,7 +1482,7 @@ struct EditProfileView: View {
                     VStack {
                         ProgressView()
                             .scaleEffect(1.2)
-                        Text("Loading profile...")
+                        Text("profiles.loading.profile".localized)
                             .font(AppTypography.bodyMedium)
                             .foregroundColor(AppColors.textSecondary)
                             .padding(.top, AppSpacing.sm)
@@ -1514,7 +1515,7 @@ struct EditProfileView: View {
                     }
                 } else {
                     VStack {
-                        Text("Profile not found")
+                        Text("profiles.not.found".localized)
                             .font(AppTypography.bodyMedium)
                             .foregroundColor(AppColors.errorRed)
                     }
@@ -1522,7 +1523,7 @@ struct EditProfileView: View {
                 }
             }
             .background(AppColors.backgroundLight)
-            .navigationTitle("Edit Profile")
+            .navigationTitle("profiles.edit.profile.title".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -1547,36 +1548,36 @@ struct EditProfileView: View {
             .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
         }
-        .alert("Delete Profile?", isPresented: $showingDeleteAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Confirm Delete", role: .destructive) {
+        .alert("profiles.delete.profile.question".localized, isPresented: $showingDeleteAlert) {
+            Button("common.cancel".localized, role: .cancel) { }
+            Button("profiles.confirm.delete.button".localized, role: .destructive) {
                 deleteProfile()
             }
         } message: {
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                Text("Are you sure you want to delete this profile?")
-                Text("The profile will be permanently hidden from view. You won't be able to recover it yourself.")
+                Text("profiles.delete.confirm".localized)
+                Text("profiles.delete.warning".localized)
                     .font(.caption)
                     .foregroundColor(AppColors.textSecondary)
             }
         }
-        .alert("Cannot Delete Profile", isPresented: $showingCannotDeleteAlert) {
-            Button("OK") { }
+        .alert("profiles.cannot.delete.profile".localized, isPresented: $showingCannotDeleteAlert) {
+            Button("common.ok".localized) { }
         } message: {
-            Text("This is the main family profile and cannot be deleted. It's required to manage your account and subscriptions.")
+            Text("profiles.main.cannot.delete.message".localized)
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert("profiles.error.title".localized, isPresented: $showingError) {
+            Button("common.ok".localized) { }
         } message: {
             Text(errorMessage)
         }
         .alert(pinAlertTitle, isPresented: $showingPinAlert) {
-            Button("OK") { }
+            Button("common.ok".localized) { }
         } message: {
             Text(pinAlertMessage)
         }
-        .alert("Profile Deleted", isPresented: $showingSuccessAlert) {
-            Button("OK") {
+        .alert("profiles.deleted.title".localized, isPresented: $showingSuccessAlert) {
+            Button("common.ok".localized) {
                 dismiss()
             }
         } message: {
@@ -1685,7 +1686,7 @@ struct EditProfileView: View {
                         .foregroundColor(AppColors.textPrimary)
 
                     if profile?.isDefault == true {
-                        Text("MAIN")
+                        Text("profiles.main".localized)
                             .captionMedium()
                             .foregroundColor(.white)
                             .padding(.horizontal, AppSpacing.sm)
@@ -1696,12 +1697,12 @@ struct EditProfileView: View {
                 }
 
                 if profile?.isDefault == true {
-                    Text("Main family profile with admin privileges")
+                    Text("profiles.main.admin.desc".localized)
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
                 } else {
-                    Text("Family member profile")
+                    Text("profiles.family.member.desc".localized)
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -1715,7 +1716,7 @@ struct EditProfileView: View {
     private var profileActionsSection: some View {
         VStack(spacing: AppSpacing.md) {
             HStack {
-                Text("Permissions")
+                Text("profiles.permissions".localized)
                     .headlineMedium()
                     .foregroundColor(AppColors.textPrimary)
 
@@ -1734,18 +1735,18 @@ struct EditProfileView: View {
                         // Main profile: purchases always enabled, show locked state
                         PermissionToggleDisabled(
                             icon: "creditcard.fill",
-                            title: "Can Make Purchases",
-                            description: "Required for main profile - manages subscriptions and payments",
+                            title: "profiles.can.make.purchases".localized,
+                            description: "profiles.main.profile.required".localized,
                             isOn: true,
                             color: AppColors.warningOrange,
-                            lockedReason: "Required for main profile"
+                            lockedReason: "profiles.main.profile.required".localized
                         )
                     } else {
                         // Additional profiles: allow toggle
                         PermissionToggle(
                             icon: "creditcard.fill",
-                            title: "Can Make Purchases",
-                            description: "Allow this profile to make in-app purchases",
+                            title: "profiles.can.make.purchases".localized,
+                            description: "profiles.allow.purchases".localized,
                             isOn: $canMakePurchases,
                             color: AppColors.warningOrange
                         )
@@ -1762,8 +1763,8 @@ struct EditProfileView: View {
 
                     PermissionToggle(
                         icon: "photo.fill",
-                        title: "Can Use Custom Content",
-                        description: "Allow uploading custom images for generation",
+                        title: "profiles.can.use.custom".localized,
+                        description: "profiles.allow.custom.images".localized,
                         isOn: $canUseCustomContentTypes,
                         color: AppColors.primaryPurple
                     )
@@ -1783,11 +1784,11 @@ struct EditProfileView: View {
                         .font(.system(size: 32))
                         .foregroundColor(AppColors.textSecondary)
 
-                    Text("Admin Access Required")
+                    Text("profiles.admin.access.required".localized)
                         .titleMedium()
                         .foregroundColor(AppColors.textSecondary)
 
-                    Text("Only the main profile can modify family member permissions. Switch to your main profile to edit these settings.")
+                    Text("profiles.admin.access.message".localized)
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -1802,13 +1803,13 @@ struct EditProfileView: View {
     private var pinManagementSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             HStack(spacing: AppSpacing.sm) {
-                Text("PIN Protection")
+                Text("profiles.pin.protection".localized)
                     .headlineMedium()
                     .foregroundColor(AppColors.textPrimary)
 
                 Spacer()
 
-                let statusText = pinEnabled ? "Enabled" : "Disabled"
+                let statusText = pinEnabled ? "profiles.enabled".localized : "profiles.disabled".localized
                 let statusIcon = pinEnabled ? "lock.fill" : "lock.open.fill"
                 Label(statusText, systemImage: statusIcon)
                     .font(AppTypography.captionMedium)
@@ -1823,7 +1824,7 @@ struct EditProfileView: View {
 
             if isCurrentProfileAdmin {
                 Toggle(isOn: $pinEnabled) {
-                    Text("Require 4-digit PIN")
+                    Text("profiles.require.4digit.pin".localized)
                         .bodyMedium()
                         .foregroundColor(AppColors.textPrimary)
                 }
@@ -1839,13 +1840,13 @@ struct EditProfileView: View {
                     }
                 }
 
-                Text("Protect this profile with a 4-digit PIN before it can be selected.")
+                Text("profiles.pin.protect.message".localized)
                     .captionLarge()
                     .foregroundColor(AppColors.textSecondary)
 
                 if pinEnabled && originalPinEnabled && !showPinEditor {
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                        Text("A PIN already protects this profile.")
+                        Text("profiles.pin.protects.profile".localized)
                             .captionMedium()
                             .foregroundColor(AppColors.textSecondary)
 
@@ -1858,7 +1859,7 @@ struct EditProfileView: View {
                         } label: {
                             HStack(spacing: AppSpacing.xs) {
                                 Image(systemName: "lock.rotation")
-                                Text("Update PIN")
+                                Text("profiles.update.pin".localized)
                             }
                             .largeButtonStyle(
                                 backgroundColor: AppColors.primaryBlue,
@@ -1867,7 +1868,7 @@ struct EditProfileView: View {
                             )
                         }
 
-                        Text("Turn off the toggle above if you want to remove the current PIN.")
+                        Text("profiles.turn.off.to.remove.pin".localized)
                             .captionMedium()
                             .foregroundColor(AppColors.textSecondary)
                     }
@@ -1876,11 +1877,11 @@ struct EditProfileView: View {
 
                 if pinEnabled && showPinEditor {
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                        Text(originalPinEnabled ? "Enter a new PIN to replace the current one." : "Create a 4-digit PIN to enable protection.")
+                        Text(originalPinEnabled ? "profiles.enter.new.pin".localized : "profiles.create.4digit.pin".localized)
                             .captionMedium()
                             .foregroundColor(AppColors.textSecondary)
 
-                        SecureField("0000", text: $newPin)
+                        SecureField("profiles.pin.placeholder.0000".localized, text: $newPin)
                             .textFieldStyle(PlainTextFieldStyle())
                             .font(AppTypography.headlineMedium)
                             .multilineTextAlignment(.center)
@@ -1907,7 +1908,7 @@ struct EditProfileView: View {
                             }
 
                         if newPin.count == 4 {
-                            SecureField("Confirm PIN", text: $confirmNewPin)
+                            SecureField("profiles.confirm.pin.placeholder".localized, text: $confirmNewPin)
                                 .textFieldStyle(PlainTextFieldStyle())
                                 .font(AppTypography.headlineMedium)
                                 .multilineTextAlignment(.center)
@@ -1936,7 +1937,7 @@ struct EditProfileView: View {
                                     Image(systemName: confirmNewPin == newPin ? "checkmark.circle.fill" : "xmark.circle.fill")
                                         .foregroundColor(confirmNewPin == newPin ? AppColors.successGreen : AppColors.errorRed)
 
-                                    Text(confirmNewPin == newPin ? "PINs match" : "PINs do not match")
+                                    Text(confirmNewPin == newPin ? "profiles.pins.match.check".localized : "profiles.pins.dont.match.check".localized)
                                         .captionMedium()
                                         .foregroundColor(confirmNewPin == newPin ? AppColors.successGreen : AppColors.errorRed)
 
@@ -1947,7 +1948,7 @@ struct EditProfileView: View {
                     }
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 } else if !pinEnabled && originalPinEnabled {
-                    Text("Save your changes to remove PIN protection from this profile.")
+                    Text("profiles.save.to.remove.pin".localized)
                         .captionMedium()
                         .foregroundColor(AppColors.warningOrange)
                 }
@@ -1974,24 +1975,24 @@ struct EditProfileView: View {
                 }
 
                 if pinSettingsDirty {
-                    Text("Don't forget to save your PIN changes.")
+                    Text("profiles.save.pin.changes".localized)
                         .captionMedium()
                         .foregroundColor(AppColors.primaryBlue)
                 }
 
                 if pinEnabled {
                     if showPinEditor {
-                        Text("PIN must be exactly 4 digits.")
+                        Text("profiles.pin.must.be.4".localized)
                             .captionMedium()
                             .foregroundColor(AppColors.textSecondary)
                     } else if originalPinEnabled {
-                        Text("Choose Update PIN to change the current code, or turn off the toggle to remove it.")
+                        Text("profiles.choose.update.or.remove".localized)
                             .captionMedium()
                             .foregroundColor(AppColors.textSecondary)
                     }
                 }
                 else if originalPinEnabled {
-                    Text("Re-enable the toggle anytime to protect this profile again.")
+                    Text("profiles.reenable.toggle.anytime".localized)
                         .captionMedium()
                         .foregroundColor(AppColors.textSecondary)
                 }
@@ -2001,11 +2002,11 @@ struct EditProfileView: View {
                         .font(.system(size: 32))
                         .foregroundColor(AppColors.textSecondary)
 
-                    Text("Admin Access Required")
+                    Text("profiles.admin.access.required".localized)
                         .titleMedium()
                         .foregroundColor(AppColors.textSecondary)
 
-                    Text("Switch to your main family profile to manage PIN protection.")
+                    Text("profiles.switch.main.to.manage".localized)
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -2043,12 +2044,12 @@ struct EditProfileView: View {
     private var pinActionButtonTitle: String {
         if pinEnabled {
             if originalPinEnabled {
-                return showPinEditor ? "Save New PIN" : "Update PIN"
+                return showPinEditor ? "profiles.save.new.pin".localized : "profiles.update.pin".localized
             } else {
-                return showPinEditor ? "Save PIN" : "Enable PIN"
+                return showPinEditor ? "profiles.save.pin".localized : "profiles.enable.pin".localized
             }
         } else {
-            return "Remove PIN"
+            return "profiles.remove.pin".localized
         }
     }
 
@@ -2058,7 +2059,7 @@ struct EditProfileView: View {
             HStack {
                 Image(systemName: "info.circle.fill")
                     .foregroundColor(AppColors.infoBlue)
-                Text("Before You Delete")
+                Text("profiles.before.you.delete".localized)
                     .headlineMedium()
                     .foregroundColor(AppColors.textPrimary)
                 Spacer()
@@ -2067,26 +2068,26 @@ struct EditProfileView: View {
             VStack(alignment: .leading, spacing: AppSpacing.sm) {
                 ProfileInfoRow(
                     icon: "photo.stack.fill",
-                    title: "Artwork Stays Safe",
-                    description: "Deleting a profile never removes the images it created—parents can still review them."
+                    title: "profiles.artwork.stays.safe".localized,
+                    description: "profiles.artwork.stays.safe.desc".localized
                 )
 
                 ProfileInfoRow(
                     icon: "eye.fill",
-                    title: "Parent Visibility",
-                    description: "Only parents and admins can access deleted profiles' creations. Kids won't see the profile again."
+                    title: "profiles.parent.visibility".localized,
+                    description: "profiles.parent.visibility.desc".localized
                 )
 
                 ProfileInfoRow(
                     icon: "person.badge.plus.fill",
-                    title: "Free Up Slots",
-                    description: "Deleting a profile immediately frees a slot so you can add another family member."
+                    title: "profiles.free.up.slots".localized,
+                    description: "profiles.free.up.slots.desc".localized
                 )
 
                 ProfileInfoRow(
                     icon: "lock.shield.fill",
-                    title: "Admin Control",
-                    description: "Only the main family profile can delete or recover access for family members."
+                    title: "profiles.admin.control".localized,
+                    description: "profiles.admin.control.desc".localized
                 )
             }
         }
@@ -2096,11 +2097,11 @@ struct EditProfileView: View {
     // MARK: - Delete Section
     private var deleteProfileSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Delete Profile")
+            Text("profiles.delete.profile".localized)
                 .headlineMedium()
                 .foregroundColor(AppColors.errorRed)
 
-            Text("This action is permanent and cannot be undone. The profile will be hidden from view.")
+            Text("profiles.delete.permanent".localized)
                 .captionLarge()
                 .foregroundColor(AppColors.textSecondary)
 
@@ -2109,7 +2110,7 @@ struct EditProfileView: View {
             } label: {
                 HStack(spacing: AppSpacing.sm) {
                     Image(systemName: "trash.fill")
-                    Text("Delete This Profile")
+                    Text("profiles.delete.this.profile".localized)
                 }
                 .largeButtonStyle(
                     backgroundColor: AppColors.errorRed,
@@ -2124,7 +2125,7 @@ struct EditProfileView: View {
     // MARK: - Cannot Delete Section
     private var cannotDeleteSection: some View {
         VStack(spacing: AppSpacing.md) {
-            Text("Profile Protection")
+            Text("profiles.profile.protection".localized)
                 .headlineMedium()
                 .foregroundColor(AppColors.textPrimary)
 
@@ -2133,7 +2134,7 @@ struct EditProfileView: View {
             } label: {
                 HStack {
                     Image(systemName: "lock.shield.fill")
-                    Text("Cannot Delete")
+                    Text("profiles.cannot.delete".localized)
                 }
             }
             .largeButtonStyle(
@@ -2144,12 +2145,12 @@ struct EditProfileView: View {
             .disabled(true)
 
             VStack(spacing: AppSpacing.xs) {
-                Text("This is your main family profile and cannot be deleted.")
+                Text("profiles.main.cannot.delete.desc".localized)
                     .captionMedium()
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
 
-                Text("It's required to manage subscriptions and account settings.")
+                Text("profiles.required.for.account".localized)
                     .captionMedium()
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -2298,14 +2299,14 @@ struct EditProfileView: View {
                     self.isUpdatingPin = false
 
                     if updatedProfile.hasPin && hadPinBefore {
-                        pinAlertTitle = "PIN Updated"
-                        pinAlertMessage = "The PIN for \(updatedProfile.name) was updated successfully."
+                        pinAlertTitle = "profiles.pin.updated.title".localized
+                        pinAlertMessage = String(format: "profiles.pin.updated.message".localized, updatedProfile.name)
                     } else if updatedProfile.hasPin {
-                        pinAlertTitle = "PIN Enabled"
-                        pinAlertMessage = "A new PIN now protects \(updatedProfile.name)."
+                        pinAlertTitle = "profiles.pin.enabled.title".localized
+                        pinAlertMessage = String(format: "profiles.pin.enabled.message".localized, updatedProfile.name)
                     } else {
-                        pinAlertTitle = "PIN Removed"
-                        pinAlertMessage = "\(updatedProfile.name) no longer requires a PIN to switch."
+                        pinAlertTitle = "profiles.pin.removed.title".localized
+                        pinAlertMessage = String(format: "profiles.pin.removed.message".localized, updatedProfile.name)
                     }
 
                     showingPinAlert = true
@@ -2337,7 +2338,7 @@ struct EditProfileView: View {
                 await MainActor.run {
                     onProfileDeleted(profile)
                     isDeleting = false
-                    successMessage = "Profile deleted successfully. Parents can still review \(profile.name)'s artwork at any time."
+                    successMessage = String(format: "profiles.deleted.message".localized, profile.name)
                     showingSuccessAlert = true
                 }
             } catch {
@@ -2379,18 +2380,18 @@ struct ProfileSelectionView: View {
                     }
 
                     VStack(spacing: AppSpacing.sm) {
-                        Text("Switch to \(profile.name)?")
+                        Text(String(format: "profiles.switch.profile.question".localized, profile.name))
                             .headlineLarge()
                             .foregroundColor(AppColors.textPrimary)
                             .multilineTextAlignment(.center)
 
                         if profile.hasPin {
-                            Text("This profile is protected with a PIN")
+                            Text("profiles.protected.with.pin".localized)
                                 .bodyMedium()
                                 .foregroundColor(AppColors.textSecondary)
                                 .multilineTextAlignment(.center)
                         } else {
-                            Text("Ready to start creating!")
+                            Text("profiles.ready.to.create".localized)
                                 .bodyMedium()
                                 .foregroundColor(AppColors.textSecondary)
                                 .multilineTextAlignment(.center)
@@ -2419,7 +2420,7 @@ struct ProfileSelectionView: View {
                             } else {
                                 Image(systemName: "checkmark.circle.fill")
                             }
-                            Text(profile.hasPin ? "Enter PIN" : "Switch Profile")
+                            Text(profile.hasPin ? "profiles.enter.pin".localized : "profiles.tap.to.switch".localized)
                         }
                         .font(AppTypography.titleMedium)
                         .foregroundColor(.white)
@@ -2430,7 +2431,7 @@ struct ProfileSelectionView: View {
                     }
                     .childSafeTouchTarget()
 
-                    Button("Cancel") {
+                    Button("profiles.cancel.button".localized) {
                         dismiss()
                     }
                     .font(AppTypography.titleMedium)
@@ -2440,7 +2441,7 @@ struct ProfileSelectionView: View {
                 .contentPadding()
             }
             .background(AppColors.backgroundLight)
-            .navigationTitle("Switch Profile")
+            .navigationTitle("profiles.tap.to.switch".localized)
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarHidden(true)
         }
@@ -2503,12 +2504,12 @@ struct PINEntryView: View {
                     }
 
                     VStack(spacing: AppSpacing.sm) {
-                        Text("Enter PIN for \(profile.name)")
+                        Text(String(format: "profiles.enter.pin.title".localized, profile.name))
                             .headlineLarge()
                             .foregroundColor(AppColors.textPrimary)
                             .multilineTextAlignment(.center)
 
-                        Text("Enter your 4-digit PIN to access this profile")
+                        Text("profiles.enter.pin.to.access".localized)
                             .bodyMedium()
                             .foregroundColor(AppColors.textSecondary)
                             .multilineTextAlignment(.center)
@@ -2554,7 +2555,7 @@ struct PINEntryView: View {
                         }
 
                     if attempts > 0 {
-                        Text("Incorrect PIN. \(maxAttempts - attempts) attempts remaining.")
+                        Text(String(format: "profiles.incorrect.pin.attempts".localized, maxAttempts - attempts))
                             .captionLarge()
                             .foregroundColor(AppColors.errorRed)
                             .multilineTextAlignment(.center)
@@ -2571,7 +2572,7 @@ struct PINEntryView: View {
         }) {
             HStack {
                 Image(systemName: "lock.open.fill")
-                Text("Unlock Profile")
+                Text("profiles.unlock.button".localized)
             }
             .largeButtonStyle(
                 backgroundColor: AppColors.primaryBlue,
@@ -2585,13 +2586,13 @@ struct PINEntryView: View {
                     Button {
                         showingForgotPINConfirmation = true
                     } label: {
-                        Text("Forgot PIN?")
+                        Text("profiles.forgot.pin".localized)
                             .font(AppTypography.bodyMedium)
                             .foregroundColor(AppColors.primaryBlue)
                     }
                     .childSafeTouchTarget()
 
-                    Button("Cancel") {
+                    Button("profiles.cancel.button".localized) {
                         onCancel()
                         dismiss()
                     }
@@ -2602,25 +2603,25 @@ struct PINEntryView: View {
                 .contentPadding()
         }
         .background(AppColors.backgroundLight)
-        .alert("PIN Error", isPresented: $showingError) {
-            Button("OK") {
+        .alert("profiles.pin.error.title".localized, isPresented: $showingError) {
+            Button("common.ok".localized) {
                 enteredPIN = ""
             }
         } message: {
             Text(errorMessage)
         }
-        .alert("Reset PIN", isPresented: $showingForgotPINConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Send Email") {
+        .alert("profiles.reset.pin.title".localized, isPresented: $showingForgotPINConfirmation) {
+            Button("common.cancel".localized, role: .cancel) { }
+            Button("profiles.send.email.button".localized) {
                 requestPINRecovery()
             }
         } message: {
-            Text("We'll send the PIN to the account owner's email address. This helps keep profiles secure for everyone in your family.")
+            Text("profiles.forgot.pin.message".localized)
         }
-        .alert("PIN Sent!", isPresented: $showingForgotPINSuccess) {
-            Button("OK") { }
+        .alert("profiles.pin.sent.title".localized, isPresented: $showingForgotPINSuccess) {
+            Button("common.ok".localized) { }
         } message: {
-            Text("Check your email for the PIN. The email was sent to the account owner's email address.")
+            Text("profiles.check.email.for.pin".localized)
         }
     }
 
@@ -2645,7 +2646,7 @@ struct PINEntryView: View {
                     attempts += 1
 
                     if attempts >= maxAttempts {
-                        errorMessage = "Too many incorrect attempts. Please try again later."
+                        errorMessage = "profiles.too.many.attempts".localized
                         showingError = true
 
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {

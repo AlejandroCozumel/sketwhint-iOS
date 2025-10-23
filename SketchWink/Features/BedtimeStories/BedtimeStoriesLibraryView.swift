@@ -6,6 +6,7 @@ struct BedtimeStoriesLibraryView: View {
     @ObservedObject private var service = BedtimeStoriesService.shared
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var tokenManager = TokenBalanceManager.shared
+    @StateObject private var localization = LocalizationManager.shared
 
     @State private var selectedStory: BedtimeStory?
     @State private var showCreateStory = false
@@ -48,7 +49,7 @@ struct BedtimeStoriesLibraryView: View {
                 storiesGridView
             }
         }
-        .navigationTitle("Bedtime Stories")
+        .navigationTitle("stories.title".localized)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -165,7 +166,7 @@ struct BedtimeStoriesLibraryView: View {
                 .scaleEffect(1.2)
                 .tint(Color(hex: "#6366F1"))
 
-            Text("Loading stories...")
+            Text("stories.loading".localized)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textSecondary)
         }
@@ -203,7 +204,7 @@ struct BedtimeStoriesLibraryView: View {
                     Image(systemName: hasActiveFilters ? "xmark.circle" : "plus.circle.fill")
                         .font(.system(size: 16, weight: .semibold))
 
-                    Text(hasActiveFilters ? "Clear Filters" : "Create Story")
+                    Text(hasActiveFilters ? "stories.clear.filters".localized : "stories.create.story".localized)
                         .font(AppTypography.titleMedium)
                         .fontWeight(.semibold)
                 }
@@ -228,29 +229,29 @@ struct BedtimeStoriesLibraryView: View {
 
         switch (showFavoritesOnly, themeName, profileName) {
         case (true, let theme?, let profile?):
-            return "No Favorite \(theme) Stories for \(profile)"
+            return String(format: "stories.empty.favorite.theme.profile".localized, theme, profile)
         case (true, let theme?, nil):
-            return "No Favorite \(theme) Stories"
+            return String(format: "stories.empty.favorite.theme".localized, theme)
         case (true, nil, let profile?):
-            return "No Favorite Stories for \(profile)"
+            return String(format: "stories.empty.favorite.profile".localized, profile)
         case (true, nil, nil):
-            return "No Favorite Stories"
+            return "stories.empty.favorite".localized
         case (false, let theme?, let profile?):
-            return "No \(theme) Stories for \(profile)"
+            return String(format: "stories.empty.theme.profile".localized, theme, profile)
         case (false, let theme?, nil):
-            return "No \(theme) Stories Yet"
+            return String(format: "stories.empty.theme".localized, theme)
         case (false, nil, let profile?):
-            return "No Stories for \(profile)"
+            return String(format: "stories.empty.profile".localized, profile)
         default:
-            return "No Bedtime Stories Yet"
+            return "stories.empty.title".localized
         }
     }
 
     private var emptyStateMessage: String {
         if hasActiveFilters {
-            return "Try adjusting your filters or create a new story"
+            return "stories.empty.filters.message".localized
         } else {
-            return "Create your first bedtime story with AI"
+            return "stories.empty.message".localized
         }
     }
 

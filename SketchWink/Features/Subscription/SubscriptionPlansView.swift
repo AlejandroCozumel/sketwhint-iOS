@@ -5,8 +5,8 @@ struct SubscriptionPlansView: View {
     @StateObject private var tokenManager = TokenBalanceManager.shared
     @StateObject private var viewModel = SubscriptionViewModel()
 
-    @State private var currentPlanIndex = 1 // Start at Basic plan
-    @State private var isYearly = true // Default to yearly for better value
+    @State private var currentPlanIndex = 1 // Start at Pro plan (index 1)
+    @State private var isYearly = false // Default to monthly
 
     // Plan data - from backend seed database
     private let plans = [
@@ -87,7 +87,8 @@ struct SubscriptionPlansView: View {
                     ForEach(plans.indices, id: \.self) { index in
                         CompactPlanCard(
                             plan: plans[index],
-                            isYearly: isYearly
+                            isYearly: isYearly,
+                            localizedFeatures: localizedFeatures(for: plans[index])
                         )
                         .tag(index)
                     }
@@ -120,7 +121,7 @@ struct SubscriptionPlansView: View {
                 )
                 .ignoresSafeArea()
             )
-            .navigationTitle("Unlock Premium")
+            .navigationTitle("subscription.unlock.premium".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -137,7 +138,7 @@ struct SubscriptionPlansView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel("common.close".localized)
                 }
             }
             .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
@@ -151,6 +152,41 @@ struct SubscriptionPlansView: View {
         plans[currentPlanIndex]
     }
 
+    private func localizedFeatures(for plan: PlanCard) -> [String] {
+        switch plan.id {
+        case "basic":
+            return [
+                String(format: "subscription.feature.credit.rollover".localized, 3, 150),
+                "subscription.feature.all.art.styles".localized,
+                String(format: "subscription.feature.family.profiles".localized, 5),
+                String(format: "subscription.feature.credit.rollover".localized, 3, 150)
+            ]
+        case "pro":
+            return [
+                String(format: "subscription.credits.month".localized, 120),
+                "subscription.feature.pin.protection".localized,
+                String(format: "subscription.feature.token.rollover".localized, 360),
+                String(format: "subscription.feature.all.from.plan".localized, "Basic")
+            ]
+        case "max":
+            return [
+                String(format: "subscription.credits.month".localized, 250),
+                "subscription.feature.quality".localized,
+                "subscription.feature.commercial.license".localized,
+                String(format: "subscription.feature.all.from.plan".localized, "Pro")
+            ]
+        case "business":
+            return [
+                String(format: "subscription.credits.month".localized, 1000),
+                "subscription.feature.switch.models".localized,
+                "subscription.feature.priority.support".localized,
+                String(format: "subscription.feature.all.from.plan".localized, "Max")
+            ]
+        default:
+            return plan.features
+        }
+    }
+
     private var compactHeader: some View {
         HStack(spacing: AppSpacing.sm) {
             Image(systemName: "sparkles")
@@ -158,7 +194,7 @@ struct SubscriptionPlansView: View {
                 .foregroundColor(currentPlan.color)
                 .symbolEffect(.bounce, value: currentPlanIndex)
 
-            Text("Unlock Premium")
+            Text("subscription.unlock.premium".localized)
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
         }
@@ -172,19 +208,19 @@ struct SubscriptionPlansView: View {
                 ZStack {
                     // Invisible placeholder to define height
                     VStack(spacing: 2) {
-                        Text("Yearly")
+                        Text("subscription.yearly".localized)
                             .font(AppTypography.bodyLarge)
                             .fontWeight(.semibold)
                             .opacity(0)
 
-                        Text("SAVE 2 MONTHS")
+                        Text("subscription.save.2.months".localized)
                             .font(.system(size: 10, weight: .bold))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .opacity(0)
                     }
 
-                    Text("Monthly")
+                    Text("subscription.monthly".localized)
                         .font(AppTypography.bodyLarge)
                         .fontWeight(.semibold)
                 }
@@ -198,11 +234,11 @@ struct SubscriptionPlansView: View {
             // Yearly button with savings badge
             Button(action: { withAnimation(.spring(response: 0.3)) { isYearly = true } }) {
                 VStack(spacing: 2) {
-                    Text("Yearly")
+                    Text("subscription.yearly".localized)
                         .font(AppTypography.bodyLarge)
                         .fontWeight(.semibold)
 
-                    Text("SAVE 2 MONTHS")
+                    Text("subscription.save.2.months".localized)
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(isYearly ? currentPlan.color : AppColors.successGreen)
                         .padding(.horizontal, 6)
@@ -233,7 +269,7 @@ struct SubscriptionPlansView: View {
         VStack(spacing: AppSpacing.sm) {
             // Price per day callout
             HStack(spacing: 4) {
-                Text("Just")
+                Text("subscription.just".localized)
                     .font(AppTypography.captionLarge)
                     .foregroundColor(AppColors.textSecondary)
 
@@ -242,7 +278,7 @@ struct SubscriptionPlansView: View {
                     .fontWeight(.bold)
                     .foregroundColor(currentPlan.color)
 
-                Text("per day • Cancel anytime")
+                Text("subscription.per.day".localized + " • " + "subscription.cancel.anytime".localized)
                     .font(AppTypography.captionLarge)
                     .foregroundColor(AppColors.textSecondary)
             }
@@ -256,7 +292,7 @@ struct SubscriptionPlansView: View {
                         ProgressView()
                             .tint(.white)
                     } else {
-                        Text("Subscribe Now")
+                        Text("subscription.subscribe.now".localized)
                             .font(AppTypography.buttonLarge)
                             .fontWeight(.bold)
                     }
@@ -280,8 +316,8 @@ struct SubscriptionPlansView: View {
         }
         .padding(.top, AppSpacing.sm)
         .background(.ultraThinMaterial)
-        .alert("Notice", isPresented: $viewModel.showingError) {
-            Button("OK") {}
+        .alert("subscription.notice".localized, isPresented: $viewModel.showingError) {
+            Button("common.ok".localized) {}
         } message: {
             Text(viewModel.errorMessage)
         }
@@ -328,6 +364,7 @@ struct PlanCard: Identifiable {
 struct CompactPlanCard: View {
     let plan: PlanCard
     let isYearly: Bool
+    let localizedFeatures: [String]
 
     private var price: Int {
         isYearly ? plan.yearlyPrice : plan.monthlyPrice
@@ -336,7 +373,7 @@ struct CompactPlanCard: View {
 
 
     private var periodText: String {
-        isYearly ? "/year" : "/mo"
+        isYearly ? "subscription.per.year".localized : "subscription.per.mo".localized
     }
 
     private var savingsText: String? {
@@ -344,7 +381,7 @@ struct CompactPlanCard: View {
         let monthlyTotal = plan.monthlyPrice * 12
         let savings = monthlyTotal - plan.yearlyPrice
         let savingsInDollars = Double(savings) / 100.0
-        return String(format: "Save $%.2f", savingsInDollars)
+        return String(format: "subscription.save.amount".localized, savingsInDollars)
     }
 
     var body: some View {
@@ -365,7 +402,8 @@ struct CompactPlanCard: View {
                     .frame(maxWidth: .infinity)
 
                 if let badge = plan.badge {
-                    Text(badge)
+                    let localizedBadge = badge == "POPULAR" ? "subscription.badge.popular".localized : badge == "ENTERPRISE" ? "subscription.badge.enterprise".localized : badge
+                    Text(localizedBadge)
                         .font(AppTypography.captionSmall)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
@@ -418,7 +456,7 @@ struct CompactPlanCard: View {
                     .font(.system(size: 14))
                     .foregroundColor(plan.color)
 
-                Text("\(plan.monthlyTokens) credits/month")
+                Text(String(format: "subscription.credits.month".localized, plan.monthlyTokens))
                     .font(AppTypography.bodyMedium)
                     .fontWeight(.semibold)
                     .foregroundColor(AppColors.textPrimary)
@@ -430,7 +468,7 @@ struct CompactPlanCard: View {
 
             // Features list
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                ForEach(plan.features, id: \.self) { feature in
+                ForEach(localizedFeatures, id: \.self) { feature in
                     HStack(spacing: AppSpacing.xs) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 16))

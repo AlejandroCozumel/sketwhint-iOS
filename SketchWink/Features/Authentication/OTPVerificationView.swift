@@ -4,10 +4,11 @@ struct OTPVerificationView: View {
     let email: String
     let onVerificationComplete: (() -> Void)?
     @StateObject private var viewModel = OTPVerificationViewModel()
+    @StateObject private var localization = LocalizationManager.shared
     @State private var otpCode = ""
     @FocusState private var isOTPFocused: Bool
     @Environment(\.dismiss) private var dismiss
-    
+
     init(email: String, onVerificationComplete: (() -> Void)? = nil) {
         self.email = email
         self.onVerificationComplete = onVerificationComplete
@@ -25,7 +26,7 @@ struct OTPVerificationView: View {
                             Button(action: { dismiss() }) {
                                 HStack {
                                     Image(systemName: "arrow.left")
-                                    Text("Back")
+                                    Text("common.back".localized)
                                 }
                                 .foregroundColor(AppColors.primaryBlue)
                             }
@@ -69,11 +70,11 @@ struct OTPVerificationView: View {
 
                         // Verification text
                         VStack(spacing: AppSpacing.sm) {
-                            Text("Check Your Email!")
+                            Text("otp.title".localized)
                                 .font(AppTypography.appTitle)
                                 .foregroundColor(AppColors.successGreen)
 
-                            Text("We've sent a 6-digit verification code to:")
+                            Text("otp.subtitle".localized)
                                 .onboardingBody()
                                 .foregroundColor(AppColors.textSecondary)
                                 .multilineTextAlignment(.center)
@@ -91,7 +92,7 @@ struct OTPVerificationView: View {
                     // OTP Input Section
                     VStack(spacing: AppSpacing.lg) {
                         VStack(spacing: AppSpacing.md) {
-                            Text("Enter Verification Code")
+                            Text("otp.code.placeholder".localized)
                                 .headlineMedium()
                                 .foregroundColor(AppColors.textPrimary)
 
@@ -144,7 +145,7 @@ struct OTPVerificationView: View {
                                 isOTPFocused = true
                             }
 
-                            Text("Tap above to enter the 6-digit code")
+                            Text("otp.tap.to.enter".localized)
                                 .captionLarge()
                                 .foregroundColor(AppColors.textSecondary)
                         }
@@ -178,8 +179,8 @@ struct OTPVerificationView: View {
                                 ProgressView()
                                     .tint(AppColors.successGreen)
                                     .scaleEffect(0.8)
-                                
-                                Text("Verifying...")
+
+                                Text("otp.verifying.loading".localized)
                                     .bodyMedium()
                                     .foregroundColor(AppColors.textSecondary)
                             }
@@ -188,12 +189,12 @@ struct OTPVerificationView: View {
 
                         // Resend Code Section
                         VStack(spacing: AppSpacing.sm) {
-                            Text("Didn't receive the code?")
+                            Text("otp.resend.prompt".localized)
                                 .bodyMedium()
                                 .foregroundColor(AppColors.textSecondary)
 
                             if viewModel.canResendOTP {
-                                Button("Resend Code") {
+                                Button("otp.resend.button".localized) {
                                     Task {
                                         await viewModel.resendOTP(email: email)
                                     }
@@ -205,7 +206,7 @@ struct OTPVerificationView: View {
                                 .cornerRadius(AppSizing.cornerRadius.lg)
                                 .childSafeTouchTarget()
                             } else {
-                                Text("Resend available in \(viewModel.resendCountdown)s")
+                                Text("otp.resend.countdown".localized(with: viewModel.resendCountdown))
                                     .captionLarge()
                                     .foregroundColor(AppColors.textSecondary)
                             }
@@ -218,7 +219,7 @@ struct OTPVerificationView: View {
                                     .foregroundColor(AppColors.successGreen)
                                     .font(.title3)
 
-                                Text("Code sent successfully!")
+                                Text("otp.resent.message".localized)
                                     .bodyMedium()
                                     .foregroundColor(AppColors.successGreen)
 
@@ -266,11 +267,11 @@ struct OTPVerificationView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(AppColors.successGreen)
                                 .font(.title2)
-                            
-                            Text("Verification successful! ✨")
+
+                            Text("otp.success.message".localized)
                                 .titleMedium()
                                 .foregroundColor(AppColors.successGreen)
-                            
+
                             Spacer()
                         }
                         .padding(AppSpacing.md)

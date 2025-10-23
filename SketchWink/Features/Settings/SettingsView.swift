@@ -3,8 +3,9 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var authService = AuthService.shared
+    @StateObject private var localization = LocalizationManager.shared
     @State private var showingSignOutAlert = false
-    
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -28,13 +29,13 @@ struct SettingsView: View {
                         }
                         
                         VStack(spacing: AppSpacing.sm) {
-                            Text("Settings")
+                            Text("settings.title".localized)
                                 .displayMedium()
                                 .foregroundColor(AppColors.textPrimary)
                                 .multilineTextAlignment(.center)
-                            
+
                             if let user = authService.currentUser {
-                                Text("Hello, \(user.name)!")
+                                Text(String(format: "settings.hello".localized, user.name))
                                     .bodyMedium()
                                     .foregroundColor(AppColors.textSecondary)
                                     .multilineTextAlignment(.center)
@@ -45,23 +46,23 @@ struct SettingsView: View {
                     
                     // Account Section
                     VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        Text("Account")
+                        Text("settings.account.section".localized)
                             .headlineMedium()
                             .foregroundColor(AppColors.textPrimary)
-                        
+
                         if let user = authService.currentUser {
                             VStack(spacing: AppSpacing.sm) {
                                 SettingsRow(
                                     icon: "✉️",
-                                    title: "Email",
+                                    title: "common.email".localized,
                                     value: user.email,
                                     showChevron: false
                                 )
-                                
+
                                 SettingsRow(
                                     icon: user.emailVerified ? "✅" : "⚠️",
-                                    title: "Email Verification",
-                                    value: user.emailVerified ? "Verified" : "Not Verified",
+                                    title: "settings.email.verification".localized,
+                                    value: user.emailVerified ? "settings.email.verified".localized : "settings.email.not.verified".localized,
                                     showChevron: false
                                 )
                             }
@@ -71,29 +72,32 @@ struct SettingsView: View {
                     
                     // App Settings Section
                     VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        Text("App Settings")
+                        Text("settings.app.settings.section".localized)
                             .headlineMedium()
                             .foregroundColor(AppColors.textPrimary)
-                        
+
                         VStack(spacing: AppSpacing.sm) {
                             SettingsRow(
                                 icon: "🔔",
-                                title: "Notifications",
-                                value: "Coming Soon",
+                                title: "settings.notifications".localized,
+                                value: "settings.coming.soon".localized,
                                 showChevron: true
                             )
-                            
-                            SettingsRow(
-                                icon: "🌐",
-                                title: "Language",
-                                value: "English",
-                                showChevron: true
-                            )
-                            
+
+                            NavigationLink(destination: LanguageSettingsView()) {
+                                SettingsRow(
+                                    icon: "🌐",
+                                    title: "settings.language".localized,
+                                    value: localization.currentLanguage.displayName,
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
+
                             SettingsRow(
                                 icon: "🎨",
-                                title: "Theme",
-                                value: "Light",
+                                title: "settings.theme".localized,
+                                value: "settings.theme.light".localized,
                                 showChevron: true
                             )
                         }
@@ -102,28 +106,28 @@ struct SettingsView: View {
                     
                     // Support Section
                     VStack(alignment: .leading, spacing: AppSpacing.md) {
-                        Text("Support")
+                        Text("settings.support.section".localized)
                             .headlineMedium()
                             .foregroundColor(AppColors.textPrimary)
-                        
+
                         VStack(spacing: AppSpacing.sm) {
                             SettingsRow(
                                 icon: "❓",
-                                title: "Help & FAQ",
+                                title: "settings.help.faq".localized,
                                 value: "",
                                 showChevron: true
                             )
-                            
+
                             SettingsRow(
                                 icon: "📝",
-                                title: "Privacy Policy",
+                                title: "settings.privacy.policy".localized,
                                 value: "",
                                 showChevron: true
                             )
-                            
+
                             SettingsRow(
                                 icon: "📋",
-                                title: "Terms of Service",
+                                title: "settings.terms.service".localized,
                                 value: "",
                                 showChevron: true
                             )
@@ -136,11 +140,11 @@ struct SettingsView: View {
                         Button {
                             showingSignOutAlert = true
                         } label: {
-                            Text("Sign Out")
+                            Text("settings.signout".localized)
                                 .largeButtonStyle(backgroundColor: AppColors.errorRed)
                         }
 
-                        Text("You can always sign back in anytime")
+                        Text("settings.signout.subtitle".localized)
                             .captionLarge()
                             .foregroundColor(AppColors.textSecondary)
                             .multilineTextAlignment(.center)
@@ -151,7 +155,7 @@ struct SettingsView: View {
                 .padding(.vertical, AppSpacing.sectionSpacing)
             }
             .background(AppColors.backgroundLight)
-            .navigationTitle("Settings")
+            .navigationTitle("settings.title".localized)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -171,18 +175,18 @@ struct SettingsView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel("common.close".localized)
                 }
             }
         }
-        .alert("Sign Out", isPresented: $showingSignOutAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Sign Out", role: .destructive) {
+        .alert("settings.signout.confirm.title".localized, isPresented: $showingSignOutAlert) {
+            Button("common.cancel".localized, role: .cancel) { }
+            Button("settings.signout".localized, role: .destructive) {
                 authService.signOut()
                 dismiss()
             }
         } message: {
-            Text("Are you sure you want to sign out?")
+            Text("settings.signout.confirm.message".localized)
         }
     }
 }

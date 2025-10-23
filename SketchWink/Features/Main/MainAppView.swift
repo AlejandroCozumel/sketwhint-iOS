@@ -3,6 +3,7 @@ import SwiftUI
 struct MainAppView: View {
     @State private var selectedTab = 0
     @StateObject private var tokenManager = TokenBalanceManager.shared
+    @StateObject private var localization = LocalizationManager.shared
 
     init() {
         Self.configureAppearance()
@@ -21,7 +22,7 @@ struct MainAppView: View {
                 CategorySelectionView(selectedTab: $selectedTab)
             }
             .tabItem {
-                Label("Art", systemImage: "paintbrush.fill")
+                Label("nav.art".localized, systemImage: "paintbrush.fill")
             }
             .tag(0)
 
@@ -29,7 +30,7 @@ struct MainAppView: View {
                 GalleryView(selectedTab: $selectedTab)
             }
             .tabItem {
-                Label("Gallery", systemImage: "photo.fill")
+                Label("nav.gallery".localized, systemImage: "photo.fill")
             }
             .tag(1)
 
@@ -47,7 +48,7 @@ struct MainAppView: View {
                 BedtimeStoriesLibraryView(selectedTab: $selectedTab)
             }
             .tabItem {
-                Label("Stories", systemImage: "moon.stars.fill")
+                Label("nav.stories".localized, systemImage: "moon.stars.fill")
             }
             .tag(2)
 
@@ -55,7 +56,7 @@ struct MainAppView: View {
                 FolderView(selectedTab: $selectedTab)
             }
             .tabItem {
-                Label("Folders", systemImage: "folder.fill")
+                Label("nav.folders".localized, systemImage: "folder.fill")
             }
             .tag(3)
 
@@ -63,7 +64,7 @@ struct MainAppView: View {
                 ProfilesView()
             }
             .tabItem {
-                Label("Profiles", systemImage: "person.2.fill")
+                Label("nav.profiles".localized, systemImage: "person.2.fill")
             }
             .tag(4)
             }

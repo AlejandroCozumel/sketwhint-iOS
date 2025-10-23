@@ -6,6 +6,7 @@ import Combine
 struct GalleryView: View {
     @StateObject private var generationService = GenerationService.shared
     @StateObject private var profileService = ProfileService.shared
+    @StateObject private var localization = LocalizationManager.shared
     @Binding var selectedTab: Int
     @State private var images: [GeneratedImage] = []
     @State private var isLoading = true
@@ -92,37 +93,37 @@ struct GalleryView: View {
 
     private var emptyStateTitle: String {
         if showFavoritesOnly {
-            return "No Favorite Images"
+            return "gallery.empty.favorites.title".localized
         } else if selectedCategory != nil {
-            return "No \(selectedCategory!) Images"
+            return String(format: "gallery.empty.category.title".localized, selectedCategory!)
         } else if selectedProfileFilter != nil {
-            return "No Images from This Profile"
+            return "gallery.empty.profile.title".localized
         } else if !searchText.isEmpty {
-            return "No Results Found"
+            return "gallery.empty.search.title".localized
         } else {
-            return "No Creations Yet"
+            return "gallery.empty.title".localized
         }
     }
 
     private var emptyStateMessage: String {
         if showFavoritesOnly {
-            return "Tap the heart icon on any image to add it to your favorites."
+            return "gallery.empty.favorites.message".localized
         } else if selectedCategory != nil {
-            return "Create some \(selectedCategory!.lowercased()) to see them here."
+            return String(format: "gallery.empty.category.message".localized, selectedCategory!.lowercased())
         } else if selectedProfileFilter != nil {
-            return "This family member hasn't created any images yet."
+            return "gallery.empty.profile.message".localized
         } else if !searchText.isEmpty {
-            return "Try different search terms or clear filters to see more results."
+            return "gallery.empty.search.message".localized
         } else {
-            return "Start creating amazing coloring pages, stickers, and more! Your generated art will appear here."
+            return "gallery.empty.message".localized
         }
     }
 
     private var emptyStateButtonTitle: String {
         if hasActiveFilters {
-            return "Clear Filters"
+            return "gallery.clear.filters".localized
         } else {
-            return "Create Your First Art"
+            return "gallery.create.first".localized
         }
     }
 
@@ -155,13 +156,13 @@ struct GalleryView: View {
                         .foregroundColor(AppColors.infoBlue)
                         .font(.system(size: 16, weight: .medium))
 
-                    Text("Type at least \(minimumSearchLength) characters to search")
+                    Text(String(format: "gallery.search.minimum".localized, minimumSearchLength))
                         .font(AppTypography.bodyMedium)
                         .foregroundColor(AppColors.textSecondary)
 
                     Spacer()
 
-                    Button("Clear") {
+                    Button("common.clear".localized) {
                         searchText = ""
                         applyFilters()
                     }
@@ -213,7 +214,7 @@ struct GalleryView: View {
             }
         }
         .background(AppColors.backgroundLight)
-        .navigationTitle("My Gallery")
+        .navigationTitle("gallery.title".localized)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -235,7 +236,7 @@ struct GalleryView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 if !images.isEmpty {
                     Button(action: toggleSelectionMode) {
-                        Text(isSelectionMode ? "Cancel" : "Select")
+                        Text(isSelectionMode ? "common.cancel".localized : "gallery.select.mode".localized)
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.primaryBlue)
                     }
@@ -273,10 +274,10 @@ struct GalleryView: View {
             print("   - Current profile ID: \(profileService.currentProfile?.id ?? "nil")")
             #endif
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert("common.error".localized, isPresented: $showingError) {
+            Button("common.ok".localized) { }
         } message: {
-            Text(error?.localizedDescription ?? "An unknown error occurred")
+            Text(error?.localizedDescription ?? "common.unknown.error".localized)
         }
         .sheet(item: $selectedImage) { image in
             NavigationView {
@@ -312,7 +313,7 @@ struct GalleryView: View {
             HStack(spacing: AppSpacing.sm) {
                 // All/Favorites Toggle (always show)
                 FilterChip(
-                    title: "All",
+                    title: "gallery.filter.all".localized,
                     icon: "square.grid.2x2",
                     isSelected: !showFavoritesOnly
                 ) {
@@ -321,7 +322,7 @@ struct GalleryView: View {
                 }
 
                 FilterChip(
-                    title: "Favorites",
+                    title: "gallery.filter.favorites".localized,
                     icon: "heart.fill",
                     isSelected: showFavoritesOnly
                 ) {
@@ -339,7 +340,7 @@ struct GalleryView: View {
 
                     // All Profiles chip
                     FilterChip(
-                        title: "All Profiles",
+                        title: "gallery.filter.all.profiles".localized,
                         icon: "person.2.fill",
                         isSelected: selectedProfileFilter == nil
                     ) {
@@ -394,7 +395,7 @@ struct GalleryView: View {
                 .foregroundColor(AppColors.textSecondary)
                 .font(.system(size: 16, weight: .medium))
 
-            TextField("Search your creations...", text: $searchText)
+            TextField("gallery.search.placeholder".localized, text: $searchText)
                 .textFieldStyle(.plain)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
@@ -442,11 +443,11 @@ struct GalleryView: View {
 
                 // Search section
                 VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                    Text("Search")
+                    Text("common.search".localized)
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
 
-                    TextField("Search your creations...", text: $searchText)
+                    TextField("gallery.search.placeholder".localized, text: $searchText)
                         .font(AppTypography.bodyMedium)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .onChange(of: searchText) {
@@ -456,19 +457,19 @@ struct GalleryView: View {
                 }
 
                 // Favorites toggle
-                Toggle("Favorites Only", isOn: $showFavoritesOnly)
+                Toggle("gallery.favorites.only".localized, isOn: $showFavoritesOnly)
                     .font(AppTypography.bodyMedium)
                     .toggleStyle(SwitchToggleStyle(tint: AppColors.primaryBlue))
 
                 // Profile filter (if multiple profiles)
                 if profileService.availableProfiles.count > 1 {
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                        Text("Profile")
+                        Text("gallery.filter.profile".localized)
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
 
-                        Picker("Profile Filter", selection: $selectedProfileFilter) {
-                            Text("All Profiles").tag(String?.none)
+                        Picker("gallery.filter.profile".localized, selection: $selectedProfileFilter) {
+                            Text("gallery.filter.all.profiles".localized).tag(String?.none)
                             ForEach(profileService.availableProfiles) { profile in
                                 Text(profile.name).tag(String?.some(profile.id))
                             }
@@ -480,12 +481,12 @@ struct GalleryView: View {
                 // Category filter
                 if !availableCategories.isEmpty {
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                        Text("Category")
+                        Text("gallery.filter.category".localized)
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
 
-                        Picker("Category Filter", selection: $selectedCategory) {
-                            Text("All Categories").tag(String?.none)
+                        Picker("gallery.filter.category".localized, selection: $selectedCategory) {
+                            Text("gallery.filter.all.categories".localized).tag(String?.none)
                             ForEach(availableCategories, id: \.id) { categoryWithOptions in
                                 Text(categoryWithOptions.category.name).tag(String?.some(categoryWithOptions.category.id))
                             }
@@ -497,11 +498,11 @@ struct GalleryView: View {
                 Spacer()
             }
             .padding(AppSpacing.md)
-            .navigationTitle("Filters")
+            .navigationTitle("gallery.filters.title".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Clear") {
+                    Button("common.clear".localized) {
                         showFavoritesOnly = false
                         selectedProfileFilter = nil
                         selectedCategory = nil
@@ -511,7 +512,7 @@ struct GalleryView: View {
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Apply") {
+                    Button("common.apply".localized) {
                         showingFilters = false
                         applyFilters()
                     }
@@ -723,13 +724,13 @@ struct GalleryView: View {
     // MARK: - Selection Mode Views
     private var selectionModeHeader: some View {
         HStack {
-            Text("\(selectedImages.count) selected")
+            Text(String(format: "gallery.selected.count".localized, selectedImages.count))
                 .font(AppTypography.captionLarge)
                 .foregroundColor(AppColors.primaryBlue)
 
             Spacer()
 
-            Button(selectedImages.count == images.count ? "Deselect All" : "Select All") {
+            Button(selectedImages.count == images.count ? "gallery.deselect.all".localized : "gallery.select.all".localized) {
                 if selectedImages.count == images.count {
                     selectedImages.removeAll()
                 } else {
@@ -748,13 +749,13 @@ struct GalleryView: View {
         VStack(spacing: 0) {
             // Selection info bar
             HStack {
-                Text("\(selectedImages.count) image\(selectedImages.count == 1 ? "" : "s") selected")
+                Text(selectedImages.count == 1 ? "gallery.image.selected.singular".localized : String(format: "gallery.images.selected.plural".localized, selectedImages.count))
                     .font(AppTypography.captionLarge)
                     .foregroundColor(AppColors.textSecondary)
 
                 Spacer()
 
-                Button(selectedImages.count == images.count ? "Deselect All" : "Select All") {
+                Button(selectedImages.count == images.count ? "gallery.deselect.all".localized : "gallery.select.all".localized) {
                     if selectedImages.count == images.count {
                         selectedImages.removeAll()
                     } else {
@@ -774,7 +775,7 @@ struct GalleryView: View {
                 Button(action: { showingFolderPicker = true }) {
                     HStack(spacing: AppSpacing.xs) {
                         Image(systemName: "folder")
-                        Text("Move to Folder")
+                        Text("gallery.move.to.folder".localized)
                     }
                     .largeButtonStyle(
                         backgroundColor: AppColors.primaryPurple
@@ -838,19 +839,19 @@ struct GalleryView: View {
     private var galleryHeaderView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             HStack {
-                Text("Your Creations")
+                Text("gallery.your.creations".localized)
                     .font(AppTypography.headlineMedium)
                     .foregroundColor(AppColors.textPrimary)
 
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: AppSpacing.xxxs) {
-                    Text("\(images.count) of \(totalImages) images")
+                    Text(String(format: "gallery.images.count".localized, images.count, totalImages))
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
 
                     if hasMorePages {
-                        Text("More available")
+                        Text("gallery.more.available".localized)
                             .font(AppTypography.captionSmall)
                             .foregroundColor(AppColors.primaryBlue.opacity(0.7))
                     }
@@ -1149,14 +1150,14 @@ struct GalleryView: View {
                         .scaleEffect(0.8)
                         .tint(AppColors.primaryBlue)
 
-                    Text("Loading more creations...")
+                    Text("gallery.loading.more".localized)
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
                 .padding(AppSpacing.lg)
             } else {
                 // Fallback manual load more button (rarely shown)
-                Button("Load More Creations") {
+                Button("gallery.load.more".localized) {
                     Task {
                         await loadMoreImages()
                     }
@@ -1910,37 +1911,37 @@ struct ImageDetailView: View {
 
                 // Image info
                 VStack(alignment: .leading, spacing: AppSpacing.md) {
-                    Text("Details")
+                    Text("gallery.details".localized)
                         .font(AppTypography.headlineMedium)
                         .foregroundColor(AppColors.textPrimary)
 
                     VStack(spacing: AppSpacing.sm) {
                         // Show full prompt (backend now sends complete title without truncation)
                         CopyableDetailRowHighlighted(
-                            label: "Prompt",
-                            value: image.generation?.title ?? "Unknown",
+                            label: "gallery.detail.prompt".localized,
+                            value: image.generation?.title ?? "common.unknown".localized,
                             searchTerm: searchTerm,
                             onCopy: { copiedText in
-                                toastMessage = "Prompt copied! 📋"
+                                toastMessage = "gallery.prompt.copied".localized
                                 toastType = .success
                                 showingToast = true
                             },
                             lineLimit: 2
                         )
 
-                        DetailRowHighlighted(label: "Category", value: image.generation?.category ?? "Unknown", searchTerm: searchTerm)
-                        DetailRowHighlighted(label: "Style", value: image.generation?.option ?? "Unknown", searchTerm: searchTerm)
+                        DetailRowHighlighted(label: "gallery.detail.category".localized, value: image.generation?.category ?? "common.unknown".localized, searchTerm: searchTerm)
+                        DetailRowHighlighted(label: "gallery.detail.style".localized, value: image.generation?.option ?? "common.unknown".localized, searchTerm: searchTerm)
 
                         // Show creator info for main users (only if created by someone else)
                         if let createdBy = image.createdBy,
                            let creatorProfileId = createdBy.profileId,
                            creatorProfileId != ProfileService.shared.currentProfile?.id {
-                            DetailRowHighlighted(label: "Created by", value: createdBy.profileName, searchTerm: searchTerm)
+                            DetailRowHighlighted(label: "gallery.detail.created.by".localized, value: createdBy.profileName, searchTerm: searchTerm)
                         }
 
-                        DetailRow(label: "Model", value: image.generation?.modelUsed ?? "Unknown")
-                        DetailRow(label: "Quality", value: (image.generation?.qualityUsed ?? "unknown").capitalized)
-                        DetailRow(label: "Created", value: formatDate(image.createdAt))
+                        DetailRow(label: "gallery.detail.model".localized, value: image.generation?.modelUsed ?? "common.unknown".localized)
+                        DetailRow(label: "gallery.detail.quality".localized, value: (image.generation?.qualityUsed ?? "common.unknown".localized).capitalized)
+                        DetailRow(label: "gallery.detail.created".localized, value: formatDate(image.createdAt))
                     }
                 }
                 .cardStyle()
@@ -1961,7 +1962,7 @@ struct ImageDetailView: View {
                             } else {
                                 Text("📥")
                             }
-                            Text(isDownloading ? "Downloading..." : "Download")
+                            Text(isDownloading ? "gallery.downloading".localized : "gallery.download".localized)
                         }
                         .largeButtonStyle(
                             backgroundColor: AppColors.primaryPurple,
@@ -1982,7 +1983,7 @@ struct ImageDetailView: View {
                             } else {
                                 Text("🗑️")
                             }
-                            Text(isDeleting ? "Deleting..." : "Delete")
+                            Text(isDeleting ? "gallery.deleting".localized : "common.delete".localized)
                         }
                         .largeButtonStyle(
                             backgroundColor: AppColors.errorRed,
@@ -1996,7 +1997,7 @@ struct ImageDetailView: View {
             .padding(.vertical, AppSpacing.sectionSpacing)
         }
         .background(AppColors.backgroundLight)
-        .navigationTitle("Image Details")
+        .navigationTitle("gallery.image.details".localized)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -2017,27 +2018,27 @@ struct ImageDetailView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Close")
+                .accessibilityLabel("common.close".localized)
             }
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button(action: { Task { await downloadImageDirectly() } }) {
-                        Label("Download to Photos", systemImage: "arrow.down.circle")
+                        Label("gallery.download.to.photos".localized, systemImage: "arrow.down.circle")
                     }
                     .disabled(isDownloading)
 
                     Button(action: { Task { await prepareShare() } }) {
-                        Label("Share", systemImage: "square.and.arrow.up")
+                        Label("common.share".localized, systemImage: "square.and.arrow.up")
                     }
                     .disabled(isPreparingShare)
 
                     Button(action: { showingMoveToFolder = true }) {
-                        Label("Move to Folder", systemImage: "folder")
+                        Label("gallery.move.to.folder".localized, systemImage: "folder")
                     }
 
                     Button(role: .destructive, action: { showingDeleteConfirmation = true }) {
-                        Label("Delete", systemImage: "trash")
+                        Label("common.delete".localized, systemImage: "trash")
                     }
                     .tint(AppColors.errorRed)
                     .disabled(isDeleting)
@@ -2053,10 +2054,10 @@ struct ImageDetailView: View {
         .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toast(isShowing: $showingToast, message: toastMessage, type: toastType)
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert("common.error".localized, isPresented: $showingError) {
+            Button("common.ok".localized) { }
         } message: {
-            Text(error?.localizedDescription ?? "Failed to update favorite status")
+            Text(error?.localizedDescription ?? "gallery.error.favorite".localized)
         }
         .sheet(isPresented: $showingShareSheet) {
             if let shareableImage = shareableImage {
@@ -2073,15 +2074,15 @@ struct ImageDetailView: View {
                 }
             )
         }
-        .alert("Delete Image", isPresented: $showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete", role: .destructive) {
+        .alert("gallery.delete.image".localized, isPresented: $showingDeleteConfirmation) {
+            Button("common.cancel".localized, role: .cancel) { }
+            Button("common.delete".localized, role: .destructive) {
                 Task {
                     await deleteImage()
                 }
             }
         } message: {
-            Text("Are you sure you want to delete this image? This action cannot be undone.")
+            Text("gallery.delete.confirmation".localized)
         }
     }
 
@@ -2110,7 +2111,7 @@ struct ImageDetailView: View {
 
             await MainActor.run {
                 isDownloading = false
-                toastMessage = "Saved to Photos! 📸"
+                toastMessage = "gallery.saved.to.photos".localized
                 toastType = .success
                 showingToast = true
             }
@@ -2125,7 +2126,7 @@ struct ImageDetailView: View {
         } catch {
             await MainActor.run {
                 isDownloading = false
-                toastMessage = "Download failed. Please try again."
+                toastMessage = "gallery.download.failed".localized
                 toastType = .error
                 showingToast = true
             }

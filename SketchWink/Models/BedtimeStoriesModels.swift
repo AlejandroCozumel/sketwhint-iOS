@@ -93,9 +93,9 @@ enum BedtimeStoryLength: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .short: return "Short (2-3 min)"
-        case .medium: return "Medium (4-5 min)"
-        case .long: return "Long (6-8 min)"
+        case .short: return "stories.2to3.min".localized
+        case .medium: return "stories.4to5.min".localized
+        case .long: return "stories.6to8.min".localized
         }
     }
 }

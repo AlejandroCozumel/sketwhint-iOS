@@ -7,28 +7,29 @@ enum InputMethod: String, CaseIterable {
     
     var displayName: String {
         switch self {
-        case .text: return "Enter Prompt"
-        case .image: return "Upload Photo"
+        case .text: return "generation.enter.prompt".localized
+        case .image: return "generation.upload.photo".localized
         }
     }
-    
+
     var icon: String {
         switch self {
         case .text: return "pencil.and.outline"
         case .image: return "camera.fill"
         }
     }
-    
+
     var description: String {
         switch self {
-        case .text: return "Describe what you want to create"
-        case .image: return "Convert your photo into a coloring page"
+        case .text: return "generation.prompt.placeholder".localized
+        case .image: return "generation.convert.photo.desc".localized
         }
     }
 }
 
 struct GenerationView: View {
     @StateObject private var generationService = GenerationService.shared
+    @StateObject private var localization = LocalizationManager.shared
     @State private var selectedCategory: CategoryWithOptions?
     @State private var selectedOption: GenerationOption?
     @State private var userPrompt = ""
@@ -100,15 +101,15 @@ struct GenerationView: View {
             }
             .onAppear(perform: handleOnAppear)
             .onDisappear(perform: handleOnDisappear)
-            .alert("Error", isPresented: $showingError) {
-                Button("OK") { }
+            .alert("common.error".localized, isPresented: $showingError) {
+                Button("common.ok".localized) { }
             } message: {
-                Text(error?.localizedDescription ?? "An unknown error occurred")
+                Text(error?.localizedDescription ?? "common.unknown.error".localized)
             }
-            .alert("Success", isPresented: $showingSuccess) {
-                Button("OK") { }
+            .alert("common.success".localized, isPresented: $showingSuccess) {
+                Button("common.ok".localized) { }
             } message: {
-                Text(successMessage ?? "Settings updated successfully")
+                Text(successMessage ?? "common.success".localized)
             }
             .fullScreenCover(isPresented: .constant(generationState.isGenerating)) {
                 progressCover
@@ -185,7 +186,7 @@ struct GenerationView: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("Back")
+                            .accessibilityLabel("generation.back".localized)
                         }
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -212,7 +213,7 @@ struct GenerationView: View {
                 }
             }
 
-            Text("Step \(currentStep) of 2")
+            Text(String(format: "generation.step.of".localized, currentStep))
                 .font(AppTypography.captionLarge)
                 .foregroundColor(AppColors.textSecondary)
                 .padding(.top, 4)
@@ -298,7 +299,7 @@ struct GenerationView: View {
                 )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Close")
+        .accessibilityLabel("generation.close".localized)
     }
 
     @ViewBuilder
@@ -396,7 +397,7 @@ struct GenerationView: View {
                 .scaleEffect(1.5)
                 .tint(AppColors.primaryBlue)
 
-            Text("Loading creation options...")
+            Text("generation.loading.options".localized)
                 .font(AppTypography.bodyLarge)
                 .foregroundColor(AppColors.textSecondary)
                 .multilineTextAlignment(.center)
@@ -439,7 +440,7 @@ struct GenerationView: View {
         VStack(spacing: AppSpacing.sectionSpacing) {
             styleSelectionView(options: category.options)
 
-            Text("Pick a style to continue")
+            Text("generation.pick.style".localized)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textSecondary)
                 .multilineTextAlignment(.center)
@@ -451,7 +452,7 @@ struct GenerationView: View {
     @ViewBuilder
     private func styleSelectionView(options: [GenerationOption]) -> some View {
         VStack(alignment: .center, spacing: AppSpacing.md) {
-            Text("Choose Your Style")
+            Text("generation.choose.style".localized)
                 .font(AppTypography.categoryTitle)
                 .foregroundColor(AppColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -486,18 +487,18 @@ struct GenerationView: View {
         if currentStep == 2, let selectedOption {
             return selectedOption.name
         }
-        return selectedCategory?.category.name ?? "Create Art"
+        return selectedCategory?.category.name ?? "generation.title".localized
     }
 
     // MARK: - Prompt Input
     private var promptInputView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text(selectedCategory?.category.id == "coloring_pages" ? "What would you like to color?" : "What would you like to create?")
+            Text(selectedCategory?.category.id == "coloring_pages" ? "generation.what.to.color".localized : "generation.what.to.create".localized)
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
 
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                TextField("Example: cute cat playing with yarn", text: $userPrompt, axis: .vertical)
+                TextField("generation.example.prompt".localized, text: $userPrompt, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(AppTypography.bodyLarge)
                     .foregroundColor(AppColors.textPrimary)
@@ -514,7 +515,7 @@ struct GenerationView: View {
                     )
                     .lineLimit(3...6)
 
-                Text(selectedCategory?.category.id == "coloring_pages" ? "Describe what you'd like to see in your coloring page" : "Describe what you'd like to create")
+                Text(selectedCategory?.category.id == "coloring_pages" ? "generation.describe.coloring".localized : "generation.describe.creation".localized)
                     .font(AppTypography.captionMedium)
                     .foregroundColor(AppColors.textSecondary)
             }
@@ -527,11 +528,11 @@ struct GenerationView: View {
         VStack(spacing: AppSpacing.md) {
             HStack {
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    Text("AI Prompt Enhancement")
+                    Text("generation.ai.enhancement".localized)
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
 
-                    Text("Let AI improve your prompt for better results")
+                    Text("generation.ai.enhancement.desc".localized)
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
@@ -563,11 +564,11 @@ struct GenerationView: View {
         VStack(spacing: AppSpacing.md) {
             HStack {
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    Text("Number of Images")
+                    Text("generation.number.of.images".localized)
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
 
-                    Text("Choose how many variations to generate")
+                    Text("generation.image.count.desc".localized)
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
@@ -643,7 +644,7 @@ struct GenerationView: View {
                 HStack {
                     Image(systemName: "info.circle")
                         .foregroundColor(AppColors.primaryBlue)
-                    Text("Your \(permissions.planName) plan allows up to \(permissions.maxImagesPerGeneration) image\(permissions.maxImagesPerGeneration == 1 ? "" : "s") per generation")
+                    Text(String(format: "generation.plan.allows.images".localized, permissions.planName, permissions.maxImagesPerGeneration, permissions.maxImagesPerGeneration == 1 ? "" : "es"))
                         .font(AppTypography.captionMedium)
                         .foregroundColor(AppColors.textSecondary)
                     Spacer()
@@ -658,11 +659,11 @@ struct GenerationView: View {
         VStack(spacing: AppSpacing.md) {
             HStack {
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    Text("Image Quality")
+                    Text("generation.image.quality".localized)
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
 
-                    Text("Higher quality takes more time and tokens")
+                    Text("generation.quality.desc".localized)
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
@@ -743,11 +744,11 @@ struct GenerationView: View {
         VStack(spacing: AppSpacing.md) {
             HStack {
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    Text("AI Model")
+                    Text("generation.ai.model".localized)
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
 
-                    Text("Different AI models produce different art styles")
+                    Text("generation.model.desc".localized)
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
@@ -815,11 +816,11 @@ struct GenerationView: View {
         VStack(spacing: AppSpacing.md) {
             HStack {
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    Text("Image Dimensions")
+                    Text("generation.image.dimensions".localized)
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textPrimary)
 
-                    Text("Choose the aspect ratio for your creation")
+                    Text("generation.dimensions.desc".localized)
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
@@ -876,7 +877,7 @@ struct GenerationView: View {
                             .scaleEffect(0.9)
                     }
 
-                    Text(generationState == .loading ? "Creating..." : "Create My \(selectedCategory?.category.name ?? "Art")")
+                    Text(generationState == .loading ? "generation.creating.art".localized : String(format: "generation.create.my.art".localized, selectedCategory?.category.name ?? ""))
                 }
                 .largeButtonStyle(
                     backgroundColor: categoryColor,
@@ -901,16 +902,16 @@ struct GenerationView: View {
                 .font(.system(size: 80))
 
             VStack(spacing: AppSpacing.md) {
-                Text("Oops! Something went wrong")
+                Text("generation.error.title".localized)
                     .font(AppTypography.headlineMedium)
                     .foregroundColor(AppColors.textPrimary)
 
-                Text("We couldn't load the coloring page options. Please try again.")
+                Text("generation.error.message".localized)
                     .font(AppTypography.bodyMedium)
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
 
-                Button("Try Again") {
+                Button("generation.try.again".localized) {
                     Task {
                         await loadData()
                     }
@@ -938,14 +939,14 @@ struct GenerationView: View {
     
     private var generateButtonValidationText: String {
         if selectedOption == nil {
-            return "Please select a style"
+            return "generation.select.style.error".localized
         }
-        
+
         switch self.inputMethod {
         case .text:
-            return "Please enter a prompt"
+            return "generation.enter.prompt.error".localized
         case .image:
-            return "Please select a photo"
+            return "generation.select.photo.error".localized
         }
     }
 
@@ -1080,28 +1081,28 @@ struct GenerationView: View {
     // MARK: - Helper Methods
     private func qualityDescription(_ quality: String) -> String {
         switch quality {
-        case "standard": return "Fast generation, good quality"
-        case "high": return "Better quality, slower generation"
-        case "ultra": return "Best quality, longest generation time"
+        case "standard": return "generation.quality.standard.desc".localized
+        case "high": return "generation.quality.high.desc".localized
+        case "ultra": return "generation.quality.ultra.desc".localized
         default: return ""
         }
     }
 
     private func modelDescription(_ model: String) -> String {
         switch model {
-        case "seedream": return "Advanced model with high-quality results"
-        case "gemini": return "Balanced speed and quality"
-        case "flux": return "Fast generation with good quality"
+        case "seedream": return "generation.model.seedream.desc".localized
+        case "gemini": return "generation.model.gemini.desc".localized
+        case "flux": return "generation.model.flux.desc".localized
         default: return ""
         }
     }
 
     private func dimensionDescription(_ dimension: String) -> String {
         switch dimension {
-        case "1:1": return "Square"
-        case "2:3": return "Portrait"
-        case "3:2": return "Landscape"
-        case "A4": return "Paper"
+        case "1:1": return "generation.dimensions.square".localized
+        case "2:3": return "generation.dimensions.portrait".localized
+        case "3:2": return "generation.dimensions.landscape".localized
+        case "A4": return "generation.dimensions.paper".localized
         default: return ""
         }
     }
@@ -1254,7 +1255,7 @@ struct GenerationView: View {
     // MARK: - Input Method Selection
     private var inputMethodSelectionView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("How would you like to create?")
+            Text("generation.how.to.create".localized)
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
             
@@ -1305,7 +1306,7 @@ struct GenerationView: View {
     // MARK: - Image Input View
     private var imageInputView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Photo for Coloring Page")
+            Text("generation.photo.for.coloring".localized)
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
             
@@ -1349,7 +1350,7 @@ struct GenerationView: View {
                                     HStack(spacing: 4) {
                                         Image(systemName: "camera.fill")
                                             .font(.system(size: 12))
-                                        Text("Change")
+                                        Text("generation.change.photo".localized)
                                             .font(AppTypography.captionLarge)
                                     }
                                     .foregroundColor(.white)
@@ -1379,11 +1380,11 @@ struct GenerationView: View {
                             .foregroundColor(AppColors.primaryBlue)
                         
                         VStack(spacing: AppSpacing.xs) {
-                            Text("Add Photo")
+                            Text("generation.add.photo".localized)
                                 .titleMedium()
                                 .foregroundColor(AppColors.textPrimary)
                             
-                            Text("Tap to select a photo from camera or gallery")
+                            Text("generation.tap.to.select".localized)
                                 .captionLarge()
                                 .foregroundColor(AppColors.textSecondary)
                                 .multilineTextAlignment(.center)
@@ -1400,7 +1401,7 @@ struct GenerationView: View {
             
             // Add description text field for image context
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                TextField("Optional: Describe what's in the photo", text: $userPrompt, axis: .vertical)
+                TextField("generation.optional.describe.photo".localized, text: $userPrompt, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(AppTypography.bodyLarge)
                     .foregroundColor(AppColors.textPrimary)
@@ -1413,7 +1414,7 @@ struct GenerationView: View {
                     )
                     .lineLimit(2...4)
 
-                Text("Help AI understand your photo better (optional)")
+                Text("generation.help.ai.photo".localized)
                     .font(AppTypography.captionMedium)
                     .foregroundColor(AppColors.textSecondary)
             }
@@ -1588,17 +1589,17 @@ extension ImageProcessingError {
     var userFriendlyMessage: String {
         switch self {
         case .conversionFailed:
-            return "Unable to process your photo. Please try a different image."
+            return "generation.photo.process.error".localized
         case .compressionFailed:
-            return "Unable to compress your photo. Please try a different image."
+            return "generation.photo.compress.error".localized
         case .invalidFormat:
-            return "Please select a valid photo from your gallery or take a new one."
+            return "generation.photo.invalid".localized
         case .fileTooLarge(let currentSize, let maxSize):
             let currentMB = Double(currentSize) / 1_048_576
             let maxMB = Double(maxSize) / 1_048_576
-            return "Your photo is too large (\(String(format: "%.1f", currentMB))MB). Please use an image smaller than \(String(format: "%.1f", maxMB))MB."
+            return String(format: "generation.photo.too.large.mb".localized, currentMB, maxMB)
         case .dimensionsTooLarge(let currentDimensions, let maxSize):
-            return "Your photo is too large (\(Int(currentDimensions.width))×\(Int(currentDimensions.height))). Please use an image smaller than \(Int(maxSize))×\(Int(maxSize)) pixels."
+            return String(format: "generation.photo.too.large.px".localized, Int(currentDimensions.width), Int(currentDimensions.height), Int(maxSize), Int(maxSize))
         }
     }
 }

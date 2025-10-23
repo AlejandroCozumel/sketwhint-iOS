@@ -3,6 +3,7 @@ import AuthenticationServices
 
 struct SignUpView: View {
     @StateObject private var viewModel = SignUpViewModel()
+    @StateObject private var localization = LocalizationManager.shared
     @State private var name = ""
     @State private var email = ""
     @State private var password = ""
@@ -52,11 +53,11 @@ struct SignUpView: View {
 
                                 // Title
                                 VStack(spacing: AppSpacing.sm) {
-                                    Text("Join SketchWink")
+                                    Text("signup.title".localized)
                                         .font(AppTypography.displayLarge)
                                         .foregroundColor(.white)
 
-                                    Text("Create your family account")
+                                    Text("signup.subtitle".localized)
                                         .font(AppTypography.bodyMedium)
                                         .foregroundColor(.white.opacity(0.9))
                                         .multilineTextAlignment(.center)
@@ -71,11 +72,11 @@ struct SignUpView: View {
                             VStack(spacing: AppSpacing.md) {
                                 // Name Field
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text("Full Name")
+                                    Text("common.name".localized)
                                         .font(AppTypography.captionLarge)
                                         .foregroundColor(AppColors.textSecondary)
 
-                                    TextField("Enter your full name", text: $name)
+                                    TextField("signup.name.placeholder".localized, text: $name)
                                         .textInputAutocapitalization(.words)
                                         .focused($focusedField, equals: .name)
                                         .onSubmit {
@@ -99,11 +100,11 @@ struct SignUpView: View {
 
                                 // Email Field
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text("Email")
+                                    Text("common.email".localized)
                                         .font(AppTypography.captionLarge)
                                         .foregroundColor(AppColors.textSecondary)
 
-                                    TextField("Enter your email", text: $email)
+                                    TextField("signup.email.placeholder".localized, text: $email)
                                         .keyboardType(.emailAddress)
                                         .textInputAutocapitalization(.never)
                                         .autocorrectionDisabled()
@@ -129,16 +130,16 @@ struct SignUpView: View {
 
                                 // Password Field
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text("Password")
+                                    Text("common.password".localized)
                                         .font(AppTypography.captionLarge)
                                         .foregroundColor(AppColors.textSecondary)
 
                                     HStack(spacing: 0) {
                                         Group {
                                             if showPassword {
-                                                TextField("Enter your password", text: $password)
+                                                TextField("signup.password.placeholder".localized, text: $password)
                                             } else {
-                                                SecureField("Enter your password", text: $password)
+                                                SecureField("signup.password.placeholder".localized, text: $password)
                                             }
                                         }
                                         .focused($focusedField, equals: .password)
@@ -171,16 +172,16 @@ struct SignUpView: View {
 
                                 // Confirm Password Field
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text("Confirm Password")
+                                    Text("signup.confirm.password.placeholder".localized)
                                         .font(AppTypography.captionLarge)
                                         .foregroundColor(AppColors.textSecondary)
 
                                     HStack(spacing: 0) {
                                         Group {
                                             if showConfirmPassword {
-                                                TextField("Confirm your password", text: $confirmPassword)
+                                                TextField("signup.confirm.password.placeholder".localized, text: $confirmPassword)
                                             } else {
-                                                SecureField("Confirm your password", text: $confirmPassword)
+                                                SecureField("signup.confirm.password.placeholder".localized, text: $confirmPassword)
                                             }
                                         }
                                         .focused($focusedField, equals: .confirmPassword)
@@ -251,7 +252,7 @@ struct SignUpView: View {
                                         ProgressView()
                                             .tint(.white)
                                     } else {
-                                        Text("Create Account")
+                                        Text("signup.create.button".localized)
                                             .font(AppTypography.buttonText)
                                     }
                                 }
@@ -292,7 +293,7 @@ struct SignUpView: View {
                                     .fill(AppColors.borderLight)
                                     .frame(height: 1)
 
-                                Text("or")
+                                Text("signup.or.divider".localized)
                                     .font(AppTypography.captionLarge)
                                     .foregroundColor(AppColors.textSecondary)
 
@@ -313,17 +314,12 @@ struct SignUpView: View {
                             }
 
                             // Sign in link
-                            HStack(spacing: 4) {
-                                Text("Already have an account?")
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                Text("signup.login.prompt".localized)
                                     .font(AppTypography.bodyMedium)
-                                    .foregroundColor(AppColors.textSecondary)
-
-                                Button("Sign in") {
-                                    dismiss()
-                                }
-                                .font(AppTypography.bodyMedium)
-                                .fontWeight(.semibold)
-                                .foregroundColor(AppColors.primaryPurple)
+                                    .foregroundColor(AppColors.primaryPurple)
                             }
                             .padding(.top, AppSpacing.xs)
                         }
@@ -338,7 +334,7 @@ struct SignUpView: View {
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollDismissesKeyboard(.interactively)
 
-                // Back button overlay (absolute position)
+                // Back button overlay (absolute position - top-left)
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .semibold))
@@ -349,6 +345,17 @@ struct SignUpView: View {
                 }
                 .padding(.leading, AppSpacing.md)
                 .padding(0)
+
+                // Language switcher overlay (absolute position - top-right)
+                VStack {
+                    HStack {
+                        Spacer()
+                        LanguageSwitcherButton()
+                            .padding(.trailing, AppSpacing.md)
+                            .padding(.top, 0)
+                    }
+                    Spacer()
+                }
             }
         }
         .navigationBarHidden(true)

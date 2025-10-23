@@ -14,8 +14,9 @@ class SignUpViewModel: ObservableObject, AppleSignInViewModel {
     @Published var showOTPVerification = false
     @Published var isPerformingAppleSignIn = false
     @Published var isPerformingGoogleSignIn = false
-    
+
     private let authService = AuthService.shared
+    private let localization = LocalizationManager.shared
     private var currentAppleNonce: (raw: String, hashed: String)?
     
     // MARK: - Sign Up
@@ -23,16 +24,24 @@ class SignUpViewModel: ObservableObject, AppleSignInViewModel {
         // Reset previous state
         errorMessage = nil
         isLoading = true
-        
+
         // Validate input
         guard canSignUp(name: name, email: email, password: password, confirmPassword: confirmPassword) else {
             errorMessage = getValidationError(name: name, email: email, password: password, confirmPassword: confirmPassword)
             isLoading = false
             return
         }
-        
+
+        // Use current app language (user can change via switcher or defaults to device language)
+        let selectedLanguage = localization.currentLanguage.rawValue
+
+        if AppConfig.Debug.enableLogging {
+            print("📝 Sign up with selected language: \(selectedLanguage)")
+            print("   - Language source: \(localization.currentLanguage.displayName)")
+        }
+
         do {
-            let response = try await authService.signUp(email: email, password: password, name: name)
+            let response = try await authService.signUp(email: email, password: password, name: name, language: selectedLanguage)
             
             if response.success {
                 // Success - only show OTP if verification is required

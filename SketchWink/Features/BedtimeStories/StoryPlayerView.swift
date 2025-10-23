@@ -61,7 +61,7 @@ struct StoryPlayerView: View {
 
                 playerView
             }
-            .navigationTitle(audioPlayer.hasLyrics ? "" : "Story Player")
+            .navigationTitle(audioPlayer.hasLyrics ? "" : "stories.story.player".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -83,22 +83,22 @@ struct StoryPlayerView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel("common.close".localized)
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button(action: downloadStory) {
-                            Label("Download", systemImage: "arrow.down.circle")
+                            Label("gallery.download".localized, systemImage: "arrow.down.circle")
                         }
 
                         Button(action: { Task { await prepareShare() } }) {
-                            Label("Share", systemImage: "square.and.arrow.up")
+                            Label("common.share".localized, systemImage: "square.and.arrow.up")
                         }
                         .disabled(isPreparingShare)
 
                         Button(role: .destructive, action: { showingDeleteConfirmation = true }) {
-                            Label("Delete", systemImage: "trash")
+                            Label("common.delete".localized, systemImage: "trash")
                         }
                         .tint(AppColors.errorRed)
                         .disabled(isDeleting)
@@ -122,18 +122,18 @@ struct StoryPlayerView: View {
             .onDisappear {
                 audioPlayer.stop()
             }
-            .alert("Error", isPresented: $showingErrorAlert) {
-                Button("OK") { }
+            .alert("common.error".localized, isPresented: $showingErrorAlert) {
+                Button("common.ok".localized) { }
             } message: {
-                Text(errorMessage ?? "Something went wrong. Please try again.")
+                Text(errorMessage ?? "common.unknown.error".localized)
             }
-            .alert("Delete Story", isPresented: $showingDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Delete", role: .destructive) {
+            .alert("stories.delete.confirmation".localized, isPresented: $showingDeleteConfirmation) {
+                Button("common.cancel".localized, role: .cancel) { }
+                Button("common.delete".localized, role: .destructive) {
                     Task { await deleteStory() }
                 }
             } message: {
-                Text("Are you sure you want to delete this bedtime story? This cannot be undone.")
+                Text("stories.delete.confirmation.message".localized)
             }
             .sheet(isPresented: $showingShareSheet) {
                 if let shareableAudioURL = shareableAudioURL {

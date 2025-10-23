@@ -19,7 +19,7 @@ struct BedtimeStoriesCreateView: View {
     @State private var prompt = ""
     @State private var selectedLength: BedtimeStoryLength = .short
     @State private var characterName = ""
-    @State private var ageGroup = "3-5 years old"
+    @State private var ageGroup = "stories.3to5.years.old".localized
     @State private var selectedVoice = "nova" // Default to Sofia
     @State private var voices: [Voice] = []
 
@@ -105,7 +105,7 @@ struct BedtimeStoriesCreateView: View {
                 }
             }
         }
-        .navigationTitle("Create Bedtime Story")
+        .navigationTitle("stories.create.bedtime.story".localized)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -128,7 +128,7 @@ struct BedtimeStoriesCreateView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Back")
+                    .accessibilityLabel("common.back".localized)
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -149,7 +149,7 @@ struct BedtimeStoriesCreateView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Close")
+                .accessibilityLabel("common.close".localized)
             }
         }
         .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
@@ -157,26 +157,26 @@ struct BedtimeStoriesCreateView: View {
         .task {
             await loadConfig()
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert("common.error".localized, isPresented: $showingError) {
+            Button("common.ok".localized) { }
         } message: {
-            Text(error ?? "An unknown error occurred")
+            Text(error ?? "stories.unknown.error".localized)
         }
-        .alert("Confirm Generation", isPresented: $showingTokenConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Generate") {
+        .alert("stories.confirm.generation".localized, isPresented: $showingTokenConfirmation) {
+            Button("common.cancel".localized, role: .cancel) { }
+            Button("stories.generate".localized) {
                 showingGenerationAlert = true
             }
         } message: {
-            Text("This will cost \(selectedLength.tokenCost) tokens to generate. Do you want to proceed?")
+            Text(String(format: "stories.cost.tokens".localized, selectedLength.tokenCost))
         }
-        .alert("Generating Story", isPresented: $showingGenerationAlert) {
-            Button("Dismiss") {
+        .alert("stories.generating.story".localized, isPresented: $showingGenerationAlert) {
+            Button("stories.dismiss".localized) {
                 Task { await generateStory() }
                 dismiss()
             }
         } message: {
-            Text("Your story will be generated in the background and will be available in your library in 1 to 4 minutes.")
+            Text("stories.background.generation".localized)
         }
     }
 
@@ -191,7 +191,7 @@ struct BedtimeStoriesCreateView: View {
                 }
             }
 
-            Text("Step \(currentStep) of 3")
+            Text(String(format: "stories.step.of.3".localized, currentStep))
                 .font(AppTypography.captionLarge)
                 .foregroundColor(AppColors.textSecondary)
                 .padding(.top, 4)
@@ -205,7 +205,7 @@ struct BedtimeStoriesCreateView: View {
     private var step1ThemeSelection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.lg) {
             VStack(alignment: .center, spacing: AppSpacing.md) {
-                Text(category?.name ?? "Choose a Story Theme")
+                Text("stories.choose.theme".localized)
                     .font(AppTypography.categoryTitle)
                     .foregroundColor(AppColors.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -239,16 +239,16 @@ struct BedtimeStoriesCreateView: View {
             VStack(spacing: AppSpacing.md) {
                 HStack {
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                        Text("Story Idea")
+                        Text("stories.story.idea".localized)
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
-                        Text("Describe what you'd like to happen in your bedtime story")
+                        Text("stories.story.idea.description".localized)
                             .font(AppTypography.captionLarge)
                             .foregroundColor(AppColors.textSecondary)
                     }
                     Spacer()
                 }
-                TextField("A sleepy bunny finding the perfect spot to nap...", text: $prompt, axis: .vertical)
+                TextField("stories.placeholder.example".localized, text: $prompt, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(AppTypography.bodyLarge)
                     .foregroundColor(AppColors.textPrimary)
@@ -263,16 +263,16 @@ struct BedtimeStoriesCreateView: View {
             VStack(spacing: AppSpacing.md) {
                 HStack {
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                        Text("Character Name (Optional)")
+                        Text("stories.character.name.optional".localized)
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
-                        Text("Give your main character a special name")
+                        Text("stories.character.give.name".localized)
                             .font(AppTypography.captionLarge)
                             .foregroundColor(AppColors.textSecondary)
                     }
                     Spacer()
                 }
-                TextField("Enter character name", text: $characterName)
+                TextField("stories.enter.character.name".localized, text: $characterName)
                     .textFieldStyle(.plain)
                     .font(AppTypography.bodyLarge)
                     .foregroundColor(AppColors.textPrimary)
@@ -286,10 +286,10 @@ struct BedtimeStoriesCreateView: View {
             VStack(spacing: AppSpacing.md) {
                 HStack {
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                        Text("Story Length")
+                        Text("stories.length".localized)
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
-                        Text("Choose how long your bedtime story should be")
+                        Text("stories.choose.length".localized)
                             .font(AppTypography.captionLarge)
                             .foregroundColor(AppColors.textSecondary)
                     }
@@ -307,10 +307,10 @@ struct BedtimeStoriesCreateView: View {
             VStack(spacing: AppSpacing.md) {
                 HStack {
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                        Text("Narrator Voice")
+                        Text("stories.narrator.voice".localized)
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
-                        Text("Pick a narrator voice for the story")
+                        Text("stories.narrator.pick".localized)
                             .font(AppTypography.captionLarge)
                             .foregroundColor(AppColors.textSecondary)
                     }
@@ -323,7 +323,7 @@ struct BedtimeStoriesCreateView: View {
                     }
                 } label: {
                     HStack {
-                        Text(voices.first(where: { $0.id == selectedVoice })?.name ?? "Select a voice")
+                        Text(voices.first(where: { $0.id == selectedVoice })?.name ?? "stories.select.voice".localized)
                             .font(AppTypography.bodyLarge)
                             .foregroundColor(AppColors.textPrimary)
                         Spacer()
@@ -349,19 +349,19 @@ struct BedtimeStoriesCreateView: View {
             VStack(spacing: AppSpacing.md) {
                 HStack {
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                        Text("Age Group")
+                        Text("stories.age.group".localized)
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
-                        Text("Select the target age for this story")
+                        Text("stories.age.group.select".localized)
                             .font(AppTypography.captionLarge)
                             .foregroundColor(AppColors.textSecondary)
                     }
                     Spacer()
                 }
                 Menu {
-                    Button("3-5 years old") { ageGroup = "3-5 years old" }
-                    Button("5-7 years old") { ageGroup = "5-7 years old" }
-                    Button("7-10 years old") { ageGroup = "7-10 years old" }
+                    Button("stories.3to5.years.old".localized) { ageGroup = "stories.3to5.years.old".localized }
+                    Button("stories.5to7.years.old".localized) { ageGroup = "stories.5to7.years.old".localized }
+                    Button("stories.7to10.years.old".localized) { ageGroup = "stories.7to10.years.old".localized }
                 } label: {
                     HStack {
                         Text(ageGroup)
@@ -397,7 +397,7 @@ struct BedtimeStoriesCreateView: View {
                     } else {
                         Image(systemName: "doc.text.fill")
                     }
-                    Text(isLoading ? "Creating Draft..." : "Create Draft (Free)")
+                    Text(isLoading ? "stories.creating.draft".localized : "stories.create.draft.free".localized)
                 }
                 .largeButtonStyle(
                     backgroundColor: AppColors.primaryIndigo,
@@ -407,7 +407,7 @@ struct BedtimeStoriesCreateView: View {
             .disabled(!canCreateDraft || isLoading)
 
             if !canCreateDraft {
-                Text("Please enter a story idea")
+                Text("stories.enter.story.idea".localized)
                     .captionMedium()
                     .foregroundColor(AppColors.errorRed)
                     .multilineTextAlignment(.center)
@@ -426,10 +426,10 @@ struct BedtimeStoriesCreateView: View {
                 // Edit mode layout
                 VStack(alignment: .leading, spacing: AppSpacing.lg) {
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                        Text("Story Title")
+                        Text("stories.story.title".localized)
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
-                        TextField("Enter story title", text: $editedTitle)
+                        TextField("stories.enter.story.title".localized, text: $editedTitle)
                             .textFieldStyle(.plain)
                             .font(AppTypography.headlineMedium)
                             .foregroundColor(AppColors.textPrimary)
@@ -441,7 +441,7 @@ struct BedtimeStoriesCreateView: View {
                     }
 
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                        Text("Story Text")
+                        Text("stories.story.text".localized)
                             .font(AppTypography.titleMedium)
                             .foregroundColor(AppColors.textPrimary)
                         TextEditor(text: $editedStoryText)
@@ -464,13 +464,13 @@ struct BedtimeStoriesCreateView: View {
                 // Review mode layout
                 VStack(alignment: .leading, spacing: AppSpacing.lg) {
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                        Text(currentDraft?.title ?? "Story Preview")
+                        Text(currentDraft?.title ?? "stories.story.preview".localized)
                             .headlineLarge()
                             .foregroundColor(AppColors.textPrimary)
 
                         HStack(spacing: AppSpacing.md) {
-                            Label("\(currentDraft?.wordCount ?? 0) words", systemImage: "doc.text")
-                            Label("\(currentDraft?.estimatedDuration ?? 0)s", systemImage: "clock")
+                            Label(String(format: "stories.words".localized, currentDraft?.wordCount ?? 0), systemImage: "doc.text")
+                            Label(String(format: "stories.estimated.duration".localized, currentDraft?.estimatedDuration ?? 0), systemImage: "clock")
                         }
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
@@ -500,7 +500,7 @@ struct BedtimeStoriesCreateView: View {
             Button {
                 enterEditMode()
             } label: {
-                Text("Edit")
+                Text("stories.edit".localized)
                 .font(AppTypography.titleMedium)
                 .fontWeight(.semibold)
                 .foregroundColor(AppColors.textSecondary)
@@ -519,7 +519,7 @@ struct BedtimeStoriesCreateView: View {
             Button {
                 showingTokenConfirmation = true
             } label: {
-                Text(isLoading ? "Generating Story..." : "Generate Story")
+                Text(isLoading ? "stories.generating.story".localized : "stories.generate.story".localized)
                     .largeButtonStyle(
                         backgroundColor: AppColors.primaryIndigo,
                         isDisabled: isLoading
@@ -536,7 +536,7 @@ struct BedtimeStoriesCreateView: View {
             Button {
                 exitEditMode()
             } label: {
-                Text("Cancel")
+                Text("common.cancel".localized)
                 .font(AppTypography.titleMedium)
                 .fontWeight(.semibold)
                 .foregroundColor(AppColors.textSecondary)
@@ -555,7 +555,7 @@ struct BedtimeStoriesCreateView: View {
             Button {
                 Task { await saveDraft() }
             } label: {
-                Text(isLoading ? "Saving..." : "Save")
+                Text(isLoading ? "stories.saving".localized : "stories.save".localized)
                     .largeButtonStyle(
                         backgroundColor: AppColors.primaryIndigo,
                         isDisabled: !canSave || isLoading
@@ -564,7 +564,7 @@ struct BedtimeStoriesCreateView: View {
             .disabled(!canSave || isLoading)
 
             if !canSave {
-                Text("Title and story text cannot be empty")
+                Text("stories.title.story.empty".localized)
                     .captionMedium()
                     .foregroundColor(AppColors.errorRed)
                     .multilineTextAlignment(.center)
@@ -777,9 +777,9 @@ struct LengthButton: View {
 
     private var durationText: String {
         switch length {
-        case .short: return "2-3 min"
-        case .medium: return "4-5 min"
-        case .long: return "6-8 min"
+        case .short: return "stories.2to3.min".localized
+        case .medium: return "stories.4to5.min".localized
+        case .long: return "stories.6to8.min".localized
         }
     }
 }

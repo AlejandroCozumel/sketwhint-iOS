@@ -127,13 +127,13 @@ struct FolderImagesView: View {
                             .foregroundColor(AppColors.infoBlue)
                             .font(.system(size: 16, weight: .medium))
                         
-                        Text("Type at least \(minimumSearchLength) characters to search")
+                        Text(String(format: "folders.type.minimum.chars".localized, minimumSearchLength))
                             .font(AppTypography.bodyMedium)
                             .foregroundColor(AppColors.textSecondary)
                         
                         Spacer()
                         
-                        Button("Clear") {
+                        Button("common.clear".localized) {
                             searchText = ""
                             applyFilters()
                         }
@@ -185,7 +185,7 @@ struct FolderImagesView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel("common.close".localized)
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -193,14 +193,14 @@ struct FolderImagesView: View {
                         Menu {
                             Button(action: toggleSelectionMode) {
                                 Label(
-                                    isSelectionMode ? "Cancel Selection" : "Select Images",
+                                    isSelectionMode ? "folders.cancel.selection".localized : "folders.select.images".localized,
                                     systemImage: isSelectionMode ? "xmark" : "checkmark.circle"
                                 )
                             }
-                            
+
                             if isSelectionMode && !selectedImages.isEmpty {
                                 Button(role: .destructive, action: { showingRemoveConfirmation = true }) {
-                                    Label("Remove from Folder", systemImage: "folder.badge.minus")
+                                    Label("folders.remove.from.folder".localized, systemImage: "folder.badge.minus")
                                 }
                             }
                         } label: {
@@ -218,13 +218,13 @@ struct FolderImagesView: View {
                 await loadCategories()
                 await loadImages()
             }
-            .alert("Remove Images", isPresented: $showingRemoveConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Remove", role: .destructive) {
+            .alert("folders.remove.images".localized, isPresented: $showingRemoveConfirmation) {
+                Button("common.cancel".localized, role: .cancel) { }
+                Button("common.remove".localized, role: .destructive) {
                     Task { await removeSelectedImages() }
                 }
             } message: {
-                Text("Remove \(selectedImages.count) image\(selectedImages.count == 1 ? "" : "s") from this folder? The images will return to your main gallery.")
+                Text(String(format: "folders.remove.images.message".localized, selectedImages.count, selectedImages.count == 1 ? "" : "s"))
             }
             .sheet(item: $selectedImageForDetail) { folderImage in
                 NavigationView {
@@ -284,13 +284,13 @@ struct FolderImagesView: View {
             // Selection info (if in selection mode)
             if isSelectionMode {
                 HStack {
-                    Text("\(selectedImages.count) selected")
+                    Text(String(format: "folders.selected.count".localized, selectedImages.count))
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.primaryBlue)
-                    
+
                     Spacer()
-                    
-                    Button(selectedImages.count == images.count ? "Deselect All" : "Select All") {
+
+                    Button(selectedImages.count == images.count ? "folders.deselect.all".localized : "folders.select.all".localized) {
                         if selectedImages.count == images.count {
                             selectedImages.removeAll()
                         } else {
@@ -365,8 +365,8 @@ struct FolderImagesView: View {
             ProgressView()
                 .scaleEffect(1.2)
                 .tint(AppColors.primaryBlue)
-            
-            Text("Loading images...")
+
+            Text("folders.loading.images".localized)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textSecondary)
         }
@@ -432,8 +432,8 @@ struct FolderImagesView: View {
             ProgressView()
                 .scaleEffect(0.8)
                 .tint(AppColors.primaryBlue)
-            
-            Text("Loading more...")
+
+            Text("folders.loading.more".localized)
                 .font(AppTypography.captionLarge)
                 .foregroundColor(AppColors.textSecondary)
         }
@@ -596,16 +596,16 @@ struct FolderImagesView: View {
             HStack(spacing: AppSpacing.sm) {
                 // All/Favorites Toggle (always show)
                 FilterChip(
-                    title: "All",
+                    title: "common.all".localized,
                     icon: "square.grid.2x2",
                     isSelected: !showFavoritesOnly
                 ) {
                     showFavoritesOnly = false
                     applyFilters()
                 }
-                
+
                 FilterChip(
-                    title: "Favorites",
+                    title: "gallery.filter.favorites".localized,
                     icon: "heart.fill",
                     isSelected: showFavoritesOnly
                 ) {
@@ -623,7 +623,7 @@ struct FolderImagesView: View {
                     
                     // All Profiles chip
                     FilterChip(
-                        title: "All Profiles",
+                        title: "gallery.filter.all.profiles".localized,
                         icon: "person.2.fill",
                         isSelected: selectedProfileFilter == nil
                     ) {
@@ -679,7 +679,7 @@ struct FolderImagesView: View {
                 .foregroundColor(AppColors.textSecondary)
                 .font(.system(size: 16, weight: .medium))
             
-            TextField("Search in this folder...", text: $searchText)
+            TextField("folders.search.in.folder".localized, text: $searchText)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
                 .onChange(of: searchText) {
@@ -1010,14 +1010,14 @@ struct FolderImageDetailView: View {
                 
                 // Image info
                 VStack(alignment: .leading, spacing: AppSpacing.md) {
-                    Text("Details")
+                    Text("gallery.details".localized)
                         .font(AppTypography.headlineMedium)
                         .foregroundColor(AppColors.textPrimary)
-                    
+
                     VStack(spacing: AppSpacing.sm) {
                         // Show full prompt (backend now sends complete title without truncation)
                         CopyableDetailRowHighlighted(
-                            label: "Prompt",
+                            label: "gallery.detail.prompt".localized,
                             value: folderImage.generation.title,
                             searchTerm: searchTerm,
                             onCopy: { copiedText in
@@ -1027,21 +1027,21 @@ struct FolderImageDetailView: View {
                             }
                         )
 
-                        DetailRowHighlighted(label: "Category", value: folderImage.generation.category, searchTerm: searchTerm)
-                        DetailRowHighlighted(label: "Style", value: folderImage.generation.option, searchTerm: searchTerm)
-                        DetailRow(label: "Model", value: folderImage.generation.modelUsed)
-                        DetailRow(label: "Quality", value: folderImage.generation.qualityUsed.capitalized)
+                        DetailRowHighlighted(label: "gallery.detail.category".localized, value: folderImage.generation.category, searchTerm: searchTerm)
+                        DetailRowHighlighted(label: "gallery.detail.style".localized, value: folderImage.generation.option, searchTerm: searchTerm)
+                        DetailRow(label: "gallery.detail.model".localized, value: folderImage.generation.modelUsed)
+                        DetailRow(label: "gallery.detail.quality".localized, value: folderImage.generation.qualityUsed.capitalized)
                         
                         // Show creator info if available and different from current user
                         if let creatorProfileId = folderImage.createdBy.profileId,
                            let creatorName = folderImage.createdBy.profileName,
                            creatorProfileId != profileService.currentProfile?.id {
-                            DetailRowHighlighted(label: "Created by", value: creatorName, searchTerm: searchTerm)
+                            DetailRowHighlighted(label: "gallery.detail.created.by".localized, value: creatorName, searchTerm: searchTerm)
                         }
 
-                        DetailRow(label: "Created", value: formatDate(folderImage.generation.createdAt ?? folderImage.movedAt))
-                        DetailRow(label: "Moved to folder", value: formatDate(folderImage.movedAt))
-                        
+                        DetailRow(label: "gallery.detail.created".localized, value: formatDate(folderImage.generation.createdAt ?? folderImage.movedAt))
+                        DetailRow(label: "folders.moved.to.folder".localized, value: formatDate(folderImage.movedAt))
+
                         // Show notes if available
                         if let notes = folderImage.notes, !notes.isEmpty {
                             DetailRowHighlighted(label: "Notes", value: notes, searchTerm: searchTerm)
@@ -1058,14 +1058,14 @@ struct FolderImageDetailView: View {
                     } label: {
                         HStack(spacing: AppSpacing.sm) {
                             Text("📥")
-                            Text("Download")
+                            Text("gallery.download".localized)
                                 .font(AppTypography.titleMedium)
                         }
                         .frame(maxWidth: .infinity)
                     }
                     .largeButtonStyle(backgroundColor: AppColors.primaryPurple)
                     .childSafeTouchTarget()
-                    
+
                     // Delete button (right side)
                     Button {
                         showingDeleteConfirmation = true
@@ -1078,7 +1078,7 @@ struct FolderImageDetailView: View {
                             } else {
                                 Text("🗑️")
                             }
-                            Text(isDeleting ? "Deleting..." : "Delete")
+                            Text(isDeleting ? "gallery.deleting".localized : "common.delete".localized)
                                 .font(AppTypography.titleMedium)
                         }
                         .frame(maxWidth: .infinity)
@@ -1092,7 +1092,7 @@ struct FolderImageDetailView: View {
             .padding(.vertical, AppSpacing.sectionSpacing)
         }
         .background(AppColors.backgroundLight)
-        .navigationTitle("Image Details")
+        .navigationTitle("gallery.image.details".localized)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -1113,27 +1113,27 @@ struct FolderImageDetailView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Close")
+                .accessibilityLabel("common.close".localized)
             }
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button(action: { showingDownloadView = true }) {
-                        Label("Download", systemImage: "arrow.down.circle")
+                        Label("gallery.download".localized, systemImage: "arrow.down.circle")
                     }
 
                     Button(action: { Task { await prepareShare() } }) {
-                        Label("Share", systemImage: "square.and.arrow.up")
+                        Label("common.share".localized, systemImage: "square.and.arrow.up")
                     }
                     .disabled(isPreparingShare)
 
                     Button(action: { Task { await moveImageToGallery() } }) {
-                        Label("Move to Gallery", systemImage: "photo.on.rectangle")
+                        Label("folders.move.to.gallery".localized, systemImage: "photo.on.rectangle")
                     }
                     .disabled(isMovingToGallery)
 
                     Button(role: .destructive, action: { showingDeleteConfirmation = true }) {
-                        Label("Delete", systemImage: "trash")
+                        Label("common.delete".localized, systemImage: "trash")
                     }
                     .tint(AppColors.errorRed)
                     .disabled(isDeleting)
@@ -1148,10 +1148,10 @@ struct FolderImageDetailView: View {
         }
         .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert("common.error".localized, isPresented: $showingError) {
+            Button("common.ok".localized) { }
         } message: {
-            Text(error?.localizedDescription ?? "An error occurred")
+            Text(error?.localizedDescription ?? "common.unknown.error".localized)
         }
         .sheet(isPresented: $showingShareSheet) {
             if let shareableImage = shareableImage {
@@ -1164,15 +1164,15 @@ struct FolderImageDetailView: View {
                 ImageDownloadView(image: generatedImage)
             }
         }
-        .alert("Delete Image", isPresented: $showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete", role: .destructive) {
+        .alert("gallery.delete.image".localized, isPresented: $showingDeleteConfirmation) {
+            Button("common.cancel".localized, role: .cancel) { }
+            Button("common.delete".localized, role: .destructive) {
                 Task {
                     await deleteImage()
                 }
             }
         } message: {
-            Text("Are you sure you want to delete this image? This action cannot be undone.")
+            Text("gallery.delete.confirmation".localized)
         }
         .toast(isShowing: $showingToast, message: toastMessage, type: toastType)
     }

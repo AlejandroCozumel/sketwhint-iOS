@@ -4,6 +4,7 @@ import SwiftUI
 /// Family-friendly network status indicator with retry functionality
 struct NetworkStatusBanner: View {
     @StateObject private var authService = AuthService.shared
+    @StateObject private var localization = LocalizationManager.shared
     @State private var isRetrying = false
     
     var body: some View {
@@ -73,7 +74,7 @@ struct NetworkStatusBanner: View {
                         .font(.system(size: 14, weight: .semibold))
                 }
                 
-                Text(isRetrying ? "Checking..." : "Retry")
+                Text(isRetrying ? "network.checking".localized : "network.retry".localized)
                     .font(AppTypography.captionLarge)
                     .fontWeight(.semibold)
             }
@@ -120,26 +121,26 @@ struct NetworkStatusBanner: View {
     private var statusTitle: String {
         switch authService.networkStatus {
         case .connected:
-            return "Connected"
+            return "network.connected".localized
         case .serverUnavailable:
-            return "Server Unavailable"
+            return "network.server.unavailable".localized
         case .networkError:
-            return "Connection Issue"
+            return "network.connection.issue".localized
         case .timeout:
-            return "Slow Connection"
+            return "network.slow.connection".localized
         }
     }
-    
+
     private var statusMessage: String {
         switch authService.networkStatus {
         case .connected:
-            return "Everything is working normally"
+            return "network.connected.message".localized
         case .serverUnavailable:
-            return "You can still view your saved creations"
+            return "network.server.unavailable.message".localized
         case .networkError:
-            return "Check your internet connection"
+            return "network.connection.issue.message".localized
         case .timeout:
-            return "The connection is taking longer than usual"
+            return "network.slow.connection.message".localized
         }
     }
     
@@ -166,6 +167,7 @@ struct NetworkStatusBanner: View {
 /// Small network status indicator for navigation bars
 struct NetworkStatusIndicator: View {
     @StateObject private var authService = AuthService.shared
+    @StateObject private var localization = LocalizationManager.shared
     
     var body: some View {
         Group {
@@ -222,13 +224,13 @@ struct NetworkStatusIndicator: View {
     private var statusTitle: String {
         switch authService.networkStatus {
         case .connected:
-            return "Online"
+            return "network.online".localized
         case .serverUnavailable:
-            return "Server Down"
+            return "network.server.down".localized
         case .networkError:
-            return "Offline"
+            return "network.offline".localized
         case .timeout:
-            return "Slow"
+            return "network.slow".localized
         }
     }
 }

@@ -62,7 +62,7 @@ struct EditFolderView: View {
                 .padding(.vertical, AppSpacing.lg)
             }
             .background(AppColors.backgroundLight)
-            .navigationTitle("Edit Folder")
+            .navigationTitle("folders.edit.folder".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -81,11 +81,11 @@ struct EditFolderView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel("common.close".localized)
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button("folders.save".localized) {
                         Task { await updateFolder() }
                     }
                     .font(AppTypography.titleMedium)
@@ -96,8 +96,8 @@ struct EditFolderView: View {
             }
             .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .alert("Error", isPresented: .constant(errorMessage != nil)) {
-                Button("OK") {
+            .alert("common.error".localized, isPresented: .constant(errorMessage != nil)) {
+                Button("common.ok".localized) {
                     errorMessage = nil
                 }
             } message: {
@@ -105,13 +105,13 @@ struct EditFolderView: View {
                     Text(error)
                 }
             }
-            .alert("Delete Folder", isPresented: $showingDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Delete", role: .destructive) {
+            .alert("folders.delete.confirmation.title".localized, isPresented: $showingDeleteConfirmation) {
+                Button("common.cancel".localized, role: .cancel) { }
+                Button("folders.delete".localized, role: .destructive) {
                     Task { await deleteFolder() }
                 }
             } message: {
-                Text("Are you sure you want to delete '\(folder.name)'? This action cannot be undone. Images in this folder will return to your main gallery.")
+                Text(String(format: "folders.delete.confirmation.message".localized, folder.name))
             }
         }
     }
@@ -119,7 +119,7 @@ struct EditFolderView: View {
     // MARK: - Preview Section
     private var previewSection: some View {
         VStack(spacing: AppSpacing.md) {
-            Text("Preview")
+            Text("folders.preview".localized)
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -139,7 +139,7 @@ struct EditFolderView: View {
                 // Info section
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     HStack {
-                        Text(folderName.isEmpty ? "Folder Name" : folderName)
+                        Text(folderName.isEmpty ? "folders.folder.name".localized : folderName)
                             .font(AppTypography.titleMedium)
                             .fontWeight(.semibold)
                             .foregroundColor(folderName.isEmpty ? AppColors.textSecondary : AppColors.textPrimary)
@@ -184,22 +184,22 @@ struct EditFolderView: View {
     private var nameSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
             HStack {
-                Text("Folder Name")
+                Text("folders.folder.name".localized)
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppColors.textPrimary)
-                
-                Text("*")
+
+                Text("folders.required".localized)
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppColors.errorRed)
-                
+
                 Spacer()
-                
+
                 Text("\(folderName.count)/\(FolderConstants.maxNameLength)")
                     .font(AppTypography.captionLarge)
                     .foregroundColor(folderName.count > FolderConstants.maxNameLength ? AppColors.errorRed : AppColors.textSecondary)
             }
-            
-            TextField("Enter folder name", text: $folderName)
+
+            TextField("folders.enter.folder.name".localized, text: $folderName)
                 .font(AppTypography.bodyMedium)
                 .padding(.horizontal, AppSpacing.md)
                 .padding(.vertical, AppSpacing.sm)
@@ -219,22 +219,22 @@ struct EditFolderView: View {
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
             HStack {
-                Text("Description")
+                Text("folders.description".localized)
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppColors.textPrimary)
-                
-                Text("(Optional)")
+
+                Text("folders.optional".localized)
                     .font(AppTypography.captionLarge)
                     .foregroundColor(AppColors.textSecondary)
-                
+
                 Spacer()
-                
+
                 Text("\(folderDescription.count)/\(FolderConstants.maxDescriptionLength)")
                     .font(AppTypography.captionLarge)
                     .foregroundColor(folderDescription.count > FolderConstants.maxDescriptionLength ? AppColors.errorRed : AppColors.textSecondary)
             }
-            
-            TextField("Enter description", text: $folderDescription, axis: .vertical)
+
+            TextField("folders.enter.description".localized, text: $folderDescription, axis: .vertical)
                 .font(AppTypography.bodyMedium)
                 .lineLimit(3...6)
                 .padding(.horizontal, AppSpacing.md)
@@ -254,7 +254,7 @@ struct EditFolderView: View {
     // MARK: - Icon Selection
     private var iconSelectionSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text("Icon")
+            Text("folders.icon.selection".localized)
                 .font(AppTypography.titleMedium)
                 .foregroundColor(AppColors.textPrimary)
 
@@ -285,7 +285,7 @@ struct EditFolderView: View {
     // MARK: - Color Selection
     private var colorSelectionSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text("Color")
+            Text("folders.color.selection".localized)
                 .font(AppTypography.titleMedium)
                 .foregroundColor(AppColors.textPrimary)
             
@@ -328,8 +328,8 @@ struct EditFolderView: View {
                     } else {
                         Image(systemName: "checkmark")
                     }
-                    
-                    Text(isUpdating ? "Updating..." : "Update Folder")
+
+                    Text(isUpdating ? "folders.updating".localized : "folders.update.folder".localized)
                 }
                 .largeButtonStyle(
                     backgroundColor: AppColors.primaryBlue,
@@ -337,12 +337,12 @@ struct EditFolderView: View {
                 )
             }
             .disabled(!hasChanges || !isValidInput || isUpdating)
-            
+
             // Delete Button
             Button(action: { showingDeleteConfirmation = true }) {
                 HStack(spacing: AppSpacing.sm) {
                     Image(systemName: "trash")
-                    Text("Delete Folder")
+                    Text("folders.delete".localized)
                 }
                 .largeButtonStyle(
                     backgroundColor: AppColors.errorRed,

@@ -4,6 +4,7 @@ struct FolderView: View {
     @Binding var selectedTab: Int
     @StateObject private var folderService = FolderService.shared
     @StateObject private var profileService = ProfileService.shared
+    @StateObject private var localization = LocalizationManager.shared
     @State private var searchText = ""
     @State private var showingCreateFolder = false
     @State private var showingFolderImages: UserFolder?
@@ -64,7 +65,7 @@ struct FolderView: View {
             Spacer()
         }
         .background(AppColors.backgroundLight)
-        .navigationTitle("My Folders")
+        .navigationTitle("folders.title".localized)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -97,7 +98,7 @@ struct FolderView: View {
                 if isMainProfile && profileService.availableProfiles.count > 1 {
                     // All Profiles chip
                     FilterChip(
-                        title: "All Profiles",
+                        title: "folders.filter.all.profiles".localized,
                         icon: "person.2.fill",
                         isSelected: selectedProfileFilter == nil
                     ) {
@@ -129,7 +130,7 @@ struct FolderView: View {
                 .foregroundColor(AppColors.textSecondary)
                 .font(.system(size: 16, weight: .medium))
 
-            TextField("Search folders...", text: $searchText)
+            TextField("folders.search.placeholder".localized, text: $searchText)
                 .textFieldStyle(.plain)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textPrimary)
@@ -197,8 +198,8 @@ struct FolderView: View {
             ProgressView()
                 .scaleEffect(1.2)
                 .tint(AppColors.primaryBlue)
-            
-            Text("Loading folders...")
+
+            Text("folders.loading".localized)
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textSecondary)
         }
@@ -211,23 +212,23 @@ struct FolderView: View {
             Image(systemName: "folder.badge.plus")
                 .font(.system(size: 60))
                 .foregroundColor(AppColors.primaryBlue.opacity(0.6))
-            
+
             VStack(spacing: AppSpacing.sm) {
-                Text("No Folders Yet")
+                Text("folders.empty.title".localized)
                     .font(AppTypography.headlineMedium)
                     .foregroundColor(AppColors.textPrimary)
-                
-                Text("Create your first folder to organize your artwork")
+
+                Text("folders.empty.message".localized)
                     .font(AppTypography.bodyMedium)
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, AppSpacing.xl)
             }
-            
+
             Button(action: { showingCreateFolder = true }) {
                 HStack(spacing: AppSpacing.sm) {
                     Image(systemName: "plus")
-                    Text("Create Folder")
+                    Text("folders.create.folder".localized)
                 }
                 .largeButtonStyle(
                     backgroundColor: AppColors.primaryBlue
@@ -244,22 +245,22 @@ struct FolderView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 50))
                 .foregroundColor(AppColors.textSecondary.opacity(0.6))
-            
+
             VStack(spacing: AppSpacing.sm) {
-                Text("No Folders Found")
+                Text("folders.no.results.title".localized)
                     .font(AppTypography.headlineMedium)
                     .foregroundColor(AppColors.textPrimary)
-                
-                Text("Try adjusting your search or filters")
+
+                Text("folders.no.results.message".localized)
                     .font(AppTypography.bodyMedium)
                     .foregroundColor(AppColors.textSecondary)
             }
-            
+
             Button(action: {
                 searchText = ""
                 selectedProfileFilter = nil
             }) {
-                Text("Clear Filters")
+                Text("folders.clear.filters".localized)
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppColors.primaryBlue)
                     .padding(.horizontal, AppSpacing.md)

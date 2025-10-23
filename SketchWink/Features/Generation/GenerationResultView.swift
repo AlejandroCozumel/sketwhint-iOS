@@ -89,7 +89,7 @@ struct GenerationResultView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel("common.close".localized)
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -97,28 +97,28 @@ struct GenerationResultView: View {
                         Button(action: {
                             Task { await downloadImageDirectly() }
                         }) {
-                            Label("Download to Photos", systemImage: "arrow.down.circle")
+                            Label("results.download.to.photos".localized, systemImage: "arrow.down.circle")
                         }
                         .disabled(isDownloading || currentImage == nil)
 
                         Button(action: {
                             Task { await prepareShare() }
                         }) {
-                            Label("Share", systemImage: "square.and.arrow.up")
+                            Label("common.share".localized, systemImage: "square.and.arrow.up")
                         }
                         .disabled(isPreparingShare || currentImage == nil)
 
                         Button(action: {
                             showingMoveToFolder = true
                         }) {
-                            Label("Move to Folder", systemImage: "folder")
+                            Label("results.move.to.folder".localized, systemImage: "folder")
                         }
                         .disabled(isMovingToFolder || currentImage == nil)
 
                         Button(role: .destructive, action: {
                             showingDeleteConfirmation = true
                         }) {
-                            Label("Delete", systemImage: "trash")
+                            Label("common.delete".localized, systemImage: "trash")
                         }
                         .tint(AppColors.errorRed)
                         .disabled(isDeleting || currentImage == nil)
@@ -152,20 +152,20 @@ struct GenerationResultView: View {
                 )
             }
         }
-        .alert("Delete Image", isPresented: $showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Delete", role: .destructive) {
+        .alert("results.delete.confirmation".localized, isPresented: $showingDeleteConfirmation) {
+            Button("common.cancel".localized, role: .cancel) { }
+            Button("common.delete".localized, role: .destructive) {
                 Task {
                     await deleteCurrentImage()
                 }
             }
         } message: {
-            Text("Are you sure you want to delete this generated image? This action cannot be undone.")
+            Text("results.delete.message".localized)
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert("common.error".localized, isPresented: $showingError) {
+            Button("common.ok".localized) { }
         } message: {
-            Text(error?.localizedDescription ?? "Something went wrong. Please try again.")
+            Text(error?.localizedDescription ?? "common.unknown.error".localized)
         }
         .fullScreenCover(isPresented: $isShowingColoringView) {
             if let currentImage = currentImage,
@@ -212,7 +212,7 @@ struct GenerationResultView: View {
                         VStack(spacing: AppSpacing.sm) {
                             Text("📷")
                                 .font(.system(size: 40))
-                            Text("Image failed to load")
+                            Text("results.image.failed.load".localized)
                                 .captionLarge()
                                 .foregroundColor(AppColors.textSecondary)
                         }
@@ -242,7 +242,7 @@ struct GenerationResultView: View {
     @ViewBuilder
     private func imageSelectionView(images: [GeneratedImage]) -> some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Tap to View")
+            Text("results.tap.to.view".localized)
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
 
@@ -302,7 +302,7 @@ struct GenerationResultView: View {
     // MARK: - Generation Info
     private var generationInfoView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            Text("Details")
+            Text("results.details".localized)
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
 
@@ -310,37 +310,37 @@ struct GenerationResultView: View {
                 if let currentImage = currentImage {
                     // Show full prompt (backend now sends complete title without truncation)
                     CopyableDetailRow(
-                        label: "Prompt",
+                        label: "results.prompt".localized,
                         value: currentImage.generation?.title ?? "Unknown",
                         onCopy: { copiedText in
-                            toastMessage = "Prompt copied! 📋"
+                            toastMessage = "results.prompt.copied".localized
                             toastType = .success
                             showingToast = true
                         }
                     )
 
                     DetailRow(
-                        label: "Category",
+                        label: "results.category".localized,
                         value: generation.categoryName ?? currentImage.generation?.category ?? "Unknown"
                     )
 
                     DetailRow(
-                        label: "Style",
+                        label: "results.style".localized,
                         value: generation.optionName ?? currentImage.generation?.option ?? "Unknown"
                     )
 
                     DetailRow(
-                        label: "Model",
+                        label: "results.model".localized,
                         value: currentImage.generation?.modelUsed ?? currentImage.modelUsed ?? "Unknown"
                     )
 
                     DetailRow(
-                        label: "Quality",
+                        label: "results.quality".localized,
                         value: (currentImage.generation?.qualityUsed ?? currentImage.qualityUsed ?? "standard").capitalized
                     )
 
                     DetailRow(
-                        label: "Created",
+                        label: "results.created".localized,
                         value: formatDate(currentImage.createdAt)
                     )
                 }
@@ -359,7 +359,7 @@ struct GenerationResultView: View {
                 onDismiss() // Reset generation state
                 onDismissParent() // Dismiss parent GenerationView
             } label: {
-                Text("View My Gallery")
+                Text("results.view.gallery".localized)
                     .largeButtonStyle(
                         backgroundColor: AppColors.primaryBlue
                     )
@@ -371,7 +371,7 @@ struct GenerationResultView: View {
     private func downloadImageDirectly() async {
         guard let image = currentImage else {
             await MainActor.run {
-                toastMessage = "No image selected"
+                toastMessage = "results.no.image.selected".localized
                 toastType = .error
                 showingToast = true
             }
@@ -405,7 +405,7 @@ struct GenerationResultView: View {
 
             await MainActor.run {
                 isDownloading = false
-                toastMessage = "Saved to Photos! 📸"
+                toastMessage = "results.saved.to.photos".localized
                 toastType = .success
                 showingToast = true
             }
@@ -420,7 +420,7 @@ struct GenerationResultView: View {
         } catch {
             await MainActor.run {
                 isDownloading = false
-                toastMessage = "Download failed. Please try again."
+                toastMessage = "results.download.failed".localized
                 toastType = .error
                 showingToast = true
             }
@@ -592,13 +592,13 @@ private enum GenerationResultError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noImageSelected:
-            return "No generated image is currently selected."
+            return "results.error.no.image.selected".localized
         case .invalidURL:
-            return "We couldn't access the generated image."
+            return "results.error.invalid.url".localized
         case .failedRequest(let status):
-            return "The server responded with status code \(status). Please try again."
+            return String(format: "results.error.failed.request".localized, status)
         case .invalidData:
-            return "The generated image data appears to be corrupted."
+            return "results.error.invalid.data".localized
         }
     }
 }
@@ -620,69 +620,69 @@ struct CategoryDisplayConfig {
         switch categoryId {
         case "coloring_pages":
             return CategoryDisplayConfig(
-                navigationTitle: "Your Coloring Page",
+                navigationTitle: "results.coloring.title".localized,
                 successEmoji: "🎉",
-                successTitle: "Coloring Page Created!",
-                successDescription: "Your AI-generated coloring page is ready to enjoy!",
+                successTitle: "results.coloring.success".localized,
+                successDescription: "results.coloring.description".localized,
                 primaryColor: AppColors.coloringPagesColor,
                 showColoringButton: true,
                 actionButtonEmoji: "🎨",
-                actionButtonTitle: "Color",
+                actionButtonTitle: "results.coloring.action".localized,
                 generateAnotherEmoji: "🎨",
-                generateAnotherTitle: "Create Another Coloring Page"
+                generateAnotherTitle: "results.coloring.another".localized
             )
         case "stickers":
             return CategoryDisplayConfig(
-                navigationTitle: "Your Sticker",
+                navigationTitle: "results.sticker.title".localized,
                 successEmoji: "✨",
-                successTitle: "Sticker Created!",
-                successDescription: "Your AI-generated sticker is ready to use!",
+                successTitle: "results.sticker.success".localized,
+                successDescription: "results.sticker.description".localized,
                 primaryColor: AppColors.stickersColor,
                 showColoringButton: false,
                 actionButtonEmoji: "🎯",
-                actionButtonTitle: "Use",
+                actionButtonTitle: "results.sticker.action".localized,
                 generateAnotherEmoji: "✨",
-                generateAnotherTitle: "Create Another Sticker"
+                generateAnotherTitle: "results.sticker.another".localized
             )
         case "wallpapers":
             return CategoryDisplayConfig(
-                navigationTitle: "Your Wallpaper",
+                navigationTitle: "results.wallpaper.title".localized,
                 successEmoji: "🌟",
-                successTitle: "Wallpaper Created!",
-                successDescription: "Your AI-generated wallpaper is ready to set!",
+                successTitle: "results.wallpaper.success".localized,
+                successDescription: "results.wallpaper.description".localized,
                 primaryColor: AppColors.wallpapersColor,
                 showColoringButton: false,
                 actionButtonEmoji: "📱",
-                actionButtonTitle: "Set",
+                actionButtonTitle: "results.wallpaper.action".localized,
                 generateAnotherEmoji: "🌟",
-                generateAnotherTitle: "Create Another Wallpaper"
+                generateAnotherTitle: "results.wallpaper.another".localized
             )
         case "mandalas":
             return CategoryDisplayConfig(
-                navigationTitle: "Your Mandala",
+                navigationTitle: "results.mandala.title".localized,
                 successEmoji: "🕉️",
-                successTitle: "Mandala Created!",
-                successDescription: "Your AI-generated mandala is ready for mindful coloring!",
+                successTitle: "results.mandala.success".localized,
+                successDescription: "results.mandala.description".localized,
                 primaryColor: AppColors.mandalasColor,
                 showColoringButton: true,
                 actionButtonEmoji: "🧘",
-                actionButtonTitle: "Color",
+                actionButtonTitle: "results.mandala.action".localized,
                 generateAnotherEmoji: "🕉️",
-                generateAnotherTitle: "Create Another Mandala"
+                generateAnotherTitle: "results.mandala.another".localized
             )
         default:
             // Fallback to coloring pages
             return CategoryDisplayConfig(
-                navigationTitle: "Your Creation",
+                navigationTitle: "results.generic.title".localized,
                 successEmoji: "🎉",
-                successTitle: "Content Created!",
-                successDescription: "Your AI-generated content is ready!",
+                successTitle: "results.generic.success".localized,
+                successDescription: "results.generic.description".localized,
                 primaryColor: AppColors.primaryBlue,
                 showColoringButton: false,
                 actionButtonEmoji: "✨",
-                actionButtonTitle: "View",
+                actionButtonTitle: "results.generic.action".localized,
                 generateAnotherEmoji: "🎨",
-                generateAnotherTitle: "Create Another"
+                generateAnotherTitle: "results.generic.another".localized
             )
         }
     }

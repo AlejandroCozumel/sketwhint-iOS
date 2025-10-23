@@ -45,7 +45,7 @@ struct CreateFolderView: View {
                 .padding(.vertical, AppSpacing.lg)
             }
             .background(AppColors.backgroundLight)
-            .navigationTitle("Create Folder")
+            .navigationTitle("folders.create.folder".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -64,13 +64,13 @@ struct CreateFolderView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel("common.close".localized)
                 }
             }
             .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .alert("Error", isPresented: .constant(errorMessage != nil)) {
-                Button("OK") {
+            .alert("common.error".localized, isPresented: .constant(errorMessage != nil)) {
+                Button("common.ok".localized) {
                     errorMessage = nil
                 }
             } message: {
@@ -84,44 +84,44 @@ struct CreateFolderView: View {
     // MARK: - Preview Section
     private var previewSection: some View {
         VStack(spacing: AppSpacing.md) {
-            Text("Preview")
+            Text("folders.preview".localized)
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             // Folder preview card
             VStack(spacing: 0) {
                 // Icon section
                 ZStack {
                     Color(hex: selectedColor)
                         .opacity(0.15)
-                    
+
                     Text(selectedIcon)
                         .font(.system(size: 40))
                 }
                 .frame(height: 120)
-                
+
                 // Info section
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     HStack {
-                        Text(folderName.isEmpty ? "Folder Name" : folderName)
+                        Text(folderName.isEmpty ? "folders.folder.name".localized : folderName)
                             .font(AppTypography.titleMedium)
                             .fontWeight(.semibold)
                             .foregroundColor(folderName.isEmpty ? AppColors.textSecondary : AppColors.textPrimary)
                             .lineLimit(1)
-                        
+
                         Spacer()
                     }
-                    
+
                     HStack {
                         Image(systemName: "photo.on.rectangle.angled")
                             .font(.system(size: 12))
                             .foregroundColor(AppColors.textSecondary)
-                        
-                        Text("Empty")
+
+                        Text("folders.empty.folder".localized)
                             .font(AppTypography.captionLarge)
                             .foregroundColor(AppColors.textSecondary)
-                        
+
                         Spacer()
                     }
                     
@@ -149,22 +149,22 @@ struct CreateFolderView: View {
     private var nameSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
             HStack {
-                Text("Folder Name")
+                Text("folders.folder.name".localized)
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppColors.textPrimary)
-                
-                Text("*")
+
+                Text("folders.required".localized)
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppColors.errorRed)
-                
+
                 Spacer()
-                
+
                 Text("\(folderName.count)/\(FolderConstants.maxNameLength)")
                     .font(AppTypography.captionLarge)
                     .foregroundColor(folderName.count > FolderConstants.maxNameLength ? AppColors.errorRed : AppColors.textSecondary)
             }
-            
-            TextField("Enter folder name", text: $folderName)
+
+            TextField("folders.enter.folder.name".localized, text: $folderName)
                 .font(AppTypography.bodyMedium)
                 .padding(.horizontal, AppSpacing.md)
                 .padding(.vertical, AppSpacing.sm)
@@ -184,22 +184,22 @@ struct CreateFolderView: View {
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
             HStack {
-                Text("Description")
+                Text("folders.description".localized)
                     .font(AppTypography.titleMedium)
                     .foregroundColor(AppColors.textPrimary)
-                
-                Text("(Optional)")
+
+                Text("folders.optional".localized)
                     .font(AppTypography.captionLarge)
                     .foregroundColor(AppColors.textSecondary)
-                
+
                 Spacer()
-                
+
                 Text("\(folderDescription.count)/\(FolderConstants.maxDescriptionLength)")
                     .font(AppTypography.captionLarge)
                     .foregroundColor(folderDescription.count > FolderConstants.maxDescriptionLength ? AppColors.errorRed : AppColors.textSecondary)
             }
-            
-            TextField("Enter description", text: $folderDescription, axis: .vertical)
+
+            TextField("folders.enter.description".localized, text: $folderDescription, axis: .vertical)
                 .font(AppTypography.bodyMedium)
                 .lineLimit(3...6)
                 .padding(.horizontal, AppSpacing.md)
@@ -219,7 +219,7 @@ struct CreateFolderView: View {
     // MARK: - Icon Selection
     private var iconSelectionSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text("Icon")
+            Text("folders.icon.selection".localized)
                 .font(AppTypography.titleMedium)
                 .foregroundColor(AppColors.textPrimary)
 
@@ -250,7 +250,7 @@ struct CreateFolderView: View {
     // MARK: - Color Selection
     private var colorSelectionSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.sm) {
-            Text("Color")
+            Text("folders.color.selection".localized)
                 .font(AppTypography.titleMedium)
                 .foregroundColor(AppColors.textPrimary)
             
@@ -291,8 +291,8 @@ struct CreateFolderView: View {
                 } else {
                     Image(systemName: "plus")
                 }
-                
-                Text(isCreating ? "Creating..." : "Create Folder")
+
+                Text(isCreating ? "folders.creating".localized : "folders.create.folder".localized)
             }
             .largeButtonStyle(
                 backgroundColor: AppColors.primaryBlue,

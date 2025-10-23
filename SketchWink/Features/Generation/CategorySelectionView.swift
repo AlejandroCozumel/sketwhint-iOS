@@ -6,6 +6,7 @@ struct CategorySelectionView: View {
     @StateObject private var draftService = DraftService.shared
     @StateObject private var profileService = ProfileService.shared
     @StateObject private var tokenManager = TokenBalanceManager.shared
+    @StateObject private var localization = LocalizationManager.shared
     @ObservedObject private var bedtimeStoriesService = BedtimeStoriesService.shared
     @Binding var selectedTab: Int
     @State private var categories: [CategoryWithOptions] = []
@@ -46,7 +47,7 @@ struct CategorySelectionView: View {
             .padding(.vertical, AppSpacing.sectionSpacing)
         }
         .background(AppColors.backgroundLight)
-        .navigationTitle("Create Art")
+        .navigationTitle("generation.title".localized)
         .navigationBarTitleDisplayMode(.large)
         .navigationBarBackButtonHidden(false)
         .toolbar {
@@ -85,10 +86,10 @@ struct CategorySelectionView: View {
             await tokenManager.initialize()
             await loadCategories()
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert("common.error".localized, isPresented: $showingError) {
+            Button("common.ok".localized) { }
         } message: {
-            Text(error?.localizedDescription ?? "An unknown error occurred")
+            Text(error?.localizedDescription ?? "error.generic".localized)
         }
         .sheet(item: $selectedCategory) { category in
             GenerationView(
