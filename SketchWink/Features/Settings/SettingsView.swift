@@ -94,19 +94,25 @@ struct SettingsView: View {
                                 showChevron: true
                             )
 
-                            SettingsRow(
-                                icon: "📝",
-                                title: "settings.privacy.policy".localized,
-                                value: "",
-                                showChevron: true
-                            )
+                            NavigationLink(destination: LegalDocumentView(documentType: .privacyPolicy)) {
+                                SettingsRow(
+                                    icon: "📝",
+                                    title: "settings.privacy.policy".localized,
+                                    value: "",
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
 
-                            SettingsRow(
-                                icon: "📋",
-                                title: "settings.terms.service".localized,
-                                value: "",
-                                showChevron: true
-                            )
+                            NavigationLink(destination: LegalDocumentView(documentType: .termsOfService)) {
+                                SettingsRow(
+                                    icon: "📋",
+                                    title: "settings.terms.service".localized,
+                                    value: "",
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .cardStyle()
