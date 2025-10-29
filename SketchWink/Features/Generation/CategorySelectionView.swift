@@ -204,7 +204,7 @@ struct CategorySelectionView: View {
     // MARK: - Categories Grid
     private var categoriesGridView: some View {
         VStack(alignment: .center, spacing: AppSpacing.md) {
-            Text(String(localized: "generation.creative.categories"))
+            Text("generation.creative.categories".localized)
                 .font(AppTypography.categoryTitle)
                 .foregroundColor(AppColors.textPrimary)
                 .frame(maxWidth: .infinity, alignment: .center)

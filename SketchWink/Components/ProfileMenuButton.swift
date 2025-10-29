@@ -55,7 +55,7 @@ struct ProfileMenuSheet: View {
                 VStack(spacing: 0) {
                     menuButton(
                         icon: "paintbrush.pointed.fill",
-                        title: String(localized: "painting.title"),
+                        title: "painting.title".localized,
                         showsChevron: true
                     ) {
                         showPainting = true
@@ -65,7 +65,7 @@ struct ProfileMenuSheet: View {
 
                     menuButton(
                         icon: "gearshape.fill",
-                        title: String(localized: "settings.title"),
+                        title: "settings.title".localized,
                         showsChevron: true
                     ) {
                         showSettings = true
@@ -76,7 +76,7 @@ struct ProfileMenuSheet: View {
                 Spacer()
             }
             .background(AppColors.backgroundLight)
-            .navigationTitle(String(localized: "profile.menu.title"))
+            .navigationTitle("profile.menu.title".localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -97,7 +97,7 @@ struct ProfileMenuSheet: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(String(localized: "common.close"))
+                    .accessibilityLabel("common.close".localized)
                 }
             }
         }

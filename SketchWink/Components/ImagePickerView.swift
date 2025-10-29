@@ -60,11 +60,11 @@ struct PhotoSourceSelectionView: View {
                         .font(.system(size: 48))
                         .foregroundColor(AppColors.primaryBlue)
                     
-                    Text(String(localized: "photo.picker.title"))
+                    Text("photo.picker.title".localized)
                         .headlineLarge()
                         .foregroundColor(AppColors.textPrimary)
 
-                    Text(String(localized: "photo.picker.subtitle"))
+                    Text("photo.picker.subtitle".localized)
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -90,11 +90,11 @@ struct PhotoSourceSelectionView: View {
                                 .foregroundColor(AppColors.primaryBlue)
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(String(localized: "photo.picker.take.photo"))
+                                Text("photo.picker.take.photo".localized)
                                     .titleMedium()
                                     .foregroundColor(AppColors.textPrimary)
 
-                                Text(String(localized: "photo.picker.take.photo.desc"))
+                                Text("photo.picker.take.photo.desc".localized)
                                     .captionLarge()
                                     .foregroundColor(AppColors.textSecondary)
                             }
@@ -132,11 +132,11 @@ struct PhotoSourceSelectionView: View {
                                 .foregroundColor(AppColors.primaryPurple)
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(String(localized: "photo.picker.choose.gallery"))
+                                Text("photo.picker.choose.gallery".localized)
                                     .titleMedium()
                                     .foregroundColor(AppColors.textPrimary)
 
-                                Text(String(localized: "photo.picker.choose.gallery.desc"))
+                                Text("photo.picker.choose.gallery.desc".localized)
                                     .captionLarge()
                                     .foregroundColor(AppColors.textSecondary)
                             }
@@ -168,7 +168,7 @@ struct PhotoSourceSelectionView: View {
                 Button {
                     dismiss()
                 } label: {
-                    Text(String(localized: "common.cancel"))
+                    Text("common.cancel".localized)
                         .frame(maxWidth: .infinity)
                 }
                 .largeButtonStyle(backgroundColor: AppColors.errorRed)

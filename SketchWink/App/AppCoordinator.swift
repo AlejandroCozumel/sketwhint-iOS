@@ -334,7 +334,7 @@ struct SplashView: View {
                         .font(AppTypography.appTitle)
                         .foregroundColor(.white)
 
-                    Text(String(localized: "splash.subtitle"))
+                    Text("splash.subtitle".localized)
                         .onboardingBody()
                         .foregroundColor(.white.opacity(0.9))
                         .multilineTextAlignment(.center)
