@@ -333,8 +333,8 @@ struct SplashView: View {
                     Text("SketchWink")
                         .font(AppTypography.appTitle)
                         .foregroundColor(.white)
-                    
-                    Text("AI-Powered Creative Platform for Families")
+
+                    Text(String(localized: "splash.subtitle"))
                         .onboardingBody()
                         .foregroundColor(.white.opacity(0.9))
                         .multilineTextAlignment(.center)

@@ -60,11 +60,11 @@ struct PhotoSourceSelectionView: View {
                         .font(.system(size: 48))
                         .foregroundColor(AppColors.primaryBlue)
                     
-                    Text("Add Photo")
+                    Text(String(localized: "photo.picker.title"))
                         .headlineLarge()
                         .foregroundColor(AppColors.textPrimary)
-                    
-                    Text("Choose how you'd like to add a photo to convert into a coloring page")
+
+                    Text(String(localized: "photo.picker.subtitle"))
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -90,11 +90,11 @@ struct PhotoSourceSelectionView: View {
                                 .foregroundColor(AppColors.primaryBlue)
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Take Photo")
+                                Text(String(localized: "photo.picker.take.photo"))
                                     .titleMedium()
                                     .foregroundColor(AppColors.textPrimary)
-                                
-                                Text("Use your camera to capture a new photo")
+
+                                Text(String(localized: "photo.picker.take.photo.desc"))
                                     .captionLarge()
                                     .foregroundColor(AppColors.textSecondary)
                             }
@@ -105,13 +105,16 @@ struct PhotoSourceSelectionView: View {
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(AppColors.textSecondary)
                         }
-                        .padding(AppSpacing.md)
-                        .background(AppColors.backgroundLight)
+                        .padding(.vertical, AppSpacing.md)
+                        .padding(.horizontal, AppSpacing.lg)
+                        .background(
+                            Capsule()
+                                .fill(AppColors.backgroundLight)
+                        )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
+                            Capsule()
                                 .stroke(AppColors.borderLight, lineWidth: 1)
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                     .childSafeTouchTarget()
                     
@@ -129,11 +132,11 @@ struct PhotoSourceSelectionView: View {
                                 .foregroundColor(AppColors.primaryPurple)
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Choose from Gallery")
+                                Text(String(localized: "photo.picker.choose.gallery"))
                                     .titleMedium()
                                     .foregroundColor(AppColors.textPrimary)
-                                
-                                Text("Select an existing photo from your library")
+
+                                Text(String(localized: "photo.picker.choose.gallery.desc"))
                                     .captionLarge()
                                     .foregroundColor(AppColors.textSecondary)
                             }
@@ -144,13 +147,16 @@ struct PhotoSourceSelectionView: View {
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(AppColors.textSecondary)
                         }
-                        .padding(AppSpacing.md)
-                        .background(AppColors.backgroundLight)
+                        .padding(.vertical, AppSpacing.md)
+                        .padding(.horizontal, AppSpacing.lg)
+                        .background(
+                            Capsule()
+                                .fill(AppColors.backgroundLight)
+                        )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
+                            Capsule()
                                 .stroke(AppColors.borderLight, lineWidth: 1)
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
                     .childSafeTouchTarget()
                 }
@@ -159,13 +165,13 @@ struct PhotoSourceSelectionView: View {
                 Spacer()
                 
                 // Cancel Button
-                Button("Cancel") {
+                Button {
                     dismiss()
+                } label: {
+                    Text(String(localized: "common.cancel"))
+                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(
-                    backgroundColor: AppColors.backgroundLight,
-                    foregroundColor: AppColors.textSecondary
-                )
+                .largeButtonStyle(backgroundColor: AppColors.errorRed)
                 .padding(.horizontal, AppSpacing.lg)
                 .padding(.bottom, AppSpacing.xl)
             }

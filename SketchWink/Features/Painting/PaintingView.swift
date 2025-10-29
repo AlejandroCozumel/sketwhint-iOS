@@ -58,7 +58,7 @@ struct PaintingView: View {
                         .font(.system(size: 60))
                         .foregroundColor(AppColors.textSecondary)
 
-                    Text("Choose a photo to start painting")
+                    Text(String(localized: "painting.choose.photo.prompt"))
                         .font(AppTypography.titleMedium)
                         .foregroundColor(AppColors.textSecondary)
 
@@ -67,7 +67,7 @@ struct PaintingView: View {
                     } label: {
                         HStack(spacing: AppSpacing.sm) {
                             Image(systemName: "photo.badge.plus")
-                            Text("Choose Photo")
+                            Text(String(localized: "painting.choose.photo"))
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -76,7 +76,7 @@ struct PaintingView: View {
                 .padding(.horizontal, AppSpacing.lg)
             }
         }
-        .navigationTitle("Painting")
+        .navigationTitle(String(localized: "painting.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -94,26 +94,26 @@ struct PaintingView: View {
                     Button(action: {
                         showingPhotoSourceSelection = true
                     }) {
-                        Label("Choose Image", systemImage: "photo")
+                        Label(String(localized: "painting.menu.choose.image"), systemImage: "photo")
                     }
 
                     Button(action: {
                         clearCanvas()
                     }) {
-                        Label("Clear Canvas", systemImage: "trash")
+                        Label(String(localized: "painting.menu.clear.canvas"), systemImage: "trash")
                     }
 
                     Button(action: {
                         canvasView.drawing = PKDrawing()
                         selectedImage = nil
                     }) {
-                        Label("New Canvas", systemImage: "doc")
+                        Label(String(localized: "painting.menu.new.canvas"), systemImage: "doc")
                     }
 
                     Button(action: {
                         saveToGallery()
                     }) {
-                        Label(isSaving ? "Saving..." : "Save to Gallery", systemImage: "square.and.arrow.down")
+                        Label(isSaving ? String(localized: "painting.menu.saving") : String(localized: "painting.menu.save.gallery"), systemImage: "square.and.arrow.down")
                     }
                     .disabled(isSaving || selectedImage == nil)
                 } label: {
@@ -138,16 +138,16 @@ struct PaintingView: View {
                 selectedImage: $selectedImage
             )
         }
-        .alert("Save to Gallery", isPresented: $showingSaveAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Save") {
+        .alert(String(localized: "painting.alert.save.title"), isPresented: $showingSaveAlert) {
+            Button(String(localized: "common.cancel"), role: .cancel) { }
+            Button(String(localized: "common.save")) {
                 performSave()
             }
         } message: {
-            Text("Do you want to save this artwork to your photo library?")
+            Text(String(localized: "painting.alert.save.message"))
         }
-        .alert("Success", isPresented: .constant(saveSuccessMessage != nil)) {
-            Button("OK") {
+        .alert(String(localized: "common.success"), isPresented: .constant(saveSuccessMessage != nil)) {
+            Button(String(localized: "common.ok")) {
                 saveSuccessMessage = nil
             }
         } message: {
@@ -209,9 +209,9 @@ struct PaintingView: View {
             DispatchQueue.main.async {
                 self.isSaving = false
                 if let error = error {
-                    self.saveSuccessMessage = "Failed to save: \(error.localizedDescription)"
+                    self.saveSuccessMessage = String(localized: "painting.save.failed") + ": \(error.localizedDescription)"
                 } else if success {
-                    self.saveSuccessMessage = "Your artwork has been saved to Photos!"
+                    self.saveSuccessMessage = String(localized: "painting.save.success")
                 }
             }
         }

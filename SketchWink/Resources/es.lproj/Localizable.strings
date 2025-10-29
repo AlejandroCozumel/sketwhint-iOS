@@ -5,6 +5,9 @@
   Spanish localization strings for the SketchWink iOS app
 */
 
+// MARK: - Splash Screen
+"splash.subtitle" = "Plataforma Creativa con IA para Familias";
+
 // MARK: - Common
 "common.ok" = "Aceptar";
 "common.cancel" = "Cancelar";
@@ -382,6 +385,7 @@
 
 // MARK: - Profiles View
 "profiles.title" = "Perfiles Familiares";
+"profile.menu.title" = "Menú";
 "profiles.welcome.title" = "¡Bienvenido a SketchWink!";
 "profiles.welcome.subtitle" = "Crea tu primer perfil familiar para comenzar tu viaje creativo";
 "profiles.welcome.info.title" = "SketchWink funciona mejor con un perfil familiar";
@@ -894,3 +898,25 @@
 "picker.take.photo" = "Tomar Foto";
 "picker.crop" = "Recortar";
 "picker.cancel" = "Cancelar";
+
+// MARK: - Painting View
+"painting.title" = "Pintura";
+"painting.choose.photo.prompt" = "Elige una foto para comenzar a pintar";
+"painting.choose.photo" = "Elegir Foto";
+"painting.menu.choose.image" = "Elegir Imagen";
+"painting.menu.clear.canvas" = "Limpiar Lienzo";
+"painting.menu.new.canvas" = "Nuevo Lienzo";
+"painting.menu.saving" = "Guardando...";
+"painting.menu.save.gallery" = "Guardar en Galería";
+"painting.alert.save.title" = "Guardar en Galería";
+"painting.alert.save.message" = "¿Quieres guardar esta obra de arte en tu biblioteca de fotos?";
+"painting.save.success" = "¡Tu obra de arte ha sido guardada en Fotos!";
+"painting.save.failed" = "Error al guardar";
+
+// MARK: - Photo Picker
+"photo.picker.title" = "Añadir Foto";
+"photo.picker.subtitle" = "Elige cómo te gustaría añadir una foto para pintar";
+"photo.picker.take.photo" = "Tomar Foto";
+"photo.picker.take.photo.desc" = "Usa tu cámara para capturar una nueva foto";
+"photo.picker.choose.gallery" = "Elegir de Galería";
+"photo.picker.choose.gallery.desc" = "Selecciona una foto existente de tu biblioteca";
