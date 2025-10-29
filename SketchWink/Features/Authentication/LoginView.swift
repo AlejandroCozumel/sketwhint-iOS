@@ -33,39 +33,39 @@ struct LoginView: View {
 
                 ScrollView {
                     VStack(spacing: 0) {
-                            // Logo and header section
-                            ZStack {
-                                // Solid blue background
-                                AppColors.primaryBlue
+                        // Logo and header section
+                        ZStack {
+                            // Solid blue background
+                            AppColors.primaryBlue
 
-                                VStack(spacing: 0) {
-                                    Spacer()
-                                        .frame(height: 5)
+                            VStack(spacing: 0) {
+                                Spacer()
+                                    .frame(height: 5)
 
-                                    // App logo
-                                    Image("sketchwink-logo")
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 180, height: 180)
-                                        .clipShape(Circle())
+                                // App logo
+                                Image("sketchwink-logo")
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 180, height: 180)
+                                    .clipShape(Circle())
 
-                                    // Title
-                                    VStack(spacing: AppSpacing.sm) {
-                                        Text("SketchWink")
-                                            .font(AppTypography.displayLarge)
-                                            .foregroundColor(.white)
+                                // Title
+                                VStack(spacing: AppSpacing.sm) {
+                                    Text("SketchWink")
+                                        .font(AppTypography.displayLarge)
+                                        .foregroundColor(.white)
 
-                                        Text("login.subtitle".localized)
-                                            .font(AppTypography.bodyMedium)
-                                            .foregroundColor(.white.opacity(0.9))
-                                            .multilineTextAlignment(.center)
-                                    }
+                                    Text("login.subtitle".localized)
+                                        .font(AppTypography.bodyMedium)
+                                        .foregroundColor(.white.opacity(0.9))
+                                        .multilineTextAlignment(.center)
                                 }
-                                .padding(.bottom, 32)
                             }
+                            .padding(.bottom, 32)
+                        }
 
-                // White card with form
-                VStack(spacing: AppSpacing.lg) {
+                        // White card with form
+                        VStack(spacing: AppSpacing.lg) {
                         // Form fields
                         VStack(spacing: AppSpacing.md) {
                             // Email field
@@ -211,6 +211,9 @@ struct LoginView: View {
                             Text("login.or.divider".localized)
                                 .font(AppTypography.captionLarge)
                                 .foregroundColor(AppColors.textSecondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                                .layoutPriority(1)
 
                             Rectangle()
                                 .fill(AppColors.borderLight)
@@ -275,17 +278,20 @@ struct LoginView_Previews: PreviewProvider {
         NavigationView {
             LoginView()
         }
+        .navigationViewStyle(.stack)
         .previewDisplayName("Login View")
 
         NavigationView {
             LoginView()
         }
         .preferredColorScheme(.dark)
+        .navigationViewStyle(.stack)
         .previewDisplayName("Login View (Dark)")
 
         NavigationView {
             LoginView()
         }
+        .navigationViewStyle(.stack)
         .previewDevice("iPad Pro (11-inch)")
         .previewDisplayName("Login View (iPad)")
     }

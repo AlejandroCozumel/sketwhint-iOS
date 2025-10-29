@@ -296,6 +296,9 @@ struct SignUpView: View {
                                 Text("signup.or.divider".localized)
                                     .font(AppTypography.captionLarge)
                                     .foregroundColor(AppColors.textSecondary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.85)
+                                    .layoutPriority(1)
 
                                 Rectangle()
                                     .fill(AppColors.borderLight)

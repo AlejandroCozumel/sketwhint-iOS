@@ -29,6 +29,7 @@ struct AppCoordinator: View {
                 NavigationView {
                     LoginView()
                 }
+                .navigationViewStyle(.stack)
                 .transition(.asymmetric(
                     insertion: .move(edge: .leading).combined(with: .opacity),
                     removal: .move(edge: .leading).combined(with: .opacity)
