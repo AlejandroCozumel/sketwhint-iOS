@@ -18,6 +18,11 @@ struct LoginView: View {
     var body: some View {
         GeometryReader { geometry in
             let isIPad = geometry.size.width > 600
+            let horizontalInset = isIPad
+                ? min(max(geometry.size.width * 0.12, 70), 180)
+                : 0
+            let bottomPadding = isIPad ? AppSpacing.xl : AppSpacing.lg
+            let cardCorners: UIRectCorner = isIPad ? [.allCorners] : [.topLeft, .topRight]
 
             ZStack(alignment: .topTrailing) {
                 // Background for safe areas
@@ -243,10 +248,24 @@ struct LoginView: View {
                     }
                     .padding(.horizontal, AppSpacing.xl)
                     .padding(.top, AppSpacing.xl)
+                    .padding(.bottom, bottomPadding)
                     .background(Color.white)
-                    .cornerRadius(32, corners: [.topLeft, .topRight])
+                    .cornerRadius(32, corners: cardCorners)
+                    .overlay(
+                        RoundedCorner(radius: 32, corners: cardCorners)
+                            .stroke(
+                                AppColors.borderLight.opacity(isIPad ? 0.6 : 0),
+                                lineWidth: isIPad ? 1 : 0
+                            )
+                    )
+                    .shadow(
+                        color: Color.black.opacity(isIPad ? 0.08 : 0),
+                        radius: isIPad ? 24 : 0,
+                        x: 0,
+                        y: isIPad ? 12 : 0
+                    )
                 }
-                .padding(.horizontal, isIPad ? 200 : 0)
+                .padding(.horizontal, horizontalInset)
                 }
                 .scrollIndicators(.hidden)
                 .scrollBounceBehavior(.basedOnSize)
