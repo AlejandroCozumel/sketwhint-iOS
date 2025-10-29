@@ -635,7 +635,7 @@ struct FolderImagesView: View {
                     ForEach(filteredProfileOptions) { profile in
                         FilterChip(
                             title: profile.name,
-                            icon: "person.circle.fill",
+                            icon: profile.avatar ?? "person.circle.fill",
                             isSelected: selectedProfileFilter == profile.id
                         ) {
                             selectedProfileFilter = selectedProfileFilter == profile.id ? nil : profile.id

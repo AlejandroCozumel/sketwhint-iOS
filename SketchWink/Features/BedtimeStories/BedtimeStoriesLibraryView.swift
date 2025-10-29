@@ -126,7 +126,7 @@ struct BedtimeStoriesLibraryView: View {
     // MARK: - Stories Grid
     private var storiesGridView: some View {
         ScrollView {
-            LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.grid.itemSpacing) {
+            LazyVGrid(columns: GridLayouts.categoryGrid, alignment: .leading, spacing: AppSpacing.grid.itemSpacing) {
                 ForEach(stories) { story in
                     StoryCard(story: story) {
                         Task {
@@ -137,6 +137,7 @@ struct BedtimeStoriesLibraryView: View {
                             await toggleFavorite(story)
                         }
                     }
+                    .frame(maxWidth: .infinity)
                 }
 
                 // Load more indicator (only if not refreshing)
@@ -460,7 +461,7 @@ struct StoryCard: View {
                 }
                 .frame(height: 120)
 
-                // Content
+                // Content - flexible to match row height
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     Text(story.title)
                         .font(AppTypography.titleMedium)
@@ -469,8 +470,10 @@ struct StoryCard: View {
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
+                    Spacer(minLength: 0)
+
                     if let theme = story.theme {
-                        Text(theme)
+                        Label(theme, systemImage: "tag")
                             .font(AppTypography.captionLarge)
                             .foregroundColor(AppColors.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -480,10 +483,11 @@ struct StoryCard: View {
                         .font(AppTypography.captionLarge)
                         .foregroundColor(AppColors.textSecondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
                 .padding(.horizontal, AppSpacing.md)
                 .padding(.vertical, AppSpacing.md)
             }
+            .frame(maxWidth: .infinity)
             .background(AppColors.backgroundLight)
             .cornerRadius(AppSizing.cornerRadius.lg)
             .shadow(

@@ -243,6 +243,16 @@
 "progress.failed" = "Generation failed";
 "progress.cancel" = "Cancel Generation";
 "progress.view.results" = "View Results";
+"progress.creating" = "Creating:";
+"progress.close.countdown" = "Close (%ds)";
+"progress.close" = "Close";
+"progress.queued.description" = "✨ Your magical request is waiting in line with other amazing ideas. The art wizards will start working soon!";
+"progress.starting.description" = "🧙‍♂️ The art wizards are stretching their creative fingers and mixing colorful magic potions just for you!";
+"progress.processing.description" = "🎨 Incredible magic is happening! The wizards are painting, drawing, and sprinkling creativity dust to make something extraordinary!";
+"progress.completing.description" = "⭐ Almost done! The wizards are adding the final magical sparkles and making sure everything looks perfect!";
+"progress.completed.description" = "🎉 Ta-da! Your incredible masterpiece is ready! The wizards are so proud of what they created for you!";
+"progress.failed.description" = "😔 Oh no! The magic got a little mixed up. But don't worry - the wizards want to try again and make something even better!";
+"progress.transforming.photo" = "✨ Transforming your photo into something magical!";
 
 // MARK: - Generation Results
 "results.title" = "Your Creations";

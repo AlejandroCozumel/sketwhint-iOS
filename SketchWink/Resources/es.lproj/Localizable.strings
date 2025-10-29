@@ -243,6 +243,16 @@
 "progress.failed" = "Generación fallida";
 "progress.cancel" = "Cancelar Generación";
 "progress.view.results" = "Ver Resultados";
+"progress.creating" = "Creando:";
+"progress.close.countdown" = "Cerrar (%ds)";
+"progress.close" = "Cerrar";
+"progress.queued.description" = "✨ Tu solicitud mágica está esperando en fila con otras ideas asombrosas. ¡Los magos del arte comenzarán a trabajar pronto!";
+"progress.starting.description" = "🧙‍♂️ Los magos del arte están estirando sus dedos creativos y mezclando pociones mágicas de colores solo para ti!";
+"progress.processing.description" = "🎨 ¡Está pasando magia increíble! Los magos están pintando, dibujando y espolvoreando polvo de creatividad para hacer algo extraordinario!";
+"progress.completing.description" = "⭐ ¡Casi listo! Los magos están añadiendo los brillos mágicos finales y asegurándose de que todo se vea perfecto!";
+"progress.completed.description" = "🎉 ¡Ta-da! ¡Tu obra maestra increíble está lista! ¡Los magos están muy orgullosos de lo que crearon para ti!";
+"progress.failed.description" = "😔 ¡Oh no! La magia se mezcló un poco. Pero no te preocupes, ¡los magos quieren intentar de nuevo y hacer algo aún mejor!";
+"progress.transforming.photo" = "✨ ¡Transformando tu foto en algo mágico!";
 
 // MARK: - Generation Results
 "results.title" = "Tus Creaciones";

@@ -352,7 +352,7 @@ struct GalleryView: View {
                     ForEach(filteredProfileOptions) { profile in
                         FilterChip(
                             title: profile.name,
-                            icon: "person.circle.fill",
+                            icon: profile.avatar ?? "person.circle.fill",
                             isSelected: selectedProfileFilter == profile.id
                         ) {
                             selectedProfileFilter = selectedProfileFilter == profile.id ? nil : profile.id
@@ -2422,16 +2422,19 @@ struct ProfileFilterChip: View {
     let isSelected: Bool
     let action: () -> Void
 
+    // Check if icon is emoji or system icon
+    private var isEmoji: Bool {
+        icon.count <= 2 && icon.unicodeScalars.allSatisfy { $0.properties.isEmoji }
+    }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: AppSpacing.xs) {
-                // Check if icon is an emoji or system icon
-                if icon.count == 1 {
-                    // It's an emoji avatar
+                // Display emoji or system icon
+                if isEmoji {
                     Text(icon)
-                        .font(.system(size: 14))
+                        .font(.system(size: 16))
                 } else {
-                    // It's a system icon
                     Image(systemName: icon)
                         .font(.system(size: 14, weight: .medium))
                 }

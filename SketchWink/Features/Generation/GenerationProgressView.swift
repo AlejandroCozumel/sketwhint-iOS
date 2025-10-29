@@ -127,10 +127,10 @@ struct GenerationProgressView: View {
             
             // Show generation context
             VStack(spacing: AppSpacing.xs) {
-                Text("Creating:")
+                Text(LocalizedStringKey("progress.creating"))
                     .font(AppTypography.captionLarge)
                     .foregroundColor(AppColors.textSecondary)
-                
+
                 if let userPrompt = currentGeneration.userPrompt, !userPrompt.isEmpty {
                     // Text-based generation: show user prompt
                     Text("\"\(userPrompt)\"")
@@ -141,7 +141,7 @@ struct GenerationProgressView: View {
                         .lineLimit(2)
                 } else {
                     // Image-based generation: show creative message
-                    Text("✨ Transforming your photo into something magical!")
+                    Text(LocalizedStringKey("progress.transforming.photo"))
                         .font(AppTypography.bodyMedium)
                         .foregroundColor(AppColors.primaryPurple)
                         .italic()
@@ -199,9 +199,9 @@ struct GenerationProgressView: View {
     
     private var closeButtonTitle: String {
         if closeButtonCountdown > 0 {
-            return "Close (\(closeButtonCountdown)s)"
+            return String(format: NSLocalizedString("progress.close.countdown", comment: ""), closeButtonCountdown)
         } else {
-            return "Close"
+            return NSLocalizedString("progress.close", comment: "")
         }
     }
     
@@ -488,17 +488,17 @@ extension GenerationStatus {
     var detailedDescription: String {
         switch self {
         case .queued:
-            return "✨ Your magical request is waiting in line with other amazing ideas. The art wizards will start working soon!"
+            return NSLocalizedString("progress.queued.description", comment: "")
         case .starting:
-            return "🧙‍♂️ The art wizards are stretching their creative fingers and mixing colorful magic potions just for you!"
+            return NSLocalizedString("progress.starting.description", comment: "")
         case .processing:
-            return "🎨 Incredible magic is happening! The wizards are painting, drawing, and sprinkling creativity dust to make something extraordinary!"
+            return NSLocalizedString("progress.processing.description", comment: "")
         case .completing:
-            return "⭐ Almost done! The wizards are adding the final magical sparkles and making sure everything looks perfect!"
+            return NSLocalizedString("progress.completing.description", comment: "")
         case .completed:
-            return "🎉 Ta-da! Your incredible masterpiece is ready! The wizards are so proud of what they created for you!"
+            return NSLocalizedString("progress.completed.description", comment: "")
         case .failed:
-            return "😔 Oh no! The magic got a little mixed up. But don't worry - the wizards want to try again and make something even better!"
+            return NSLocalizedString("progress.failed.description", comment: "")
         }
     }
 }

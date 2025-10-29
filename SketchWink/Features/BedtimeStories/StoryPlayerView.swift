@@ -14,6 +14,7 @@ struct StoryPlayerView: View {
     @State private var showingErrorAlert = false
     @State private var errorMessage: String?
     @State private var shareableAudioURL: URL?
+    @State private var isSeeking = false
 
     let story: BedtimeStory
     private let onStoryDeleted: ((String) -> Void)?
@@ -189,30 +190,27 @@ struct StoryPlayerView: View {
                     HStack(spacing: AppSpacing.lg) {
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
-                                .foregroundColor(AppColors.textSecondary)
                             Text(formatDuration(story.duration))
-                                .font(AppTypography.captionLarge)
-                                .foregroundColor(AppColors.textSecondary)
                         }
+                        .font(AppTypography.captionLarge)
+                        .foregroundColor(AppColors.textSecondary)
 
                         if let voiceName = voiceName {
                             HStack(spacing: 4) {
-                                Image(systemName: "speaker.wave.2.fill")
-                                    .foregroundColor(AppColors.textSecondary)
+                                Image(systemName: "speaker.wave.2")
                                 Text(voiceName)
-                                    .font(AppTypography.captionLarge)
-                                    .foregroundColor(AppColors.textSecondary)
                             }
+                            .font(AppTypography.captionLarge)
+                            .foregroundColor(AppColors.textSecondary)
                         }
-                        
+
                         if let theme = story.theme {
                             HStack(spacing: 4) {
-                                Image(systemName: "tag.fill")
-                                    .foregroundColor(AppColors.textSecondary)
+                                Image(systemName: "tag")
                                 Text(theme)
-                                    .font(AppTypography.captionLarge)
-                                    .foregroundColor(AppColors.textSecondary)
                             }
+                            .font(AppTypography.captionLarge)
+                            .foregroundColor(AppColors.textSecondary)
                         }
                     }
 
@@ -246,10 +244,34 @@ struct StoryPlayerView: View {
     // MARK: - Audio Player Controls
     private var audioPlayerControls: some View {
         VStack(spacing: AppSpacing.md) {
-            // Progress bar
+            // Seekable progress bar
             VStack(spacing: 4) {
-                ProgressView(value: audioPlayer.progress)
-                    .tint(Color(hex: "#6366F1"))
+                Slider(
+                    value: Binding(
+                        get: { audioPlayer.progress },
+                        set: { newValue in
+                            if !isSeeking {
+                                isSeeking = true
+                                // Haptic feedback when starting to seek
+                                let generator = UIImpactFeedbackGenerator(style: .light)
+                                generator.impactOccurred()
+                            }
+                            let newTime = newValue * audioPlayer.duration
+                            audioPlayer.seek(to: newTime)
+                        }
+                    ),
+                    in: 0...1,
+                    onEditingChanged: { editing in
+                        if !editing && isSeeking {
+                            // Haptic feedback when releasing
+                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                            generator.impactOccurred()
+                            isSeeking = false
+                        }
+                    }
+                )
+                .tint(Color(hex: "#6366F1"))
+                .frame(height: 20) // Child-safe touch target
 
                 HStack {
                     Text(formatTime(audioPlayer.currentTime))
@@ -739,5 +761,13 @@ class LyricsAudioPlayer: ObservableObject {
 extension Array {
     subscript(safe index: Int) -> Element? {
         return indices.contains(index) ? self[index] : nil
+    }
+}
+
+// MARK: - Custom Audio Slider Style
+struct AudioSliderStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .accentColor(Color(hex: "#6366F1"))
     }
 }

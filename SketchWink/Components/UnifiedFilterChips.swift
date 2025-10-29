@@ -124,7 +124,7 @@ struct UnifiedFilterChips: View {
     
     // MARK: - Helpers
     private var shouldShowProfileFilters: Bool {
-        config.profileService.availableProfiles.count > 1 && 
+        config.availableProfiles.count > 1 &&
         config.profileService.currentProfile?.isDefault == true
     }
     
@@ -240,12 +240,23 @@ struct FilterChip: View {
         self.action = action
     }
 
+    // Check if icon is emoji or system icon
+    private var isEmoji: Bool {
+        icon.count <= 2 && icon.unicodeScalars.allSatisfy { $0.properties.isEmoji }
+    }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: AppSpacing.xs) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                
+                // Display emoji or system icon
+                if isEmoji {
+                    Text(icon)
+                        .font(.system(size: 16))
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .medium))
+                }
+
                 Text(title)
                     .font(AppTypography.captionLarge)
                     .fontWeight(.medium)

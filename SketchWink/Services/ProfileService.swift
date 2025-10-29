@@ -131,14 +131,14 @@ class ProfileService: ObservableObject {
             
             do {
                 let profilesResponse = try JSONDecoder().decode(FamilyProfilesResponse.self, from: data)
-                
+
                 // Convert AvailableProfile to FamilyProfile for UI compatibility
                 let familyProfiles = profilesResponse.profiles.map { $0.toFamilyProfile() }
-                
+
                 await MainActor.run {
                     self.availableProfiles = familyProfiles
                 }
-                
+
                 return familyProfiles
             } catch {
                 #if DEBUG
