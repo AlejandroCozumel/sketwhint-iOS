@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MainAppView: View {
-    @State private var selectedTab = 0
+    @State private var selectedTab: Tab = .art
     @StateObject private var tokenManager = TokenBalanceManager.shared
     @StateObject private var localization = LocalizationManager.shared
 
@@ -10,69 +10,21 @@ struct MainAppView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Network status banner (only shows when there are issues)
+        tabContainers
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+            .safeAreaInset(edge: .bottom) {
+                MainTabBar(selectedTab: $selectedTab)
+            }
+            .tint(AppColors.primaryBlue)
+        .safeAreaInset(edge: .top) {
             NetworkStatusBanner()
                 .padding(.horizontal, AppSpacing.md)
                 .padding(.top, AppSpacing.sm)
-
-            TabView(selection: $selectedTab) {
-            // Art tab with CategorySelectionView
-            NavigationStack {
-                CategorySelectionView(selectedTab: $selectedTab)
-            }
-            .tabItem {
-                Label("nav.art".localized, systemImage: "paintbrush.fill")
-            }
-            .tag(0)
-
-            NavigationStack {
-                GalleryView(selectedTab: $selectedTab)
-            }
-            .tabItem {
-                Label("nav.gallery".localized, systemImage: "photo.fill")
-            }
-            .tag(1)
-
-            // MARK: - Books Tab (Commented Out - Not Ready Yet)
-            // NavigationStack {
-            //     BooksView()
-            // }
-            // .tabItem {
-            //     Label("Books", systemImage: "book.fill")
-            // }
-            // .tag(2)
-
-            // MARK: - Stories Tab (Bedtime Stories)
-            NavigationStack {
-                BedtimeStoriesLibraryView(selectedTab: $selectedTab)
-            }
-            .tabItem {
-                Label("nav.stories".localized, systemImage: "moon.stars.fill")
-            }
-            .tag(2)
-
-            NavigationStack {
-                FolderView(selectedTab: $selectedTab)
-            }
-            .tabItem {
-                Label("nav.folders".localized, systemImage: "folder.fill")
-            }
-            .tag(3)
-
-            NavigationStack {
-                ProfilesView()
-            }
-            .tabItem {
-                Label("nav.profiles".localized, systemImage: "person.2.fill")
-            }
-            .tag(4)
-            }
-            .tint(AppColors.primaryBlue)
         }
         .onChange(of: selectedTab) { oldValue, newValue in
             // Silent token refresh when navigating to Art tab (tab 0)
-            if newValue == 0 {
+            if newValue == .art {
                 Task {
                     await tokenManager.refreshSilently()
                 }
@@ -81,6 +33,145 @@ struct MainAppView: View {
         .task {
             await tokenManager.initialize()
         }
+    }
+}
+
+// MARK: - Tab Enumeration
+extension MainAppView {
+    enum Tab: Int, CaseIterable {
+        case art = 0
+        case gallery
+        case stories
+        case folders
+        case profiles
+
+        var title: String {
+            switch self {
+            case .art: return "nav.art".localized
+            case .gallery: return "nav.gallery".localized
+            case .stories: return "nav.stories".localized
+            case .folders: return "nav.folders".localized
+            case .profiles: return "nav.profiles".localized
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .art: return "paintbrush.fill"
+            case .gallery: return "photo.fill"
+            case .stories: return "moon.stars.fill"
+            case .folders: return "folder.fill"
+            case .profiles: return "person.2.fill"
+            }
+        }
+    }
+}
+
+// MARK: - Tab Content
+private extension MainAppView {
+    var selectedTabBinding: Binding<Int> {
+        Binding(
+            get: { selectedTab.rawValue },
+            set: { newValue in
+                if let tab = Tab(rawValue: newValue) {
+                    selectedTab = tab
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    var tabContainers: some View {
+        ZStack {
+            ForEach(Tab.allCases, id: \.rawValue) { tab in
+                tabContent(for: tab)
+                    .opacity(selectedTab == tab ? 1 : 0)
+                    .zIndex(selectedTab == tab ? 1 : 0)
+                    .allowsHitTesting(selectedTab == tab)
+            }
+        }
+    }
+
+    @ViewBuilder
+    func tabContent(for tab: Tab) -> some View {
+        switch tab {
+        case .art:
+            NavigationStack {
+                CategorySelectionView(selectedTab: selectedTabBinding)
+            }
+        case .gallery:
+            NavigationStack {
+                GalleryView(selectedTab: selectedTabBinding)
+            }
+        case .stories:
+            NavigationStack {
+                BedtimeStoriesLibraryView(selectedTab: selectedTabBinding)
+            }
+        case .folders:
+            NavigationStack {
+                FolderView(selectedTab: selectedTabBinding)
+            }
+        case .profiles:
+            NavigationStack {
+                ProfilesView()
+            }
+        }
+    }
+}
+
+// MARK: - Custom Tab Bar
+private struct MainTabBar: View {
+    @Binding var selectedTab: MainAppView.Tab
+
+    private let tabItems = MainAppView.Tab.allCases
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+                .background(AppColors.borderLight)
+
+            HStack(spacing: 0) {
+                ForEach(tabItems, id: \.rawValue) { tab in
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            selectedTab = tab
+                        }
+                    }) {
+                        VStack(spacing: AppSpacing.xs) {
+                            Image(systemName: tab.systemImage)
+                                .font(.system(size: 20, weight: .semibold))
+
+                            Text(tab.title)
+                                .font(AppTypography.captionLarge)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                        }
+                        .foregroundColor(selectedTab == tab ? AppColors.primaryBlue : AppColors.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, AppSpacing.md)
+                        .padding(.horizontal, AppSpacing.xs)
+                        .background(
+                            Group {
+                                if selectedTab == tab {
+                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                                        .fill(AppColors.primaryBlue.opacity(0.12))
+                                } else {
+                                    Color.clear
+                                }
+                            }
+                        )
+                        .contentShape(Rectangle())
+                    }
+                }
+            }
+            .padding(.horizontal, AppSpacing.md)
+            .background(Color.white)
+        }
+        .background(
+            Color.white
+                .ignoresSafeArea(edges: .bottom)
+        )
+        .shadow(color: .black.opacity(0.05), radius: 12, x: 0, y: -4)
     }
 }
 
