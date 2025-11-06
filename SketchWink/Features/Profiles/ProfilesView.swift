@@ -47,6 +47,7 @@ struct ProfilesView: View {
                 .padding(.top, AppSpacing.xs)
                 .padding(.bottom, AppSpacing.sectionSpacing)
             }
+            .iPadContentPadding() // Apply to entire view including title
             .background(AppColors.backgroundLight)
             .navigationTitle("profiles.title".localized)
             .navigationBarTitleDisplayMode(.large)
@@ -63,17 +64,17 @@ struct ProfilesView: View {
         .task {
             await loadData()
         }
-        .sheet(isPresented: $showingProfileMenu) {
+        .dismissableFullScreenCover(isPresented: $showingProfileMenu) {
             ProfileMenuSheet(
                 selectedTab: .constant(4),
                 showPainting: $showPainting,
                 showSettings: $showSettings
             )
         }
-        .sheet(isPresented: $showSettings) {
+        .dismissableFullScreenCover(isPresented: $showSettings) {
             SettingsView()
         }
-        .fullScreenCover(isPresented: $showPainting) {
+        .dismissableFullScreenCover(isPresented: $showPainting) {
             NavigationView {
                 PaintingView()
             }
@@ -91,7 +92,7 @@ struct ProfilesView: View {
         } message: {
             Text(String(format: "profiles.max.reached.message".localized, userPermissions?.maxFamilyProfiles ?? 5))
         }
-        .sheet(isPresented: $showingCreateProfile) {
+        .dismissableFullScreenCover(isPresented: $showingCreateProfile) {
             CreateProfileView(
                 maxProfiles: userPermissions?.maxFamilyProfiles ?? 1,
                 isFirstProfile: profiles.isEmpty,  // Pass if this is the first profile
@@ -104,7 +105,7 @@ struct ProfilesView: View {
                 }
             )
         }
-        .sheet(item: $selectedProfile) { selectedProfile in
+        .dismissableFullScreenCover(item: $selectedProfile) { selectedProfile in
             EditProfileView(
                 profileId: selectedProfile.id,  // Pass ID instead of profile object
                 onProfileUpdated: { updatedProfile in
@@ -149,10 +150,10 @@ struct ProfilesView: View {
                 }
             )
         }
-        .sheet(isPresented: $showingSubscriptionPlans) {
+        .dismissableFullScreenCover(isPresented: $showingSubscriptionPlans) {
             SubscriptionPlansView()
         }
-        .sheet(isPresented: $showingProfileSelection) {
+        .dismissableFullScreenCover(isPresented: $showingProfileSelection) {
             if let profile = profileToSelect {
                 ProfileSelectionView(
                     profile: profile,
@@ -170,7 +171,7 @@ struct ProfilesView: View {
                 )
             }
         }
-        .sheet(item: $profileToSelect) { profile in
+        .dismissableFullScreenCover(item: $profileToSelect) { profile in
             #if DEBUG
             let _ = print("📱 ProfilesView: PINEntryView sheet appearing for \(profile.name)")
             #endif

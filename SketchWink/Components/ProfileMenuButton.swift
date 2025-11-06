@@ -32,7 +32,7 @@ struct ProfileMenuButton: View {
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
-        .fullScreenCover(isPresented: $showPainting) {
+        .dismissableFullScreenCover(isPresented: $showPainting) {
             NavigationView {
                 PaintingView()
             }

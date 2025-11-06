@@ -71,7 +71,7 @@ struct SimpleStoryInputView: View {
         } message: {
             Text(error?.localizedDescription ?? "An unknown error occurred")
         }
-        .fullScreenCover(isPresented: $isCreatingDraft) {
+        .dismissableFullScreenCover(isPresented: $isCreatingDraft) {
             StoryCreationProgressView {
                 isCreatingDraft = false
             }

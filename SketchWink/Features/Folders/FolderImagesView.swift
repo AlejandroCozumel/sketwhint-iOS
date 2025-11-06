@@ -163,6 +163,7 @@ struct FolderImagesView: View {
                         }
                 }
             }
+            .iPadContentPadding() // Apply to entire view including title
             .background(AppColors.backgroundLight)
             .navigationTitle(folder.name)
             .navigationBarTitleDisplayMode(.large)
@@ -226,7 +227,7 @@ struct FolderImagesView: View {
             } message: {
                 Text(String(format: "folders.remove.images.message".localized, selectedImages.count, selectedImages.count == 1 ? "" : "s"))
             }
-            .sheet(item: $selectedImageForDetail) { folderImage in
+            .dismissableFullScreenCover(item: $selectedImageForDetail) { folderImage in
                 NavigationView {
                     if let imageIndex = images.firstIndex(where: { $0.id == folderImage.id }) {
                         FolderImageDetailView(
@@ -671,7 +672,7 @@ struct FolderImagesView: View {
         .padding(.bottom, AppSpacing.sm)
         .id("folder-images-filter-chips-\(availableCategories.count)-\(profileService.availableProfiles.count)")
     }
-    
+
     // MARK: - Search Bar Section (same as gallery)
     private var searchBarSection: some View {
         HStack(spacing: AppSpacing.sm) {
@@ -1158,7 +1159,7 @@ struct FolderImageDetailView: View {
                 ActivityViewController(activityItems: [shareableImage])
             }
         }
-        .sheet(isPresented: $showingDownloadView) {
+        .dismissableFullScreenCover(isPresented: $showingDownloadView) {
             // Convert FolderImage to GeneratedImage for download view
             if let generatedImage = convertToGeneratedImage(folderImage) {
                 ImageDownloadView(image: generatedImage)

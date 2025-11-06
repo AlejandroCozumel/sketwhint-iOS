@@ -213,6 +213,7 @@ struct GalleryView: View {
                     .animation(.easeInOut(duration: 0.3), value: isSelectionMode)
             }
         }
+        .iPadContentPadding() // Apply to entire view including title
         .background(AppColors.backgroundLight)
         .navigationTitle("gallery.title".localized)
         .navigationBarTitleDisplayMode(.large)
@@ -244,19 +245,19 @@ struct GalleryView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingProfileMenu) {
+        .dismissableFullScreenCover(isPresented: $showingProfileMenu) {
             ProfileMenuSheet(
                 selectedTab: $selectedTab,
                 showPainting: $showPainting,
                 showSettings: $showSettings
             )
         }
-        .fullScreenCover(isPresented: $showPainting) {
+        .dismissableFullScreenCover(isPresented: $showPainting) {
             NavigationView {
                 PaintingView()
             }
         }
-        .sheet(isPresented: $showSettings) {
+        .dismissableFullScreenCover(isPresented: $showSettings) {
             SettingsView()
         }
         .task {
@@ -279,7 +280,7 @@ struct GalleryView: View {
         } message: {
             Text(error?.localizedDescription ?? "common.unknown.error".localized)
         }
-        .sheet(item: $selectedImage) { image in
+        .dismissableFullScreenCover(item: $selectedImage) { image in
             NavigationView {
                 if let imageIndex = images.firstIndex(where: { $0.id == image.id }) {
                     ImageDetailView(
@@ -292,7 +293,7 @@ struct GalleryView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingFolderPicker) {
+        .dismissableFullScreenCover(isPresented: $showingFolderPicker) {
             FolderPickerView(
                 selectedImages: Array(selectedImages),
                 onFolderSelected: { folder in
@@ -302,7 +303,7 @@ struct GalleryView: View {
                 }
             )
         }
-        .sheet(isPresented: $showingFilters) {
+        .dismissableFullScreenCover(isPresented: $showingFilters) {
             filtersSheet
         }
     }

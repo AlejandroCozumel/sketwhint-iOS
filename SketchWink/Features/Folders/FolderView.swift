@@ -64,6 +64,7 @@ struct FolderView: View {
 
             Spacer()
         }
+        .iPadContentPadding() // Apply to entire view including title
         .background(AppColors.backgroundLight)
         .navigationTitle("folders.title".localized)
         .navigationBarTitleDisplayMode(.large)
@@ -76,13 +77,13 @@ struct FolderView: View {
                 createFolderButton
             }
         }
-        .sheet(isPresented: $showingCreateFolder) {
+        .dismissableFullScreenCover(isPresented: $showingCreateFolder) {
             CreateFolderView()
         }
-        .sheet(item: $showingFolderImages) { folder in
+        .dismissableFullScreenCover(item: $showingFolderImages) { folder in
             FolderImagesView(folder: folder, selectedTab: $selectedTab)
         }
-        .sheet(item: $selectedFolder) { folder in
+        .dismissableFullScreenCover(item: $selectedFolder) { folder in
             EditFolderView(folder: folder)
         }
         .task {

@@ -140,7 +140,7 @@ struct GenerationResultView: View {
                 ActivityViewController(activityItems: [shareableImage])
             }
         }
-        .sheet(isPresented: $showingMoveToFolder) {
+        .dismissableFullScreenCover(isPresented: $showingMoveToFolder) {
             if let image = currentImage {
                 FolderPickerView(
                     selectedImages: [image.id],
@@ -167,7 +167,7 @@ struct GenerationResultView: View {
         } message: {
             Text(error?.localizedDescription ?? "common.unknown.error".localized)
         }
-        .fullScreenCover(isPresented: $isShowingColoringView) {
+        .dismissableFullScreenCover(isPresented: $isShowingColoringView) {
             if let currentImage = currentImage,
                let imageData = try? Data(contentsOf: URL(string: currentImage.imageUrl)!),
                let uiImage = UIImage(data: imageData) {

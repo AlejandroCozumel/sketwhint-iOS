@@ -81,7 +81,7 @@ struct BookGenerationView: View {
         } message: {
             Text(error?.localizedDescription ?? "An unknown error occurred")
         }
-        .fullScreenCover(isPresented: .constant(bookGenerationState.isGenerating)) {
+        .dismissableFullScreenCover(isPresented: .constant(bookGenerationState.isGenerating)) {
             if case .generating(let bookId) = bookGenerationState {
                 BookGenerationProgressView(
                     bookId: bookId,
@@ -97,7 +97,7 @@ struct BookGenerationView: View {
                 )
             }
         }
-        .sheet(isPresented: bookResultBinding) {
+        .dismissableFullScreenCover(isPresented: bookResultBinding) {
             if case .completed(let bookId) = bookGenerationState {
                 BookCompletedView(
                     bookId: bookId,

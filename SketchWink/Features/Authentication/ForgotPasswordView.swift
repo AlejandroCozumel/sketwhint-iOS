@@ -127,7 +127,7 @@ struct ForgotPasswordView: View {
                     .foregroundColor(AppColors.textSecondary)
                 }
             }
-            .fullScreenCover(isPresented: $showResetCodeView) {
+            .dismissableFullScreenCover(isPresented: $showResetCodeView) {
                 ResetPasswordView(email: email) {
                     // Callback when password reset is successful
                     dismiss()  // Dismiss ForgotPasswordView

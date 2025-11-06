@@ -278,13 +278,13 @@ struct LoginView: View {
             }
         }
         .navigationBarHidden(true)
-        .fullScreenCover(isPresented: $showSignUp) {
+        .dismissableFullScreenCover(isPresented: $showSignUp) {
             NavigationStack {
                 SignUpView()
             }
             .ignoresSafeArea()
         }
-        .fullScreenCover(isPresented: $showForgotPassword) {
+        .dismissableFullScreenCover(isPresented: $showForgotPassword) {
             ForgotPasswordView(prefilledEmail: email)
         }
     }

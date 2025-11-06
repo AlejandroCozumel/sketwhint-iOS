@@ -111,7 +111,7 @@ struct GenerationView: View {
             } message: {
                 Text(successMessage ?? "common.success".localized)
             }
-            .fullScreenCover(isPresented: .constant(generationState.isGenerating)) {
+            .dismissableFullScreenCover(isPresented: .constant(generationState.isGenerating)) {
                 progressCover
             }
             .sheet(isPresented: resultSheetBinding) {

@@ -44,7 +44,7 @@ struct TokenBalanceView: View {
             // Initialize token balance when view appears
             await tokenManager.initialize()
         }
-        .sheet(isPresented: $showDetailSheet) {
+        .dismissableFullScreenCover(isPresented: $showDetailSheet) {
             TokenBalanceDetailSheet()
         }
     }
@@ -452,6 +452,7 @@ private struct TokenBalanceDetailSheet: View {
                 }
                 .padding(AppSpacing.md)
             }
+            .background(AppColors.backgroundLight)
             .navigationTitle("Credit Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

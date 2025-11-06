@@ -49,6 +49,7 @@ struct BedtimeStoriesLibraryView: View {
                 storiesGridView
             }
         }
+        .iPadContentPadding() // Apply to entire view including title
         .navigationTitle("stories.title".localized)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -68,18 +69,18 @@ struct BedtimeStoriesLibraryView: View {
                 }
             }
         }
-        .sheet(isPresented: $showCreateStory) {
+        .dismissableFullScreenCover(isPresented: $showCreateStory) {
             NavigationView {
                 BedtimeStoriesCreateView(category: service.category)
             }
         }
-        .sheet(item: $selectedStory) { story in
+        .dismissableFullScreenCover(item: $selectedStory) { story in
             StoryPlayerView(story: story) { deletedStoryId in
                 stories.removeAll { $0.id == deletedStoryId }
                 selectedStory = nil
             }
         }
-        .sheet(isPresented: $showSubscriptionPlans) {
+        .dismissableFullScreenCover(isPresented: $showSubscriptionPlans) {
             SubscriptionPlansView()
         }
         .task {

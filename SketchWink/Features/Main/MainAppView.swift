@@ -10,28 +10,37 @@ struct MainAppView: View {
     }
 
     var body: some View {
-        tabContainers
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .ignoresSafeArea(.keyboard, edges: .bottom)
-            .safeAreaInset(edge: .bottom) {
-                MainTabBar(selectedTab: $selectedTab)
-            }
-            .tint(AppColors.primaryBlue)
-        .safeAreaInset(edge: .top) {
-            NetworkStatusBanner()
-                .padding(.horizontal, AppSpacing.md)
-                .padding(.top, AppSpacing.sm)
-        }
-        .onChange(of: selectedTab) { oldValue, newValue in
-            // Silent token refresh when navigating to Art tab (tab 0)
-            if newValue == .art {
-                Task {
-                    await tokenManager.refreshSilently()
+        ZStack(alignment: .top) {
+            // Native TabView with iOS 18+ optimizations
+            TabView(selection: $selectedTab) {
+                ForEach(Tab.allCases, id: \.rawValue) { tab in
+                    tabContent(for: tab)
+                        .tabItem {
+                            Label(tab.title, systemImage: tab.systemImage)
+                        }
+                        .tag(tab)
                 }
             }
-        }
-        .task {
-            await tokenManager.initialize()
+            .tint(AppColors.primaryBlue)
+            .onChange(of: selectedTab) { oldValue, newValue in
+                // Silent token refresh when navigating to Art tab
+                if newValue == .art {
+                    Task {
+                        await tokenManager.refreshSilently()
+                    }
+                }
+            }
+            .task {
+                await tokenManager.initialize()
+            }
+
+            // Network status banner overlay
+            VStack {
+                NetworkStatusBanner()
+                    .padding(.horizontal, AppSpacing.md)
+                    .padding(.top, AppSpacing.sm)
+                Spacer()
+            }
         }
     }
 }
@@ -81,18 +90,6 @@ private extension MainAppView {
     }
 
     @ViewBuilder
-    var tabContainers: some View {
-        ZStack {
-            ForEach(Tab.allCases, id: \.rawValue) { tab in
-                tabContent(for: tab)
-                    .opacity(selectedTab == tab ? 1 : 0)
-                    .zIndex(selectedTab == tab ? 1 : 0)
-                    .allowsHitTesting(selectedTab == tab)
-            }
-        }
-    }
-
-    @ViewBuilder
     func tabContent(for tab: Tab) -> some View {
         switch tab {
         case .art:
@@ -119,70 +116,16 @@ private extension MainAppView {
     }
 }
 
-// MARK: - Custom Tab Bar
-private struct MainTabBar: View {
-    @Binding var selectedTab: MainAppView.Tab
-
-    private let tabItems = MainAppView.Tab.allCases
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Divider()
-                .background(AppColors.borderLight)
-
-            HStack(spacing: 0) {
-                ForEach(tabItems, id: \.rawValue) { tab in
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            selectedTab = tab
-                        }
-                    }) {
-                        VStack(spacing: AppSpacing.xs) {
-                            Image(systemName: tab.systemImage)
-                                .font(.system(size: 20, weight: .semibold))
-
-                            Text(tab.title)
-                                .font(AppTypography.captionLarge)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                        }
-                        .foregroundColor(selectedTab == tab ? AppColors.primaryBlue : AppColors.textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, AppSpacing.md)
-                        .padding(.horizontal, AppSpacing.xs)
-                        .background(
-                            Group {
-                                if selectedTab == tab {
-                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                                        .fill(AppColors.primaryBlue.opacity(0.12))
-                                } else {
-                                    Color.clear
-                                }
-                            }
-                        )
-                        .contentShape(Rectangle())
-                    }
-                }
-            }
-            .padding(.horizontal, AppSpacing.md)
-            .background(Color.white)
-        }
-        .background(
-            Color.white
-                .ignoresSafeArea(edges: .bottom)
-        )
-        .shadow(color: .black.opacity(0.05), radius: 12, x: 0, y: -4)
-    }
-}
 
 // MARK: - Appearance Configuration
 private extension MainAppView {
     static func configureAppearance() {
-        // Configure tab bar appearance globally before the TabView renders
+        // Configure native tab bar appearance for both iPhone and iPad
         let tabAppearance = UITabBarAppearance()
         tabAppearance.configureWithOpaqueBackground()
         tabAppearance.backgroundColor = UIColor(AppColors.backgroundLight)
 
+        // Configure stacked layout (iPhone and iPad bottom tab bar)
         tabAppearance.stackedLayoutAppearance.normal.iconColor = UIColor(AppColors.textSecondary)
         tabAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [
             .foregroundColor: UIColor(AppColors.textSecondary),
@@ -195,8 +138,18 @@ private extension MainAppView {
             .font: UIFont.systemFont(ofSize: 12, weight: .semibold)
         ]
 
+        // Also configure compact layout for iPad when in split view
+        tabAppearance.compactInlineLayoutAppearance.normal.iconColor = UIColor(AppColors.textSecondary)
+        tabAppearance.compactInlineLayoutAppearance.selected.iconColor = UIColor(AppColors.primaryBlue)
+
+        // Apply to all tab bar states
         UITabBar.appearance().standardAppearance = tabAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
+
+        // Ensure tab bar stays at bottom on iPad (iOS 18+)
+        if #available(iOS 18.0, *) {
+            UITabBar.appearance().isTranslucent = false
+        }
 
         // Configure navigation bar appearance for large titles
         let navAppearance = UINavigationBarAppearance()
@@ -215,6 +168,17 @@ private extension MainAppView {
 
         UINavigationBar.appearance().standardAppearance = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+
+        // Configure iPad-specific navigation bar layout margins
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            // Set layout margins for navigation bar (titles and toolbar items)
+            UINavigationBar.appearance().layoutMargins = UIEdgeInsets(
+                top: 0,
+                left: 76,  // Increased padding for iPad titles
+                bottom: 0,
+                right: 76  // Increased padding for iPad titles
+            )
+        }
     }
 }
 

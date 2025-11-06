@@ -46,6 +46,7 @@ struct CategorySelectionView: View {
             .pageMargins()
             .padding(.vertical, AppSpacing.sectionSpacing)
         }
+        .iPadContentPadding() // Apply to entire view including title
         .background(AppColors.backgroundLight)
         .navigationTitle("generation.title".localized)
         .navigationBarTitleDisplayMode(.large)
@@ -59,25 +60,25 @@ struct CategorySelectionView: View {
                 onUpgradeTap: { showSubscriptionPlans = true }
             )
         }
-        .sheet(isPresented: $showingProfileMenu) {
+        .dismissableFullScreenCover(isPresented: $showingProfileMenu) {
             ProfileMenuSheet(
                 selectedTab: $selectedTab,
                 showPainting: $showPainting,
                 showSettings: $showSettings
             )
         }
-        .sheet(isPresented: $showSubscriptionPlans) {
+        .dismissableFullScreenCover(isPresented: $showSubscriptionPlans) {
             SubscriptionPlansView()
         }
-        .fullScreenCover(isPresented: $showPainting) {
+        .dismissableFullScreenCover(isPresented: $showPainting) {
             NavigationView {
                 PaintingView()
             }
         }
-        .sheet(isPresented: $showSettings) {
+        .dismissableFullScreenCover(isPresented: $showSettings) {
             SettingsView()
         }
-        .sheet(isPresented: $showBedtimeStories) {
+        .dismissableFullScreenCover(isPresented: $showBedtimeStories) {
             NavigationView {
                 BedtimeStoriesCreateView(category: bedtimeStoriesService.category)
             }
@@ -91,7 +92,7 @@ struct CategorySelectionView: View {
         } message: {
             Text(error?.localizedDescription ?? "error.generic".localized)
         }
-        .sheet(item: $selectedCategory) { category in
+        .dismissableFullScreenCover(item: $selectedCategory) { category in
             GenerationView(
                 preselectedCategory: category,
                 selectedTab: $selectedTab,
@@ -738,7 +739,7 @@ struct SimpleCreationMethodView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingAIAssisted) {
+        .dismissableFullScreenCover(isPresented: $showingAIAssisted) {
             AIAssistedCreationView(
                 productCategory: productCategory,
                 onDismiss: {
@@ -750,7 +751,7 @@ struct SimpleCreationMethodView: View {
                 }
             )
         }
-        .sheet(isPresented: $showingManualCreation) {
+        .dismissableFullScreenCover(isPresented: $showingManualCreation) {
             StoryDraftCreationView(
                 productCategory: productCategory,
                 onDismiss: {

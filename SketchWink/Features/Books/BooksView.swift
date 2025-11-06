@@ -118,6 +118,7 @@ struct BooksView: View {
             // Books grid
             booksGridSection
         }
+        .iPadContentPadding() // Apply to entire view including title
         .navigationTitle("Story Books")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -133,13 +134,13 @@ struct BooksView: View {
             loadInitialBooks()
             loadCategories()
         }
-        .sheet(item: $selectedBook) { book in
+        .dismissableFullScreenCover(item: $selectedBook) { book in
             BookReadingView(book: book)
         }
-        .sheet(isPresented: $showingFilters) {
+        .dismissableFullScreenCover(isPresented: $showingFilters) {
             filtersSheet
         }
-        .sheet(isPresented: $showingMoveToFolder) {
+        .dismissableFullScreenCover(isPresented: $showingMoveToFolder) {
             if let book = bookToMove {
                 MoveToFolderSheet(
                     book: book,
@@ -152,20 +153,20 @@ struct BooksView: View {
                 )
             }
         }
-        .sheet(isPresented: $showSubscriptionPlans) {
+        .dismissableFullScreenCover(isPresented: $showSubscriptionPlans) {
             SubscriptionPlansView()
         }
-        .sheet(isPresented: $showingProfileMenu) {
+        .dismissableFullScreenCover(isPresented: $showingProfileMenu) {
             ProfileMenuSheet(
                 selectedTab: .constant(2),
                 showPainting: $showPainting,
                 showSettings: $showSettings
             )
         }
-        .sheet(isPresented: $showSettings) {
+        .dismissableFullScreenCover(isPresented: $showSettings) {
             SettingsView()
         }
-        .fullScreenCover(isPresented: $showPainting) {
+        .dismissableFullScreenCover(isPresented: $showPainting) {
             NavigationView {
                 PaintingView()
             }
