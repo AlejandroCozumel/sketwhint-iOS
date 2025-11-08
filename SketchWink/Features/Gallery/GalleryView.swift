@@ -6,6 +6,7 @@ import Combine
 struct GalleryView: View {
     @StateObject private var generationService = GenerationService.shared
     @StateObject private var profileService = ProfileService.shared
+    @StateObject private var tokenManager = TokenBalanceManager.shared
     @StateObject private var localization = LocalizationManager.shared
     @Binding var selectedTab: Int
     @State private var images: [GeneratedImage] = []
@@ -39,6 +40,7 @@ struct GalleryView: View {
     @State private var showingFolderPicker = false
     @State private var showingFilters = false
     @State private var showingProfileMenu = false
+    @State private var showSubscriptionPlans = false
 
     // Categories from backend
     @State private var availableCategories: [CategoryWithOptions] = []
@@ -129,6 +131,26 @@ struct GalleryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                iPadTabHeader(
+                    profileService: profileService,
+                    tokenManager: tokenManager,
+                    title: "gallery.title".localized,
+                    onProfileTap: { showingProfileMenu = true },
+                    onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                    onUpgradeTap: { showSubscriptionPlans = true }
+                ) {
+                    if !images.isEmpty {
+                        Button(action: toggleSelectionMode) {
+                            Text(isSelectionMode ? "common.cancel".localized : "gallery.select.mode".localized)
+                                .font(AppTypography.titleMedium)
+                                .foregroundColor(AppColors.primaryBlue)
+                        }
+                        .childSafeTouchTarget()
+                    }
+                }
+            }
+
             // Filter chips (always show for consistency)
             filterChipsSection
 
@@ -215,35 +237,40 @@ struct GalleryView: View {
         }
         .iPadContentPadding() // Apply to entire view including title
         .background(AppColors.backgroundLight)
-        .navigationTitle("gallery.title".localized)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationTitle(UIDevice.current.userInterfaceIdiom == .pad ? "Gallery" : "gallery.title".localized)
+        .navigationBarTitleDisplayMode(UIDevice.current.userInterfaceIdiom == .pad ? .inline : .large)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { showingProfileMenu = true }) {
-                    HStack(spacing: 6) {
-                        if let currentProfile = profileService.currentProfile {
-                            Text(currentProfile.displayAvatar)
-                                .font(.system(size: 24))
+            if UIDevice.current.userInterfaceIdiom != .pad {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showingProfileMenu = true }) {
+                        HStack(spacing: 6) {
+                            if let currentProfile = profileService.currentProfile {
+                                Text(currentProfile.displayAvatar)
+                                    .font(.system(size: 24))
 
-                            Text(currentProfile.name)
-                                .font(AppTypography.bodyMedium)
-                                .fontWeight(.semibold)
-                                .foregroundColor(AppColors.textPrimary)
+                                Text(currentProfile.name)
+                                    .font(AppTypography.bodyMedium)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(AppColors.textPrimary)
+                            }
                         }
                     }
                 }
-            }
 
-            ToolbarItem(placement: .navigationBarTrailing) {
-                if !images.isEmpty {
-                    Button(action: toggleSelectionMode) {
-                        Text(isSelectionMode ? "common.cancel".localized : "gallery.select.mode".localized)
-                            .font(AppTypography.titleMedium)
-                            .foregroundColor(AppColors.primaryBlue)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if !images.isEmpty {
+                        Button(action: toggleSelectionMode) {
+                            Text(isSelectionMode ? "common.cancel".localized : "gallery.select.mode".localized)
+                                .font(AppTypography.titleMedium)
+                                .foregroundColor(AppColors.primaryBlue)
+                        }
+                        .childSafeTouchTarget()
                     }
-                    .childSafeTouchTarget()
                 }
             }
+        }
+        .dismissableFullScreenCover(isPresented: $showSubscriptionPlans) {
+            SubscriptionPlansView()
         }
         .dismissableFullScreenCover(isPresented: $showingProfileMenu) {
             ProfileMenuSheet(

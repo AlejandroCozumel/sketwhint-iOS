@@ -10,8 +10,11 @@ struct BedtimeStoriesLibraryView: View {
 
     @State private var selectedStory: BedtimeStory?
     @State private var showCreateStory = false
-    @State private var showSubscriptionPlans = false
     @State private var isLoadingStoryDetails = false
+    @State private var showSubscriptionPlans = false
+    @State private var showingProfileMenu = false
+    @State private var showPainting = false
+    @State private var showSettings = false
 
     // Filters
     @State private var showFavoritesOnly = false
@@ -35,6 +38,27 @@ struct BedtimeStoriesLibraryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                iPadTabHeader(
+                    profileService: profileService,
+                    tokenManager: tokenManager,
+                    title: "stories.title".localized,
+                    onProfileTap: { showingProfileMenu = true },
+                    onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                    onUpgradeTap: { showSubscriptionPlans = true }
+                ) {
+                    Button {
+                        showCreateStory = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(Color(hex: "#6366F1"))
+                            .frame(width: 36, height: 36)
+                    }
+                    .childSafeTouchTarget()
+                }
+            }
+
             // Filter chips - show if stories exist OR any filters are active
             if !stories.isEmpty || hasActiveFilters {
                 filterChipsView
@@ -50,22 +74,24 @@ struct BedtimeStoriesLibraryView: View {
             }
         }
         .iPadContentPadding() // Apply to entire view including title
-        .navigationTitle("stories.title".localized)
-        .navigationBarTitleDisplayMode(.large)
+        .background(AppColors.backgroundLight)
+        .navigationTitle(UIDevice.current.userInterfaceIdiom == .pad ? "nav.stories".localized : "stories.title".localized)
+        .navigationBarTitleDisplayMode(UIDevice.current.userInterfaceIdiom == .pad ? .inline : .large)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                ProfileMenuButton(selectedTab: $selectedTab)
-            }
+            if UIDevice.current.userInterfaceIdiom != .pad {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    ProfileMenuButton(selectedTab: $selectedTab)
+                }
 
-            // Right Plus Button
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showCreateStory = true
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(Color(hex: "#6366F1"))
-                        .frame(width: 36, height: 36)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showCreateStory = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(Color(hex: "#6366F1"))
+                            .frame(width: 36, height: 36)
+                    }
                 }
             }
         }
@@ -82,6 +108,21 @@ struct BedtimeStoriesLibraryView: View {
         }
         .dismissableFullScreenCover(isPresented: $showSubscriptionPlans) {
             SubscriptionPlansView()
+        }
+        .dismissableFullScreenCover(isPresented: $showingProfileMenu) {
+            ProfileMenuSheet(
+                selectedTab: $selectedTab,
+                showPainting: $showPainting,
+                showSettings: $showSettings
+            )
+        }
+        .dismissableFullScreenCover(isPresented: $showPainting) {
+            NavigationView {
+                PaintingView()
+            }
+        }
+        .dismissableFullScreenCover(isPresented: $showSettings) {
+            SettingsView()
         }
         .task {
             await loadInitialData()

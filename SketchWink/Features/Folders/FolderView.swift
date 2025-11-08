@@ -4,6 +4,7 @@ struct FolderView: View {
     @Binding var selectedTab: Int
     @StateObject private var folderService = FolderService.shared
     @StateObject private var profileService = ProfileService.shared
+    @StateObject private var tokenManager = TokenBalanceManager.shared
     @StateObject private var localization = LocalizationManager.shared
     @State private var searchText = ""
     @State private var showingCreateFolder = false
@@ -12,6 +13,10 @@ struct FolderView: View {
     @State private var showingEditFolder = false
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var showSubscriptionPlans = false
+    @State private var showingProfileMenu = false
+    @State private var showPainting = false
+    @State private var showSettings = false
     @FocusState private var isSearchFocused: Bool
 
     // Profile filtering (only for admin profiles)
@@ -45,6 +50,19 @@ struct FolderView: View {
     
     var body: some View {
         VStack(spacing: 0) {
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                iPadTabHeader(
+                    profileService: profileService,
+                    tokenManager: tokenManager,
+                    title: "folders.title".localized,
+                    onProfileTap: { showingProfileMenu = true },
+                    onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                    onUpgradeTap: { showSubscriptionPlans = true }
+                ) {
+                    createFolderButton
+                }
+            }
+
             // Filter chips (same as gallery)
             filterChipsSection
 
@@ -66,15 +84,17 @@ struct FolderView: View {
         }
         .iPadContentPadding() // Apply to entire view including title
         .background(AppColors.backgroundLight)
-        .navigationTitle("folders.title".localized)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationTitle(UIDevice.current.userInterfaceIdiom == .pad ? "nav.folders".localized : "folders.title".localized)
+        .navigationBarTitleDisplayMode(UIDevice.current.userInterfaceIdiom == .pad ? .inline : .large)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                ProfileMenuButton(selectedTab: $selectedTab)
-            }
+            if UIDevice.current.userInterfaceIdiom != .pad {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    ProfileMenuButton(selectedTab: $selectedTab)
+                }
 
-            ToolbarItem(placement: .navigationBarTrailing) {
-                createFolderButton
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    createFolderButton
+                }
             }
         }
         .dismissableFullScreenCover(isPresented: $showingCreateFolder) {
@@ -86,11 +106,29 @@ struct FolderView: View {
         .dismissableFullScreenCover(item: $selectedFolder) { folder in
             EditFolderView(folder: folder)
         }
+        .dismissableFullScreenCover(isPresented: $showSubscriptionPlans) {
+            SubscriptionPlansView()
+        }
+        .dismissableFullScreenCover(isPresented: $showingProfileMenu) {
+            ProfileMenuSheet(
+                selectedTab: $selectedTab,
+                showPainting: $showPainting,
+                showSettings: $showSettings
+            )
+        }
+        .dismissableFullScreenCover(isPresented: $showPainting) {
+            NavigationView {
+                PaintingView()
+            }
+        }
+        .dismissableFullScreenCover(isPresented: $showSettings) {
+            SettingsView()
+        }
         .task {
             await loadFolders()
         }
     }
-    
+
     // MARK: - Filter Chips Section
     private var filterChipsSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {

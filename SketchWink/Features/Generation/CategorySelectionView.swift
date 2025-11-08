@@ -28,37 +28,54 @@ struct CategorySelectionView: View {
     
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: AppSpacing.sectionSpacing) {
-                if isLoading {
-                    loadingView
-                } else {
-                    // Categories Grid
-                    categoriesGridView
-
-                    // Bedtime Stories Section
-                    bedtimeStoriesSection
-
-                    // Books Section (Commented Out - Not Ready)
-                    // booksSection
-                }
+        VStack(spacing: 0) {
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                iPadTabHeader(
+                    profileService: profileService,
+                    tokenManager: tokenManager,
+                    title: "generation.title".localized,
+                    onProfileTap: { showingProfileMenu = true },
+                    onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                    onUpgradeTap: { showSubscriptionPlans = true }
+                )
             }
-            .pageMargins()
-            .padding(.vertical, AppSpacing.sectionSpacing)
+
+            ScrollView {
+                VStack(spacing: AppSpacing.sectionSpacing) {
+                    if isLoading {
+                        loadingView
+                    } else {
+                        // Categories Grid
+                        categoriesGridView
+
+                        // Bedtime Stories Section
+                        bedtimeStoriesSection
+
+                        // Books Section (Commented Out - Not Ready)
+                        // booksSection
+                    }
+                }
+                .pageMargins()
+                .padding(.vertical, AppSpacing.sectionSpacing)
+            }
         }
-        .iPadContentPadding() // Apply to entire view including title
+        .iPadContentPadding()
         .background(AppColors.backgroundLight)
-        .navigationTitle("generation.title".localized)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationTitle(UIDevice.current.userInterfaceIdiom == .pad ? "Art" : "generation.title".localized)
+        .navigationBarTitleDisplayMode(UIDevice.current.userInterfaceIdiom == .pad ? .inline : .large)
         .navigationBarBackButtonHidden(false)
         .toolbar {
-            AppToolbarContent(
-                profileService: profileService,
-                tokenManager: tokenManager,
-                onProfileTap: { showingProfileMenu = true },
-                onCreditsTap: { /* TODO: Show purchase credits modal */ },
-                onUpgradeTap: { showSubscriptionPlans = true }
-            )
+            // On iPhone: show toolbar in navigation bar
+            // On iPad: navigation bar stays clean
+            if UIDevice.current.userInterfaceIdiom != .pad {
+                AppToolbarContent(
+                    profileService: profileService,
+                    tokenManager: tokenManager,
+                    onProfileTap: { showingProfileMenu = true },
+                    onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                    onUpgradeTap: { showSubscriptionPlans = true }
+                )
+            }
         }
         .dismissableFullScreenCover(isPresented: $showingProfileMenu) {
             ProfileMenuSheet(

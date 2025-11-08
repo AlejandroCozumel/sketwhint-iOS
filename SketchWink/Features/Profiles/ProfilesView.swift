@@ -32,33 +32,47 @@ struct ProfilesView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: AppSpacing.sectionSpacing) {
-
-                    if isLoading {
-                        loadingView
-                    } else if profiles.isEmpty {
-                        emptyStateView
-                    } else {
-                        profileManagementView
-                    }
+            VStack(spacing: 0) {
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    iPadTabHeader(
+                        profileService: profileService,
+                        tokenManager: tokenManager,
+                        title: "profiles.title".localized,
+                        onProfileTap: { showingProfileMenu = true },
+                        onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                        onUpgradeTap: { showingSubscriptionPlans = true }
+                    )
                 }
-                .pageMargins()
-                .padding(.top, AppSpacing.xs)
-                .padding(.bottom, AppSpacing.sectionSpacing)
+
+                ScrollView {
+                    VStack(spacing: AppSpacing.sectionSpacing) {
+                        if isLoading {
+                            loadingView
+                        } else if profiles.isEmpty {
+                            emptyStateView
+                        } else {
+                            profileManagementView
+                        }
+                    }
+                    .pageMargins()
+                    .padding(.top, AppSpacing.xs)
+                    .padding(.bottom, AppSpacing.sectionSpacing)
+                }
             }
-            .iPadContentPadding() // Apply to entire view including title
+            .iPadContentPadding()
             .background(AppColors.backgroundLight)
-            .navigationTitle("profiles.title".localized)
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle(UIDevice.current.userInterfaceIdiom == .pad ? "nav.profiles".localized : "profiles.title".localized)
+            .navigationBarTitleDisplayMode(UIDevice.current.userInterfaceIdiom == .pad ? .inline : .large)
             .toolbar {
-                AppToolbarContent(
-                    profileService: profileService,
-                    tokenManager: tokenManager,
-                    onProfileTap: { showingProfileMenu = true },
-                    onCreditsTap: { /* TODO: Show purchase credits modal */ },
-                    onUpgradeTap: { showingSubscriptionPlans = true }
-                )
+                if UIDevice.current.userInterfaceIdiom != .pad {
+                    AppToolbarContent(
+                        profileService: profileService,
+                        tokenManager: tokenManager,
+                        onProfileTap: { showingProfileMenu = true },
+                        onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                        onUpgradeTap: { showingSubscriptionPlans = true }
+                    )
+                }
             }
         }
         .task {
