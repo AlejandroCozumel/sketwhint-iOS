@@ -10,37 +10,38 @@ struct MainAppView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            // Native TabView with iOS 18+ optimizations
-            TabView(selection: $selectedTab) {
-                ForEach(Tab.allCases, id: \.rawValue) { tab in
+        TabView(selection: $selectedTab) {
+            ForEach(Tab.allCases, id: \.rawValue) { tab in
+                ZStack(alignment: .top) {
+                    // Tab content
                     tabContent(for: tab)
-                        .tabItem {
-                            Label(tab.title, systemImage: tab.systemImage)
-                        }
-                        .tag(tab)
-                }
-            }
-            .tint(AppColors.primaryBlue)
-            .onChange(of: selectedTab) { oldValue, newValue in
-                // Silent token refresh when navigating to Art tab
-                if newValue == .art {
-                    Task {
-                        await tokenManager.refreshSilently()
-                    }
-                }
-            }
-            .task {
-                await tokenManager.initialize()
-            }
 
-            // Network status banner overlay
-            VStack {
-                NetworkStatusBanner()
-                    .padding(.horizontal, AppSpacing.md)
-                    .padding(.top, AppSpacing.sm)
-                Spacer()
+                    // Network status banner overlay (only visible when needed)
+                    VStack {
+                        NetworkStatusBanner()
+                            .padding(.horizontal, AppSpacing.md)
+                            .padding(.top, AppSpacing.sm)
+                        Spacer()
+                    }
+                    .allowsHitTesting(false) // Allow taps to pass through
+                }
+                .tabItem {
+                    Label(tab.title, systemImage: tab.systemImage)
+                }
+                .tag(tab)
             }
+        }
+        .tint(AppColors.primaryBlue)
+        .onChange(of: selectedTab) { oldValue, newValue in
+            // Silent token refresh when navigating to Art tab
+            if newValue == .art {
+                Task {
+                    await tokenManager.refreshSilently()
+                }
+            }
+        }
+        .task {
+            await tokenManager.initialize()
         }
     }
 }
@@ -145,11 +146,6 @@ private extension MainAppView {
         // Apply to all tab bar states
         UITabBar.appearance().standardAppearance = tabAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
-
-        // Ensure tab bar stays at bottom on iPad (iOS 18+)
-        if #available(iOS 18.0, *) {
-            UITabBar.appearance().isTranslucent = false
-        }
 
         // Configure navigation bar appearance for large titles
         let navAppearance = UINavigationBarAppearance()
