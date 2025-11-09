@@ -46,7 +46,7 @@
 "nav.art" = "Arte";
 "nav.gallery" = "Galería";
 "nav.stories" = "Cuentos";
-"nav.folders" = "Carpetas";
+"nav.books" = "Libros";
 "nav.profiles" = "Perfiles";
 
 // MARK: - Login Screen

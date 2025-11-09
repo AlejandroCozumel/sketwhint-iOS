@@ -52,7 +52,7 @@ extension MainAppView {
         case art = 0
         case gallery
         case stories
-        case folders
+        case books
         case profiles
 
         var title: String {
@@ -60,7 +60,7 @@ extension MainAppView {
             case .art: return "nav.art".localized
             case .gallery: return "nav.gallery".localized
             case .stories: return "nav.stories".localized
-            case .folders: return "nav.folders".localized
+            case .books: return "nav.books".localized
             case .profiles: return "nav.profiles".localized
             }
         }
@@ -70,7 +70,7 @@ extension MainAppView {
             case .art: return "paintbrush.fill"
             case .gallery: return "photo.fill"
             case .stories: return "moon.stars.fill"
-            case .folders: return "folder.fill"
+            case .books: return "book.fill"
             case .profiles: return "person.2.fill"
             }
         }
@@ -105,9 +105,9 @@ private extension MainAppView {
             NavigationStack {
                 BedtimeStoriesLibraryView(selectedTab: selectedTabBinding)
             }
-        case .folders:
+        case .books:
             NavigationStack {
-                FolderView(selectedTab: selectedTabBinding)
+                BooksView()
             }
         case .profiles:
             NavigationStack {

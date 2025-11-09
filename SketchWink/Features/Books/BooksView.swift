@@ -6,7 +6,8 @@ struct BooksView: View {
     @StateObject private var folderService = FolderService.shared
     @StateObject private var generationService = GenerationService.shared
     @StateObject private var tokenManager = TokenBalanceManager.shared
-    
+    @StateObject private var localization = LocalizationManager.shared
+
     @State private var selectedBook: StoryBook?
     @State private var showingBookReader = false
     @State private var showingFilters = false
@@ -16,7 +17,9 @@ struct BooksView: View {
     @State private var showingProfileMenu = false
     @State private var showPainting = false
     @State private var showSettings = false
-    
+    @State private var showCreateBook = false
+    @State private var createdDraft: StoryDraft?
+
     // Filter states
     @State private var showFavoritesOnly = false
     @State private var selectedProfileFilter: String?
@@ -105,13 +108,61 @@ struct BooksView: View {
         if hasActiveFilters {
             clearAllFilters()
         } else {
-            // Navigate to Art tab to create story books
-            // This would require access to the parent TabView selection
+            showCreateBook = true
         }
+    }
+
+    // Story Books ProductCategory for creation
+    private var storyBooksCategory: ProductCategory {
+        ProductCategory(
+            id: "story_books",
+            name: "Story Books",
+            description: "Create personalized story books",
+            icon: "📖",
+            imageUrl: nil,
+            color: "#6366F1",
+            tokenCost: 4,
+            multipleOptions: true,
+            maxOptionsCount: 10,
+            isActive: true,
+            isDefault: false,
+            sortOrder: 0,
+            createdAt: "",
+            updatedAt: "",
+            productType: "book",
+            draftEndpoint: "/api/stories/drafts",
+            generateEndpoint: "/api/books/{draftId}/generate-images",
+            browseEndpoint: "/api/books",
+            requiresStoryFlow: true,
+            supportedFormats: ["pdf", "epub"],
+            features: ["illustrations", "chapters", "custom_stories"],
+            estimatedDuration: "5-10 minutes"
+        )
     }
     
     var body: some View {
         VStack(spacing: 0) {
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                iPadTabHeader(
+                    profileService: profileService,
+                    tokenManager: tokenManager,
+                    title: "books.title".localized,
+                    onProfileTap: { showingProfileMenu = true },
+                    onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                    onUpgradeTap: { showSubscriptionPlans = true }
+                ) {
+                    Button {
+                        showCreateBook = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(Color(hex: "#6366F1"))
+                            .frame(width: 36, height: 36)
+                    }
+                    .childSafeTouchTarget()
+                }
+            }
+
             // Filter chips (always show for favorites, conditionally show profile filters)
             filterChipsSection
 
@@ -119,16 +170,26 @@ struct BooksView: View {
             booksGridSection
         }
         .iPadContentPadding() // Apply to entire view including title
-        .navigationTitle("Story Books")
-        .navigationBarTitleDisplayMode(.large)
+        .background(AppColors.backgroundLight)
+        .navigationTitle(UIDevice.current.userInterfaceIdiom == .pad ? "nav.books".localized : "books.title".localized)
+        .navigationBarTitleDisplayMode(UIDevice.current.userInterfaceIdiom == .pad ? .inline : .large)
         .toolbar {
-            AppToolbarContent(
-                profileService: profileService,
-                tokenManager: tokenManager,
-                onProfileTap: { showingProfileMenu = true },
-                onCreditsTap: { /* TODO: Show purchase credits modal */ },
-                onUpgradeTap: { showSubscriptionPlans = true }
-            )
+            if UIDevice.current.userInterfaceIdiom != .pad {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    ProfileMenuButton(selectedTab: .constant(3))
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showCreateBook = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(Color(hex: "#6366F1"))
+                            .frame(width: 36, height: 36)
+                    }
+                }
+            }
         }
         .onAppear {
             loadInitialBooks()
@@ -170,6 +231,20 @@ struct BooksView: View {
             NavigationView {
                 PaintingView()
             }
+        }
+        .dismissableFullScreenCover(isPresented: $showCreateBook) {
+            StoryDraftCreationView(
+                productCategory: storyBooksCategory,
+                onDismiss: {
+                    showCreateBook = false
+                },
+                onDraftCreated: { draft in
+                    createdDraft = draft
+                    showCreateBook = false
+                    // Refresh books list after creation
+                    loadInitialBooks()
+                }
+            )
         }
     }
     

@@ -20,11 +20,12 @@ enum DraftCreationState {
 
 struct StoryDraftCreationView: View {
     @StateObject private var draftService = DraftService.shared
-    @State private var selectedStoryType: StoryType = .adventureStory
+    @State private var currentStep = 1
+    @State private var selectedStoryType: StoryType?
     @State private var selectedAgeGroup: AgeGroup = .preschool
     @State private var userTheme = ""
     @State private var selectedPageCount = 4
-    @State private var selectedFocusTags: Set<FocusTag> = []
+    @State private var selectedFocusTag: FocusTag = .magicImagination
     @State private var customFocus = ""
     @State private var draftCreationState: DraftCreationState = .idle
     @State private var isLoading = false
@@ -33,6 +34,9 @@ struct StoryDraftCreationView: View {
     @State private var isShowingProgress = false
     @State private var showingPreview = false
     @State private var activeDraft: StoryDraft?
+    @State private var transitionEdge: Edge = .trailing
+    @State private var showingGenerationAlert = false
+    @State private var isGeneratingBook = false
     
     let productCategory: ProductCategory
     let onDismiss: () -> Void
@@ -52,42 +56,100 @@ struct StoryDraftCreationView: View {
     
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: AppSpacing.sectionSpacing) {
-                    if isLoading {
-                        loadingView
-                    } else {
-                        draftFormView
+            VStack(spacing: 0) {
+                // Progress indicator
+                progressBar
+
+                // Main content
+                ScrollView {
+                    VStack(spacing: AppSpacing.lg) {
+                        if isLoading {
+                            loadingView
+                        } else {
+                            switch currentStep {
+                            case 1:
+                                step1StoryTypeSelection
+                                    .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
+                            case 2:
+                                step2StoryDetails
+                                    .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
+                            case 3:
+                                step3DraftPreview
+                                    .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
+                            default:
+                                EmptyView()
+                            }
+                        }
                     }
+                    .padding(AppSpacing.md)
+                    .padding(.bottom, AppSpacing.xl)
                 }
-                .pageMargins()
-                .padding(.vertical, AppSpacing.sectionSpacing)
+                .background(AppColors.backgroundLight)
             }
-            .background(AppColors.backgroundLight)
-            .navigationTitle("Create Story")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle("Create Story Book")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        onDismiss()
+                    if currentStep > 1 {
+                        Button(action: {
+                            goToPreviousStep()
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(AppColors.surfaceLight)
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(AppColors.primaryIndigo)
+                            }
+                            .frame(width: 36, height: 36)
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.borderLight, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.textSecondary)
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                    Button(action: {
                         onDismiss()
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.surfaceLight)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                     }
-                    .font(AppTypography.titleMedium)
-                    .foregroundColor(AppColors.primaryBlue)
+                    .buttonStyle(.plain)
                 }
             }
+            .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
         } message: {
             Text(error?.localizedDescription ?? "An unknown error occurred")
+        }
+        .alert("Generate Story Book?", isPresented: $showingGenerationAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Generate") {
+                Task {
+                    await generateBook()
+                }
+            }
+        } message: {
+            if let draft = activeDraft {
+                Text("This will generate illustrations for all \(draft.pageCount) pages. Continue in background?")
+            }
         }
         // Overlays instead of sheet/fullScreenCover to avoid presenter conflicts
         .overlay(alignment: .center) {
@@ -179,7 +241,7 @@ struct StoryDraftCreationView: View {
         VStack(spacing: AppSpacing.xl) {
             ProgressView()
                 .scaleEffect(1.5)
-                .tint(AppColors.primaryBlue)
+                .tint(AppColors.primaryIndigo)
             
             Text("Preparing story creation...")
                 .font(AppTypography.bodyLarge)
@@ -189,34 +251,186 @@ struct StoryDraftCreationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .frame(minHeight: 200)
     }
-    
-    
-    
-    // MARK: - Draft Form
+    // MARK: - Progress Bar
+    private var progressBar: some View {
+        VStack(spacing: AppSpacing.xs) {
+            HStack(spacing: 4) {
+                ForEach(1...3, id: \.self) { step in
+                    Rectangle()
+                        .fill(step <= currentStep ? productColor : AppColors.borderLight)
+                        .frame(height: 4)
+                }
+            }
+
+            Text("Step \(currentStep) of 3")
+                .font(AppTypography.captionLarge)
+                .foregroundColor(AppColors.textSecondary)
+                .padding(.top, 4)
+        }
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.top, AppSpacing.sm)
+        .background(AppColors.backgroundLight)
+    }
+
+    // MARK: - Can Proceed
+    private var canProceedToNextStep: Bool {
+        switch currentStep {
+        case 1: return selectedStoryType != nil
+        case 2: return !userTheme.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 3: return activeDraft != nil
+        default: return false
+        }
+    }
+
+    // MARK: - Navigation Functions
+    private func goToNextStep() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            transitionEdge = .trailing
+            currentStep += 1
+        }
+    }
+
+    private func goToPreviousStep() {
+        withAnimation(.easeInOut(duration: 0.3)) {
+            transitionEdge = .leading
+            currentStep -= 1
+        }
+    }
+
+    // MARK: - Step 1: Story Type Selection
+    private var step1StoryTypeSelection: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.lg) {
+            // Header
+            VStack(alignment: .center, spacing: AppSpacing.md) {
+                Text("Choose Story Type")
+                    .font(AppTypography.categoryTitle)
+                    .foregroundColor(AppColors.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.bottom, 10)
+            }
+
+            // Story types grid
+            LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.md) {
+                ForEach(StoryType.allCases, id: \.rawValue) { storyType in
+                    StoryTypeCard(
+                        storyType: storyType,
+                        isSelected: selectedStoryType == storyType,
+                        productColor: productColor,
+                        action: {
+                            selectedStoryType = storyType
+                            // Auto-advance to next step after brief delay
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                goToNextStep()
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Step 3: Draft Preview
+    private var step3DraftPreview: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.lg) {
+            // Success message
+            VStack(spacing: AppSpacing.md) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(AppColors.successGreen)
+
+                Text("Story Draft Created!")
+                    .font(AppTypography.headlineLarge)
+                    .foregroundColor(AppColors.textPrimary)
+                    .multilineTextAlignment(.center)
+
+                if let draft = activeDraft {
+                    Text(draft.title)
+                        .font(AppTypography.titleMedium)
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, AppSpacing.md)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, AppSpacing.xl)
+
+            // Draft info
+            if let draft = activeDraft {
+                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                    HStack {
+                        Image(systemName: "book.closed.fill")
+                            .foregroundColor(productColor)
+                        Text("\(draft.pageCount) pages")
+                            .bodyMedium()
+                            .foregroundColor(AppColors.textPrimary)
+                    }
+
+                    HStack {
+                        Image(systemName: "person.fill")
+                            .foregroundColor(productColor)
+                        Text("Age \(draft.ageGroup)")
+                            .bodyMedium()
+                            .foregroundColor(AppColors.textPrimary)
+                    }
+
+                    if !draft.focusTags.isEmpty {
+                        HStack {
+                            Image(systemName: "tag.fill")
+                                .foregroundColor(productColor)
+                            Text(draft.focusTags.joined(separator: ", "))
+                                .bodyMedium()
+                                .foregroundColor(AppColors.textPrimary)
+                        }
+                    }
+                }
+                .cardStyle()
+            }
+
+            Spacer()
+
+            // Generate button
+            Button(action: {
+                if let draft = activeDraft {
+                    showingGenerationAlert = true
+                }
+            }) {
+                HStack {
+                    if isGeneratingBook {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Image(systemName: "sparkles")
+                    }
+                    Text(isGeneratingBook ? "Starting Generation..." : "Generate Book")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .largeButtonStyle(backgroundColor: productColor)
+            .disabled(isGeneratingBook)
+            .opacity(isGeneratingBook ? 0.7 : 1.0)
+            .childSafeTouchTarget()
+        }
+    }
+
+    // MARK: - Step 2: Story Details (Draft Form)
     @ViewBuilder
-    private var draftFormView: some View {
+    private var step2StoryDetails: some View {
         VStack(spacing: AppSpacing.sectionSpacing) {
-            // Product Header
-            productHeaderView
-            
-            // Story Type Selection
-            storyTypeSelectionView
-            
+            // Focus Tags Selection (moved to top, prefilled)
+            focusTagsSelectionView
+
             // Age Group Selection
             ageGroupSelectionView
-            
+
             // Theme Input
             themeInputView
-            
+
             // Page Count Selection
             pageCountSelectionView
-            
-            // Focus Tags Selection (Optional)
-            focusTagsSelectionView
-            
+
             // Custom Focus Input (Optional)
             customFocusInputView
-            
+
             // Create Draft Button
             createDraftButtonView
         }
@@ -323,7 +537,7 @@ struct StoryDraftCreationView: View {
                             VStack(alignment: .leading, spacing: AppSpacing.xxxs) {
                                 Text("\(ageGroup.displayName) years")
                                     .font(AppTypography.titleMedium)
-                                    .foregroundColor(selectedAgeGroup == ageGroup ? AppColors.primaryBlue : AppColors.textPrimary)
+                                    .foregroundColor(selectedAgeGroup == ageGroup ? AppColors.primaryIndigo : AppColors.textPrimary)
                                 
                                 Text(ageGroup.description)
                                     .font(AppTypography.captionMedium)
@@ -334,19 +548,19 @@ struct StoryDraftCreationView: View {
                             
                             if selectedAgeGroup == ageGroup {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(AppColors.primaryBlue)
+                                    .foregroundColor(AppColors.primaryIndigo)
                                     .font(.system(size: 20))
                             }
                         }
                         .padding(AppSpacing.sm)
                         .background(
                             RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                .fill(selectedAgeGroup == ageGroup ? AppColors.primaryBlue.opacity(0.1) : AppColors.backgroundLight)
+                                .fill(selectedAgeGroup == ageGroup ? AppColors.primaryIndigo.opacity(0.1) : AppColors.backgroundLight)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
                                 .stroke(
-                                    selectedAgeGroup == ageGroup ? AppColors.primaryBlue : AppColors.textSecondary.opacity(0.2),
+                                    selectedAgeGroup == ageGroup ? AppColors.primaryIndigo : AppColors.textSecondary.opacity(0.2),
                                     lineWidth: 1
                                 )
                         )
@@ -375,7 +589,7 @@ struct StoryDraftCreationView: View {
                     .cornerRadius(AppSizing.cornerRadius.md)
                     .overlay(
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                            .stroke(AppColors.primaryBlue.opacity(0.3), lineWidth: 1)
+                            .stroke(AppColors.primaryIndigo.opacity(0.3), lineWidth: 1)
                     )
                     .lineLimit(3...6)
                 
@@ -433,12 +647,12 @@ struct StoryDraftCreationView: View {
                         .frame(minWidth: 52, maxWidth: .infinity, minHeight: 44, maxHeight: 44)
                         .background(
                             RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                .fill(isSelected ? AppColors.primaryBlue : AppColors.backgroundLight)
+                                .fill(isSelected ? AppColors.primaryIndigo : AppColors.backgroundLight)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
                                 .stroke(
-                                    isSelected ? AppColors.primaryBlue : (isRecommended ? AppColors.successGreen.opacity(0.3) : AppColors.textSecondary.opacity(0.2)),
+                                    isSelected ? AppColors.primaryIndigo : (isRecommended ? AppColors.successGreen.opacity(0.3) : AppColors.textSecondary.opacity(0.2)),
                                     lineWidth: 1
                                 )
                         )
@@ -453,62 +667,49 @@ struct StoryDraftCreationView: View {
     // MARK: - Focus Tags Selection
     private var focusTagsSelectionView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            HStack {
-                VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    Text("Focus Tags (Optional)")
-                        .font(AppTypography.headlineMedium)
-                        .foregroundColor(AppColors.textPrimary)
-                    
-                    Text("Choose themes to emphasize in your story")
-                        .font(AppTypography.captionLarge)
-                        .foregroundColor(AppColors.textSecondary)
-                }
-                
-                Spacer()
-                
-                if !selectedFocusTags.isEmpty {
-                    Button("Clear All") {
-                        selectedFocusTags.removeAll()
-                    }
-                    .font(AppTypography.captionMedium)
-                    .foregroundColor(AppColors.primaryBlue)
-                }
+            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                Text("Story Focus")
+                    .font(AppTypography.headlineMedium)
+                    .foregroundColor(AppColors.textPrimary)
+
+                Text("Select the main theme for your story")
+                    .font(AppTypography.captionLarge)
+                    .foregroundColor(AppColors.textSecondary)
             }
             
-            LazyVGrid(columns: GridLayouts.threeColumnGrid, spacing: AppSpacing.grid.itemSpacing) {
+            LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.md) {
                 ForEach(FocusTag.allCases, id: \.rawValue) { focusTag in
-                    let isSelected = selectedFocusTags.contains(focusTag)
-                    
+                    let isSelected = selectedFocusTag == focusTag
+
                     Button(action: {
-                        if isSelected {
-                            selectedFocusTags.remove(focusTag)
-                        } else {
-                            selectedFocusTags.insert(focusTag)
-                        }
+                        selectedFocusTag = focusTag
                     }) {
-                        VStack(spacing: AppSpacing.xs) {
+                        VStack(spacing: AppSpacing.sm) {
+                            // Icon
                             Image(systemName: focusTag.icon)
-                                .font(.system(size: 20))
-                                .foregroundColor(isSelected ? .white : AppColors.primaryBlue)
-                            
+                                .font(.system(size: 32))
+                                .foregroundColor(isSelected ? .white : productColor)
+                                .frame(height: 40)
+
+                            // Title
                             Text(focusTag.displayName)
-                                .font(AppTypography.captionMedium)
+                                .font(AppTypography.titleSmall)
                                 .foregroundColor(isSelected ? .white : AppColors.textPrimary)
                                 .multilineTextAlignment(.center)
                                 .lineLimit(2)
-                                .minimumScaleFactor(0.8)
                         }
-                        .frame(height: 70)
+                        .padding(AppSpacing.sm)
+                        .frame(height: 140)
                         .frame(maxWidth: .infinity)
                         .background(
-                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                .fill(isSelected ? AppColors.primaryBlue : AppColors.backgroundLight)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                .stroke(
-                                    isSelected ? AppColors.primaryBlue : AppColors.textSecondary.opacity(0.2),
-                                    lineWidth: 1
+                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                                .fill(isSelected ? productColor : productColor.opacity(0.05))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                                        .stroke(
+                                            isSelected ? productColor : AppColors.textSecondary.opacity(0.2),
+                                            lineWidth: isSelected ? 2 : 1
+                                        )
                                 )
                         )
                     }
@@ -536,7 +737,7 @@ struct StoryDraftCreationView: View {
                     .cornerRadius(AppSizing.cornerRadius.md)
                     .overlay(
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                            .stroke(AppColors.primaryBlue.opacity(0.3), lineWidth: 1)
+                            .stroke(AppColors.primaryIndigo.opacity(0.3), lineWidth: 1)
                     )
                     .lineLimit(2...4)
                 
@@ -551,16 +752,18 @@ struct StoryDraftCreationView: View {
     // MARK: - Create Draft Button
     private var createDraftButtonView: some View {
         VStack(spacing: AppSpacing.sm) {
-            Button("Create Story Draft") {
+            Button {
                 Task {
                     await createDraft()
                 }
+            } label: {
+                Text("Create Story Draft")
+                    .frame(maxWidth: .infinity)
             }
             .largeButtonStyle(backgroundColor: canCreateDraft ? productColor : AppColors.buttonDisabled)
             .disabled(!canCreateDraft)
             .opacity(canCreateDraft ? 1.0 : 0.6)
-            .childSafeTouchTarget()
-            
+
             if !canCreateDraft {
                 Text(createDraftValidationText)
                     .font(AppTypography.captionMedium)
@@ -568,7 +771,6 @@ struct StoryDraftCreationView: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .cardStyle()
     }
     
     // MARK: - Computed Properties
@@ -598,20 +800,22 @@ struct StoryDraftCreationView: View {
         
         switch productCategory.productType {
         case "book": return Color(hex: "#D97706") // Amber-600
-        default: return AppColors.primaryBlue
+        default: return AppColors.primaryIndigo
         }
     }
     
     // MARK: - Methods
     private func createDraft() async {
+        guard let storyType = selectedStoryType else { return }
+
         let trimmedTheme = userTheme.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         let request = CreateDraftRequest(
             theme: trimmedTheme,
-            storyType: selectedStoryType,
+            storyType: storyType,
             ageGroup: selectedAgeGroup,
             pageCount: selectedPageCount,
-            focusTags: selectedFocusTags.isEmpty ? nil : Array(selectedFocusTags),
+            focusTags: [selectedFocusTag],
             customFocus: customFocus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : customFocus.trimmingCharacters(in: .whitespacesAndNewlines),
             aiGenerated: true // Manual creation still uses AI for story generation
         )
@@ -625,10 +829,10 @@ struct StoryDraftCreationView: View {
         
         #if DEBUG
         print("📝 StoryDraftCreationView: Creating draft with theme: \(trimmedTheme)")
-        print("📝 Story Type: \(selectedStoryType.displayName)")
+        print("📝 Story Type: \(storyType.displayName)")
         print("📝 Age Group: \(selectedAgeGroup.displayName)")
         print("📝 Page Count: \(selectedPageCount)")
-        print("📝 Focus Tags: \(selectedFocusTags.map { $0.displayName })")
+        print("📝 Focus Tag: \(selectedFocusTag.displayName)")
         print("📝 Custom Focus: \(customFocus)")
         #endif
         
@@ -640,13 +844,58 @@ struct StoryDraftCreationView: View {
             let response = try await draftService.createDraft(request)
             await MainActor.run {
                 isShowingProgress = false
-                onDraftCreated(response.draft)
+                activeDraft = response.draft
+                // Navigate to step 3 to show draft preview
+                goToNextStep()
             }
         } catch {
             await MainActor.run {
                 self.error = error
                 showingError = true
                 isShowingProgress = false
+            }
+        }
+    }
+
+    // MARK: - Generate Book
+    private func generateBook() async {
+        guard let draft = activeDraft, let storyType = selectedStoryType else { return }
+
+        await MainActor.run {
+            isGeneratingBook = true
+        }
+
+        #if DEBUG
+        print("📖 StoryDraftCreationView: Starting book generation for draft: \(draft.id)")
+        print("📖 Draft title: \(draft.title)")
+        print("📖 Story type: \(storyType.rawValue)")
+        print("📖 Page count: \(draft.pageCount)")
+        #endif
+
+        do {
+            // Call the book generation endpoint
+            let bookId = try await draftService.generateBookFromDraft(draft: draft, storyType: storyType.rawValue)
+
+            #if DEBUG
+            print("✅ Book generation started successfully")
+            print("📖 Book ID: \(bookId)")
+            #endif
+
+            await MainActor.run {
+                isGeneratingBook = false
+                // Pass the draft back and dismiss - generation continues in background
+                onDraftCreated(draft)
+                onDismiss()
+            }
+        } catch {
+            #if DEBUG
+            print("❌ Book generation failed: \(error.localizedDescription)")
+            #endif
+
+            await MainActor.run {
+                self.error = error
+                showingError = true
+                isGeneratingBook = false
             }
         }
     }
@@ -709,7 +958,7 @@ struct DraftCreationProgressView: View {
         VStack(spacing: AppSpacing.xl) {
             ProgressView()
                 .scaleEffect(1.5)
-                .tint(AppColors.primaryBlue)
+                .tint(AppColors.primaryIndigo)
             
             Text("Creating your story...")
                 .headlineMedium()
@@ -747,7 +996,7 @@ struct DraftPreviewView: View {
                     Button("Generate Book") {
                         onGenerateBook(draft)
                     }
-                    .largeButtonStyle(backgroundColor: AppColors.primaryBlue)
+                    .largeButtonStyle(backgroundColor: AppColors.primaryIndigo)
                     .childSafeTouchTarget()
                 }
                 .pageMargins()

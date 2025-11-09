@@ -87,7 +87,93 @@ class DraftService: ObservableObject {
 
         return draftResponse
     }
-    
+
+    /// Generate book from draft (creates images for all pages)
+    func generateBookFromDraft(draft: StoryDraft, storyType: String) async throws -> String {
+        let endpoint = "\(baseURL)/books/generate"
+
+        guard let url = URL(string: endpoint) else {
+            throw DraftError.invalidURL
+        }
+
+        guard let token = try KeychainManager.shared.retrieveToken() else {
+            throw DraftError.noToken
+        }
+
+        // Build request body - omit customFocus if nil or empty
+        var requestBody: [String: Any] = [
+            "storyType": storyType,
+            "theme": draft.theme,
+            "ageGroup": draft.ageGroup,
+            "pageCount": draft.pageCount,
+            "focusTags": draft.focusTags,
+            "artStyle": draft.artStyle,
+            "quality": "standard",
+            "model": "seedream",
+            "dimensions": "a4",
+            "autoGenerate": true
+        ]
+
+        // Only add customFocus if it has a value (omit if nil or empty)
+        if let customFocus = draft.customFocus, !customFocus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            requestBody["customFocus"] = customFocus
+        }
+
+        let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
+
+        print("📖 DraftService: Generating book from draft")
+        print("🔗 Request URL: \(endpoint)")
+        print("📤 Request body: \(String(data: jsonData, encoding: .utf8) ?? "Unable to encode")")
+
+        var httpRequest = URLRequest(url: url)
+        httpRequest.httpMethod = "POST"
+        httpRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        httpRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        httpRequest.httpBody = jsonData
+
+        // Add profile header for family profile support
+        if let currentProfile = ProfileService.shared.currentProfile {
+            httpRequest.setValue(currentProfile.id, forHTTPHeaderField: "X-Profile-ID")
+            print("📋 Profile ID header set: \(currentProfile.id)")
+            print("📋 Profile name: \(currentProfile.name)")
+        } else {
+            print("⚠️ WARNING: No current profile found! X-Profile-ID header NOT set")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: httpRequest)
+
+        #if DEBUG
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📥 Book Generation Response: \(responseString)")
+        }
+        #endif
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw DraftError.invalidResponse
+        }
+
+        guard 200...299 ~= httpResponse.statusCode else {
+            // Try to decode API error message first, fallback to generic error
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw DraftError.serverError(apiError.userMessage)
+            } else {
+                throw DraftError.httpError(httpResponse.statusCode)
+            }
+        }
+
+        // Decode response to get book ID
+        struct GenerateBookResponse: Codable {
+            let success: Bool
+            let bookId: String
+            let message: String?
+        }
+
+        let bookResponse = try JSONDecoder().decode(GenerateBookResponse.self, from: data)
+        print("✅ DraftService: Successfully started book generation. Book ID: \(bookResponse.bookId)")
+
+        return bookResponse.bookId
+    }
+
     // MARK: - Draft Management
     
     /// Get all user drafts
