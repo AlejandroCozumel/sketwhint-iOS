@@ -786,6 +786,70 @@
 "books.continue" = "Continuar Leyendo";
 "books.chapter" = "Capítulo %d";
 
+// MARK: - Book Creation (3 Steps)
+"books.create.story.book" = "Crear Libro de Cuentos";
+"books.step.of.3" = "Paso %d de 3";
+
+// Step 1: Story Type
+"books.choose.story.type" = "Elige el Tipo de Historia";
+"books.story.type.adventure" = "Aventura";
+"books.story.type.adventure.desc" = "Aventuras emocionantes y héroes valientes";
+"books.story.type.fantasy" = "Fantasía";
+"books.story.type.fantasy.desc" = "Mundos mágicos y criaturas míticas";
+"books.story.type.educational" = "Educativo";
+"books.story.type.educational.desc" = "Aprende mientras te diviertes";
+"books.story.type.bedtime" = "Para Dormir";
+"books.story.type.bedtime.desc" = "Historias calmadas para un sueño tranquilo";
+
+// Step 2: Story Details
+"books.age.group" = "Grupo de Edad";
+"books.age.group.desc" = "Las historias están adaptadas para el grupo de edad seleccionado";
+"books.age.years" = "años";
+"books.age.toddler.desc" = "Palabras simples, conceptos básicos";
+"books.age.preschool.desc" = "Enfocado en aventura y aprendizaje";
+"books.age.early.desc" = "Tramas y temas más complejos";
+"books.age.elementary.desc" = "Temas avanzados y vocabulario";
+"books.theme.input" = "Tema de la Historia";
+"books.theme.placeholder" = "Ejemplo: La búsqueda de un valiente caballero para salvar el reino";
+"books.theme.description" = "Describe la idea principal o aventura de tu libro";
+"books.page.count" = "Número de Páginas";
+"books.page.count.desc" = "Elige cuántas páginas debe tener tu libro";
+"books.pages" = "%d páginas";
+"books.focus.tags" = "Enfoque de la Historia";
+"books.focus.tags.desc" = "¿En qué debe enfatizar la historia?";
+"books.focus.magic" = "Magia e Imaginación";
+"books.focus.adventure" = "Aventura y Resolución de Problemas";
+"books.focus.nature" = "Naturaleza y Animales";
+"books.focus.emotions" = "Emociones y Sentimientos";
+"books.focus.family" = "Familia y Amor";
+"books.focus.learning" = "Aprendizaje y Educación";
+"books.focus.friendship" = "Amistad y Habilidades Sociales";
+"books.custom.focus" = "Enfoque Personalizado (Opcional)";
+"books.custom.focus.placeholder" = "Ejemplo: Enfocarse en el trabajo en equipo y la valentía";
+"books.custom.focus.desc" = "Descripción adicional de enfoque para guiar la creación de la historia";
+"books.create.draft" = "Crear Borrador de Historia";
+"books.creating.draft" = "Creando Borrador...";
+"books.validation.theme.required" = "Por favor ingresa un tema para la historia";
+"books.validation.theme.min" = "El tema de la historia debe tener al menos 3 caracteres";
+"books.validation.theme.max" = "El tema de la historia debe tener menos de 200 caracteres";
+"books.preparing" = "Preparando la creación de la historia...";
+
+// Step 3: Draft Review
+"books.review.story" = "Revisar Historia";
+"books.story.pages" = "Páginas de la Historia";
+"books.review.edit.desc" = "Revisa y edita cada página";
+"books.page.number" = "Página %d";
+"books.page.text.placeholder" = "Texto de la página";
+"books.edit" = "Editar";
+"books.cancel" = "Cancelar";
+"books.update" = "Actualizar";
+"books.saving" = "Guardando...";
+"books.generate.book" = "Generar Libro";
+"books.generating" = "Generando...";
+"books.generate.confirmation.title" = "Generar Libro";
+"books.generate.confirmation.message" = "Esto creará %d páginas ilustradas. Tu libro se generará en segundo plano.";
+"books.token.cost" = "%d tokens";
+
 // MARK: - Coloring/Painting
 "coloring.title" = "Colorear";
 "coloring.tools" = "Herramientas";

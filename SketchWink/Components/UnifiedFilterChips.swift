@@ -41,7 +41,7 @@ struct UnifiedFilterChips: View {
     private var favoritesToggleSection: some View {
         HStack(spacing: AppSpacing.xs) {
             FilterChip(
-                title: String(localized: "gallery.filter.all"),
+                title: "gallery.filter.all".localized,
                 icon: "square.grid.2x2",
                 isSelected: !config.showFavoritesOnly,
                 selectedColor: config.chipSelectedColor,
@@ -51,7 +51,7 @@ struct UnifiedFilterChips: View {
             )
 
             FilterChip(
-                title: String(localized: "gallery.filter.favorites"),
+                title: "gallery.filter.favorites".localized,
                 icon: "heart.fill",
                 isSelected: config.showFavoritesOnly,
                 selectedColor: config.chipSelectedColor,
@@ -68,7 +68,7 @@ struct UnifiedFilterChips: View {
         HStack(spacing: AppSpacing.xs) {
             // All Profiles chip
             FilterChip(
-                title: String(localized: "gallery.filter.all.profiles"),
+                title: "gallery.filter.all.profiles".localized,
                 icon: "person.2.fill",
                 isSelected: config.selectedProfileFilter == nil,
                 selectedColor: config.chipSelectedColor,
@@ -112,7 +112,7 @@ struct UnifiedFilterChips: View {
     // MARK: - Search Toggle Section
     private var searchToggleSection: some View {
         FilterChip(
-            title: config.isSearchActive ? String(localized: "common.hide.search") : String(localized: "common.search"),
+            title: config.isSearchActive ? "common.hide.search".localized : "common.search".localized,
             icon: config.isSearchActive ? "xmark.circle" : "magnifyingglass",
             isSelected: config.isSearchActive,
             selectedColor: config.chipSelectedColor,

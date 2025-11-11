@@ -40,30 +40,28 @@ struct BookDraftReviewView: View {
                     }
                     .pageMargins()
                     .padding(.vertical, AppSpacing.sectionSpacing)
-                    .padding(.bottom, isEditing ? 0 : 100) // Space for bottom button
+                    .padding(.bottom, 140) // Space for bottom buttons
                 }
                 .background(AppColors.backgroundLight)
 
-                // Sticky Continue Button at Bottom (only when not editing)
-                if !isEditing {
-                    continueToGenerationButton
-                        .padding(.horizontal, AppSpacing.pageMargin)
-                        .padding(.bottom, AppSpacing.md)
-                        .background(
-                            LinearGradient(
-                                colors: [
-                                    AppColors.backgroundLight.opacity(0),
-                                    AppColors.backgroundLight
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                            .frame(height: 100)
-                            .offset(y: -80)
+                // Bottom Buttons (Edit/Save + Generate)
+                bottomButtonsView
+                    .padding(.horizontal, AppSpacing.pageMargin)
+                    .padding(.bottom, AppSpacing.md)
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                AppColors.backgroundLight.opacity(0),
+                                AppColors.backgroundLight
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
-                }
+                        .frame(height: 150)
+                        .offset(y: -130)
+                    )
             }
-            .navigationTitle(isEditing ? "Edit Pages" : "Review Story")
+            .navigationTitle("books.review.story".localized)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -86,33 +84,6 @@ struct BookDraftReviewView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Back")
                 }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if isEditing {
-                        HStack(spacing: AppSpacing.sm) {
-                            Button("Cancel") {
-                                cancelEditing()
-                            }
-                            .font(AppTypography.titleMedium)
-                            .foregroundColor(AppColors.textSecondary)
-
-                            Button("Save") {
-                                Task {
-                                    await saveChanges()
-                                }
-                            }
-                            .font(AppTypography.titleMedium)
-                            .foregroundColor(AppColors.primaryBlue)
-                            .disabled(isSaving)
-                        }
-                    } else {
-                        Button("Edit") {
-                            isEditing = true
-                        }
-                        .font(AppTypography.titleMedium)
-                        .foregroundColor(AppColors.primaryBlue)
-                    }
-                }
             }
         }
         .alert("Error", isPresented: $showingError) {
@@ -131,96 +102,64 @@ struct BookDraftReviewView: View {
 
     // MARK: - Book Header
     private var bookHeaderView: some View {
-        VStack(spacing: AppSpacing.md) {
-            Text(productCategory.icon)
-                .font(.system(size: AppSizing.iconSizes.xxl))
+        VStack(spacing: AppSpacing.xs) {
+            Text(originalDraft.title)
+                .headlineLarge()
+                .foregroundColor(AppColors.textPrimary)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(spacing: AppSpacing.xs) {
-                Text(originalDraft.title)
-                    .headlineLarge()
-                    .foregroundColor(AppColors.textPrimary)
-                    .multilineTextAlignment(.center)
+            Text(originalDraft.theme)
+                .bodyMedium()
+                .foregroundColor(AppColors.textSecondary)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text(originalDraft.theme)
-                    .bodyMedium()
-                    .foregroundColor(AppColors.textSecondary)
-                    .multilineTextAlignment(.center)
+            // Book Stats
+            HStack(spacing: AppSpacing.md) {
+                HStack(spacing: 4) {
+                    Image(systemName: "doc.text.fill")
+                        .foregroundColor(productColor)
+                        .font(.system(size: 12))
+                    Text("\(originalDraft.pageCount) pages")
+                        .captionLarge()
+                        .foregroundColor(AppColors.textSecondary)
+                }
 
-                // Book Stats
-                HStack(spacing: AppSpacing.md) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "doc.text.fill")
-                            .foregroundColor(productColor)
-                            .font(.system(size: 12))
-                        Text("\(originalDraft.pageCount) pages")
-                            .captionLarge()
-                            .foregroundColor(AppColors.textSecondary)
-                    }
+                HStack(spacing: 4) {
+                    Image(systemName: "person.fill")
+                        .foregroundColor(AppColors.primaryPurple)
+                        .font(.system(size: 12))
+                    Text("Age \(originalDraft.ageGroup)")
+                        .captionLarge()
+                        .foregroundColor(AppColors.textSecondary)
+                }
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "person.fill")
-                            .foregroundColor(AppColors.primaryPurple)
-                            .font(.system(size: 12))
-                        Text("Age \(originalDraft.ageGroup)")
-                            .captionLarge()
-                            .foregroundColor(AppColors.textSecondary)
-                    }
-
-                    HStack(spacing: 4) {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(AppColors.warningOrange)
-                            .font(.system(size: 12))
-                        Text("\(originalDraft.pageCount * 2) tokens")
-                            .captionLarge()
-                            .foregroundColor(AppColors.textSecondary)
-                    }
+                HStack(spacing: 4) {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(AppColors.warningOrange)
+                        .font(.system(size: 12))
+                    Text("\(originalDraft.pageCount * 2) tokens")
+                        .captionLarge()
+                        .foregroundColor(AppColors.textSecondary)
                 }
             }
+            .padding(.top, AppSpacing.xs)
         }
-        .padding(AppSpacing.cardPadding.inner)
-        .background(productColor.opacity(0.1))
-        .cornerRadius(AppSizing.cornerRadius.md)
-        .shadow(
-            color: Color.black.opacity(AppSizing.shadows.small.opacity),
-            radius: AppSizing.shadows.small.radius,
-            x: AppSizing.shadows.small.x,
-            y: AppSizing.shadows.small.y
-        )
+        .cardStyle()
     }
 
     // MARK: - Pages Review Section - Minimal Style
     private var pagesReviewSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
-            HStack {
-                VStack(alignment: .leading, spacing: AppSpacing.xxs) {
-                    Text("Story Pages")
-                        .font(AppTypography.headlineMedium)
-                        .foregroundColor(AppColors.textPrimary)
+            VStack(alignment: .leading, spacing: AppSpacing.xxs) {
+                Text("books.story.pages".localized)
+                    .font(AppTypography.headlineMedium)
+                    .foregroundColor(AppColors.textPrimary)
 
-                    Text("Review and edit each page")
-                        .font(AppTypography.captionMedium)
-                        .foregroundColor(AppColors.textSecondary)
-                }
-
-                Spacer()
-
-                if !isEditing {
-                    Button(action: {
-                        isEditing = true
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "pencil")
-                                .font(.system(size: 12))
-                            Text("Edit")
-                                .font(AppTypography.captionMedium)
-                        }
-                        .foregroundColor(AppColors.primaryBlue)
-                        .padding(.horizontal, AppSpacing.sm)
-                        .padding(.vertical, AppSpacing.xs)
-                        .background(AppColors.primaryBlue.opacity(0.1))
-                        .cornerRadius(AppSizing.cornerRadius.sm)
-                    }
-                }
+                Text("books.review.edit.desc".localized)
+                    .font(AppTypography.captionMedium)
+                    .foregroundColor(AppColors.textSecondary)
             }
 
             // Simple page cards - just page number and text
@@ -236,28 +175,89 @@ struct BookDraftReviewView: View {
         .cardStyle()
     }
 
-    // MARK: - Generate Book Button (Sticky Bottom)
-    private var continueToGenerationButton: some View {
-        Button(action: {
-            Task {
-                await generateBook()
-            }
-        }) {
-            HStack {
-                if isGenerating {
-                    ProgressView()
-                        .tint(.white)
-                } else {
-                    Image(systemName: "sparkles")
+    // MARK: - Bottom Buttons (Edit/Save + Generate)
+    private var bottomButtonsView: some View {
+        VStack(spacing: AppSpacing.sm) {
+            if isEditing {
+                // Edit Mode: Cancel + Save buttons
+                Button {
+                    cancelEditing()
+                } label: {
+                    Text("books.cancel".localized)
+                        .font(AppTypography.titleMedium)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
+                        .background(AppColors.backgroundLight)
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(AppColors.borderLight, lineWidth: 2)
+                        )
                 }
-                Text(isGenerating ? "Generating..." : "Generate Book")
+                .disabled(isSaving)
+
+                Button {
+                    Task {
+                        await saveChanges()
+                    }
+                } label: {
+                    HStack {
+                        if isSaving {
+                            ProgressView()
+                                .tint(.white)
+                        }
+                        Text(isSaving ? "books.saving".localized : "books.update".localized)
+                    }
+                    .largeButtonStyle(
+                        backgroundColor: productColor,
+                        isDisabled: isSaving
+                    )
+                }
+                .disabled(isSaving)
+            } else {
+                // Review Mode: Edit + Generate buttons
+                Button {
+                    isEditing = true
+                } label: {
+                    Text("books.edit".localized)
+                        .font(AppTypography.titleMedium)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, AppSpacing.buttonPadding.large.vertical)
+                        .background(AppColors.backgroundLight)
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(AppColors.borderLight, lineWidth: 2)
+                        )
+                }
+                .disabled(isGenerating)
+
+                Button {
+                    Task {
+                        await generateBook()
+                    }
+                } label: {
+                    HStack {
+                        if isGenerating {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "sparkles")
+                        }
+                        Text(isGenerating ? "books.generating".localized : "books.generate.book".localized)
+                    }
+                    .largeButtonStyle(
+                        backgroundColor: productColor,
+                        isDisabled: isGenerating
+                    )
+                }
+                .disabled(isGenerating)
             }
-            .frame(maxWidth: .infinity)
         }
-        .largeButtonStyle(backgroundColor: productColor)
-        .disabled(isGenerating)
-        .opacity(isGenerating ? 0.7 : 1.0)
-        .childSafeTouchTarget()
     }
 
     // MARK: - Computed Properties
@@ -428,7 +428,7 @@ struct SimplePageCard: View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             // Page Number Header
             HStack {
-                Text("Page \(pageNumber)")
+                Text(String(format: "books.page.number".localized, pageNumber))
                     .font(AppTypography.titleMedium)
                     .foregroundColor(productColor)
 
@@ -439,7 +439,7 @@ struct SimplePageCard: View {
 
             // Page Text - Simple and Clean
             if isEditing {
-                TextField("Page text", text: $pageText, axis: .vertical)
+                TextField("books.page.text.placeholder".localized, text: $pageText, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(AppTypography.bodyLarge)
                     .foregroundColor(AppColors.textPrimary)

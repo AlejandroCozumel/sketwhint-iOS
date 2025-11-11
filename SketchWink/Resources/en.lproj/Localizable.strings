@@ -741,6 +741,70 @@
 "books.continue" = "Continue Reading";
 "books.chapter" = "Chapter %d";
 
+// MARK: - Book Creation (3 Steps)
+"books.create.story.book" = "Create Story Book";
+"books.step.of.3" = "Step %d of 3";
+
+// Step 1: Story Type
+"books.choose.story.type" = "Choose Story Type";
+"books.story.type.adventure" = "Adventure";
+"books.story.type.adventure.desc" = "Exciting quests and brave heroes";
+"books.story.type.fantasy" = "Fantasy";
+"books.story.type.fantasy.desc" = "Magical worlds and mythical creatures";
+"books.story.type.educational" = "Educational";
+"books.story.type.educational.desc" = "Learn while having fun";
+"books.story.type.bedtime" = "Bedtime";
+"books.story.type.bedtime.desc" = "Calming stories for peaceful sleep";
+
+// Step 2: Story Details
+"books.age.group" = "Age Group";
+"books.age.group.desc" = "Stories are tailored for the selected age group";
+"books.age.years" = "years";
+"books.age.toddler.desc" = "Simple words, basic concepts";
+"books.age.preschool.desc" = "Adventure and learning focused";
+"books.age.early.desc" = "More complex plots and themes";
+"books.age.elementary.desc" = "Advanced themes and vocabulary";
+"books.theme.input" = "Story Theme";
+"books.theme.placeholder" = "Example: A brave knight's quest to save the kingdom";
+"books.theme.description" = "Describe the main idea or adventure for your book";
+"books.page.count" = "Number of Pages";
+"books.page.count.desc" = "Choose how many pages your book should have";
+"books.pages" = "%d pages";
+"books.focus.tags" = "Story Focus";
+"books.focus.tags.desc" = "What should the story emphasize?";
+"books.focus.magic" = "Magic & Imagination";
+"books.focus.adventure" = "Adventure & Problem Solving";
+"books.focus.nature" = "Nature & Animals";
+"books.focus.emotions" = "Emotions & Feelings";
+"books.focus.family" = "Family & Love";
+"books.focus.learning" = "Learning & Education";
+"books.focus.friendship" = "Friendship & Social Skills";
+"books.custom.focus" = "Custom Focus (Optional)";
+"books.custom.focus.placeholder" = "Example: Focus on teamwork and courage";
+"books.custom.focus.desc" = "Additional focus description to guide story creation";
+"books.create.draft" = "Create Story Draft";
+"books.creating.draft" = "Creating Draft...";
+"books.validation.theme.required" = "Please enter a story theme";
+"books.validation.theme.min" = "Story theme must be at least 3 characters";
+"books.validation.theme.max" = "Story theme must be less than 200 characters";
+"books.preparing" = "Preparing story creation...";
+
+// Step 3: Draft Review
+"books.review.story" = "Review Story";
+"books.story.pages" = "Story Pages";
+"books.review.edit.desc" = "Review and edit each page";
+"books.page.number" = "Page %d";
+"books.page.text.placeholder" = "Page text";
+"books.edit" = "Edit";
+"books.cancel" = "Cancel";
+"books.update" = "Update";
+"books.saving" = "Saving...";
+"books.generate.book" = "Generate Book";
+"books.generating" = "Generating...";
+"books.generate.confirmation.title" = "Generate Book";
+"books.generate.confirmation.message" = "This will create %d illustrated pages. Your book will be generated in the background.";
+"books.token.cost" = "%d tokens";
+
 // MARK: - Coloring/Painting
 "coloring.title" = "Coloring";
 "coloring.tools" = "Tools";

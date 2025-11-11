@@ -12,10 +12,10 @@ struct AppToolbarContent: ToolbarContent {
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .navigationBarLeading) {
-            // Show menu + profile button together (both open same menu)
+            // Menu opens menu sheet, profile opens profiles screen
             HStack(spacing: AppSpacing.xs) {
                 ToolbarMenuButton(onTap: onMenuTap)
-                ToolbarProfileButton(profileService: profileService, onTap: onMenuTap)
+                ToolbarProfileButton(profileService: profileService)
             }
         }
 

@@ -13,23 +13,23 @@ enum StoryType: String, CaseIterable, Codable {
     
     var displayName: String {
         switch self {
-        case .bedtimeStory: return "Bedtime Story"
-        case .adventureStory: return "Adventure Story"
-        case .educationalStory: return "Educational Story"
-        case .friendshipStory: return "Friendship Story"
-        case .fantasyStory: return "Fantasy Story"
-        case .coloringBook: return "Coloring Book"
+        case .bedtimeStory: return "books.story.type.bedtime".localized
+        case .adventureStory: return "books.story.type.adventure".localized
+        case .educationalStory: return "books.story.type.educational".localized
+        case .friendshipStory: return "Friendship Story"  // Not used in UI
+        case .fantasyStory: return "books.story.type.fantasy".localized
+        case .coloringBook: return "Coloring Book"  // Not used in UI
         }
     }
-    
+
     var description: String {
         switch self {
-        case .bedtimeStory: return "Peaceful, calming stories for bedtime"
-        case .adventureStory: return "Exciting adventures and quests"
-        case .educationalStory: return "Learning-focused stories"
-        case .friendshipStory: return "Stories about friendship and relationships"
-        case .fantasyStory: return "Magical and fantastical tales"
-        case .coloringBook: return "Stories designed for coloring activities"
+        case .bedtimeStory: return "books.story.type.bedtime.desc".localized
+        case .adventureStory: return "books.story.type.adventure.desc".localized
+        case .educationalStory: return "books.story.type.educational.desc".localized
+        case .friendshipStory: return "Stories about friendship and relationships"  // Not used in UI
+        case .fantasyStory: return "books.story.type.fantasy.desc".localized
+        case .coloringBook: return "Stories designed for coloring activities"  // Not used in UI
         }
     }
     
@@ -58,10 +58,10 @@ enum AgeGroup: String, CaseIterable, Codable {
     
     var description: String {
         switch self {
-        case .toddler: return "Simple words, basic concepts"
-        case .preschool: return "Adventure and learning focused"
-        case .earlyElementary: return "More complex plots and themes"
-        case .elementary: return "Advanced themes and vocabulary"
+        case .toddler: return "books.age.toddler.desc".localized
+        case .preschool: return "books.age.preschool.desc".localized
+        case .earlyElementary: return "books.age.early.desc".localized
+        case .elementary: return "books.age.elementary.desc".localized
         }
     }
 }
@@ -75,9 +75,17 @@ enum FocusTag: String, CaseIterable, Codable {
     case familyLove = "Family & Love"
     case learningEducation = "Learning & Education"
     case friendshipSocialSkills = "Friendship & Social Skills"
-    
+
     var displayName: String {
-        return rawValue
+        switch self {
+        case .magicImagination: return "books.focus.magic".localized
+        case .adventureProblemSolving: return "books.focus.adventure".localized
+        case .natureAnimals: return "books.focus.nature".localized
+        case .emotionsFeelings: return "books.focus.emotions".localized
+        case .familyLove: return "books.focus.family".localized
+        case .learningEducation: return "books.focus.learning".localized
+        case .friendshipSocialSkills: return "books.focus.friendship".localized
+        }
     }
     
     var icon: String {

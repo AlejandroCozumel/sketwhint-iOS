@@ -71,10 +71,10 @@ struct iPadTopToolbar: View {
                     .buttonStyle(.plain)
                 }
 
-                // Profile button (opens menu)
+                // Profile button (opens profiles screen)
                 if showProfile {
-                    Button {
-                        onMenuTap()
+                    NavigationLink {
+                        ProfilesView()
                     } label: {
                         HStack(spacing: AppSpacing.sm) {
                             // Profile avatar

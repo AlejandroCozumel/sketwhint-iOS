@@ -10,7 +10,7 @@ struct SimpleToolbarContent: ToolbarContent {
         ToolbarItem(placement: .navigationBarLeading) {
             HStack(spacing: AppSpacing.xs) {
                 ToolbarMenuButton(onTap: onMenuTap)
-                ToolbarProfileButton(profileService: profileService, onTap: onMenuTap)
+                ToolbarProfileButton(profileService: profileService)
             }
         }
     }
