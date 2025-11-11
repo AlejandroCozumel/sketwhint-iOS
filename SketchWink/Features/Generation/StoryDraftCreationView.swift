@@ -35,9 +35,8 @@ struct StoryDraftCreationView: View {
     @State private var showingPreview = false
     @State private var activeDraft: StoryDraft?
     @State private var transitionEdge: Edge = .trailing
-    @State private var showingGenerationAlert = false
-    @State private var isGeneratingBook = false
-    
+    @State private var showingReviewScreen = false
+
     let productCategory: ProductCategory
     let onDismiss: () -> Void
     let onDraftCreated: (StoryDraft) -> Void
@@ -72,9 +71,6 @@ struct StoryDraftCreationView: View {
                                     .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
                             case 2:
                                 step2StoryDetails
-                                    .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
-                            case 3:
-                                step3DraftPreview
                                     .transition(.asymmetric(insertion: .move(edge: transitionEdge), removal: .move(edge: transitionEdge == .trailing ? .leading : .trailing)))
                             default:
                                 EmptyView()
@@ -138,18 +134,6 @@ struct StoryDraftCreationView: View {
             Button("OK") { }
         } message: {
             Text(error?.localizedDescription ?? "An unknown error occurred")
-        }
-        .alert("Generate Story Book?", isPresented: $showingGenerationAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Generate") {
-                Task {
-                    await generateBook()
-                }
-            }
-        } message: {
-            if let draft = activeDraft {
-                Text("This will generate illustrations for all \(draft.pageCount) pages. Continue in background?")
-            }
         }
         // Overlays instead of sheet/fullScreenCover to avoid presenter conflicts
         .overlay(alignment: .center) {
@@ -233,6 +217,18 @@ struct StoryDraftCreationView: View {
             print("🔁 showingPreview = \(presenting)")
             #endif
         }
+        .fullScreenCover(isPresented: $showingReviewScreen) {
+            if let draft = activeDraft {
+                BookDraftReviewView(
+                    draft: draft,
+                    productCategory: productCategory,
+                    onDismiss: {
+                        showingReviewScreen = false
+                        onDismiss()
+                    }
+                )
+            }
+        }
         // Align with other sheets: rely on pageMargins() inside ScrollView
     }
     
@@ -255,14 +251,14 @@ struct StoryDraftCreationView: View {
     private var progressBar: some View {
         VStack(spacing: AppSpacing.xs) {
             HStack(spacing: 4) {
-                ForEach(1...3, id: \.self) { step in
+                ForEach(1...2, id: \.self) { step in
                     Rectangle()
                         .fill(step <= currentStep ? productColor : AppColors.borderLight)
                         .frame(height: 4)
                 }
             }
 
-            Text("Step \(currentStep) of 3")
+            Text("Step \(currentStep) of 2")
                 .font(AppTypography.captionLarge)
                 .foregroundColor(AppColors.textSecondary)
                 .padding(.top, 4)
@@ -277,7 +273,6 @@ struct StoryDraftCreationView: View {
         switch currentStep {
         case 1: return selectedStoryType != nil
         case 2: return !userTheme.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case 3: return activeDraft != nil
         default: return false
         }
     }
@@ -329,88 +324,6 @@ struct StoryDraftCreationView: View {
         }
     }
 
-    // MARK: - Step 3: Draft Preview
-    private var step3DraftPreview: some View {
-        VStack(alignment: .leading, spacing: AppSpacing.lg) {
-            // Success message
-            VStack(spacing: AppSpacing.md) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(AppColors.successGreen)
-
-                Text("Story Draft Created!")
-                    .font(AppTypography.headlineLarge)
-                    .foregroundColor(AppColors.textPrimary)
-                    .multilineTextAlignment(.center)
-
-                if let draft = activeDraft {
-                    Text(draft.title)
-                        .font(AppTypography.titleMedium)
-                        .foregroundColor(AppColors.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, AppSpacing.md)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, AppSpacing.xl)
-
-            // Draft info
-            if let draft = activeDraft {
-                VStack(alignment: .leading, spacing: AppSpacing.md) {
-                    HStack {
-                        Image(systemName: "book.closed.fill")
-                            .foregroundColor(productColor)
-                        Text("\(draft.pageCount) pages")
-                            .bodyMedium()
-                            .foregroundColor(AppColors.textPrimary)
-                    }
-
-                    HStack {
-                        Image(systemName: "person.fill")
-                            .foregroundColor(productColor)
-                        Text("Age \(draft.ageGroup)")
-                            .bodyMedium()
-                            .foregroundColor(AppColors.textPrimary)
-                    }
-
-                    if !draft.focusTags.isEmpty {
-                        HStack {
-                            Image(systemName: "tag.fill")
-                                .foregroundColor(productColor)
-                            Text(draft.focusTags.joined(separator: ", "))
-                                .bodyMedium()
-                                .foregroundColor(AppColors.textPrimary)
-                        }
-                    }
-                }
-                .cardStyle()
-            }
-
-            Spacer()
-
-            // Generate button
-            Button(action: {
-                if let draft = activeDraft {
-                    showingGenerationAlert = true
-                }
-            }) {
-                HStack {
-                    if isGeneratingBook {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        Image(systemName: "sparkles")
-                    }
-                    Text(isGeneratingBook ? "Starting Generation..." : "Generate Book")
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .largeButtonStyle(backgroundColor: productColor)
-            .disabled(isGeneratingBook)
-            .opacity(isGeneratingBook ? 0.7 : 1.0)
-            .childSafeTouchTarget()
-        }
-    }
 
     // MARK: - Step 2: Story Details (Draft Form)
     @ViewBuilder
@@ -845,8 +758,8 @@ struct StoryDraftCreationView: View {
             await MainActor.run {
                 isShowingProgress = false
                 activeDraft = response.draft
-                // Navigate to step 3 to show draft preview
-                goToNextStep()
+                // Open review screen directly instead of going to step 3
+                showingReviewScreen = true
             }
         } catch {
             await MainActor.run {
@@ -857,48 +770,6 @@ struct StoryDraftCreationView: View {
         }
     }
 
-    // MARK: - Generate Book
-    private func generateBook() async {
-        guard let draft = activeDraft, let storyType = selectedStoryType else { return }
-
-        await MainActor.run {
-            isGeneratingBook = true
-        }
-
-        #if DEBUG
-        print("📖 StoryDraftCreationView: Starting book generation for draft: \(draft.id)")
-        print("📖 Draft title: \(draft.title)")
-        print("📖 Story type: \(storyType.rawValue)")
-        print("📖 Page count: \(draft.pageCount)")
-        #endif
-
-        do {
-            // Call the book generation endpoint
-            let bookId = try await draftService.generateBookFromDraft(draft: draft, storyType: storyType.rawValue)
-
-            #if DEBUG
-            print("✅ Book generation started successfully")
-            print("📖 Book ID: \(bookId)")
-            #endif
-
-            await MainActor.run {
-                isGeneratingBook = false
-                // Pass the draft back and dismiss - generation continues in background
-                onDraftCreated(draft)
-                onDismiss()
-            }
-        } catch {
-            #if DEBUG
-            print("❌ Book generation failed: \(error.localizedDescription)")
-            #endif
-
-            await MainActor.run {
-                self.error = error
-                showingError = true
-                isGeneratingBook = false
-            }
-        }
-    }
 }
 
 // MARK: - Story Type Card

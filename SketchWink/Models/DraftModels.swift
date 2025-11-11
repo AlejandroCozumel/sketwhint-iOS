@@ -159,44 +159,143 @@ struct CharacterDescription: Codable {
     let personalityTraits: [String]
     let roleInStory: String
 
-    // Custom decoder to handle the actual backend structure
+    // Custom decoder to handle both old and new backend structures
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let container = try decoder.container(keyedBy: DynamicCodingKeys.self)
 
-        // PhysicalAppearance is a STRING in the backend response, not an object or array
-        if let physicalString = try? container.decode(String.self, forKey: .physicalAppearance) {
-            // Split the string into sentences for better display
+        // Try lowercase keys first (new format)
+        if let physicalDict = try? container.decodeIfPresent([String: AnyCodable].self, forKey: DynamicCodingKeys(stringValue: "physicalAppearance")!) {
+            // Convert dictionary to array of descriptive strings
+            var descriptions: [String] = []
+
+            if let species = physicalDict["species"]?.value as? String {
+                descriptions.append("Species: \(species)")
+            }
+            if let breed = physicalDict["breed"]?.value as? String {
+                descriptions.append("Breed: \(breed)")
+            }
+            if let furColor = physicalDict["furColor"]?.value as? String {
+                descriptions.append("Fur: \(furColor)")
+            }
+            if let eyeColor = physicalDict["eyeColor"]?.value as? String {
+                descriptions.append("Eyes: \(eyeColor)")
+            }
+            if let size = physicalDict["size"]?.value as? String {
+                descriptions.append("Size: \(size)")
+            }
+            if let features = physicalDict["distinctiveFeatures"]?.value as? [String] {
+                descriptions.append(contentsOf: features)
+            }
+
+            self.physicalAppearance = descriptions.isEmpty ? ["Friendly character"] : descriptions
+        }
+        // Try old format with capitalized keys
+        else if let physicalString = try? container.decodeIfPresent(String.self, forKey: DynamicCodingKeys(stringValue: "PhysicalAppearance")!) {
             self.physicalAppearance = physicalString.components(separatedBy: ". ").filter { !$0.isEmpty }
-        } else {
+        }
+        // Fallback
+        else {
             self.physicalAppearance = ["Friendly character"]
         }
 
-        // PersonalityTraits is an array of strings
-        if let traits = try? container.decode([String].self, forKey: .personalityTraits) {
+        // Try lowercase keys first (new format)
+        if let traits = try? container.decodeIfPresent([String].self, forKey: DynamicCodingKeys(stringValue: "personalityTraits")!) {
             self.personalityTraits = traits
-        } else {
+        }
+        // Try old format with capitalized keys
+        else if let traits = try? container.decodeIfPresent([String].self, forKey: DynamicCodingKeys(stringValue: "PersonalityTraits")!) {
+            self.personalityTraits = traits
+        }
+        // Fallback
+        else {
             self.personalityTraits = ["Friendly", "Brave", "Kind"]
         }
 
-        // RoleInStory is a string
-        if let role = try? container.decode(String.self, forKey: .roleInStory) {
+        // Try lowercase keys first (new format)
+        if let role = try? container.decodeIfPresent(String.self, forKey: DynamicCodingKeys(stringValue: "roleInStory")!) {
             self.roleInStory = role
-        } else {
+        }
+        // Try old format with capitalized keys
+        else if let role = try? container.decodeIfPresent(String.self, forKey: DynamicCodingKeys(stringValue: "RoleInStory")!) {
+            self.roleInStory = role
+        }
+        // Fallback
+        else {
             self.roleInStory = "Important character in the story"
         }
     }
 
     func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(physicalAppearance.joined(separator: ". "), forKey: .physicalAppearance)
-        try container.encode(personalityTraits, forKey: .personalityTraits)
-        try container.encode(roleInStory, forKey: .roleInStory)
+        var container = encoder.container(keyedBy: DynamicCodingKeys.self)
+        try container.encode(physicalAppearance.joined(separator: ". "), forKey: DynamicCodingKeys(stringValue: "physicalAppearance")!)
+        try container.encode(personalityTraits, forKey: DynamicCodingKeys(stringValue: "personalityTraits")!)
+        try container.encode(roleInStory, forKey: DynamicCodingKeys(stringValue: "roleInStory")!)
+    }
+}
+
+// Helper for dynamic coding keys
+struct DynamicCodingKeys: CodingKey {
+    var stringValue: String
+    var intValue: Int?
+
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+        self.intValue = nil
     }
 
-    enum CodingKeys: String, CodingKey {
-        case physicalAppearance = "PhysicalAppearance"
-        case personalityTraits = "PersonalityTraits"
-        case roleInStory = "RoleInStory"
+    init?(intValue: Int) {
+        self.stringValue = "\(intValue)"
+        self.intValue = intValue
+    }
+}
+
+// Helper for decoding any JSON value
+struct AnyCodable: Codable {
+    let value: Any
+
+    init(value: Any) {
+        self.value = value
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        if let bool = try? container.decode(Bool.self) {
+            value = bool
+        } else if let int = try? container.decode(Int.self) {
+            value = int
+        } else if let double = try? container.decode(Double.self) {
+            value = double
+        } else if let string = try? container.decode(String.self) {
+            value = string
+        } else if let array = try? container.decode([AnyCodable].self) {
+            value = array.map { $0.value }
+        } else if let dictionary = try? container.decode([String: AnyCodable].self) {
+            value = dictionary.mapValues { $0.value }
+        } else {
+            value = NSNull()
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+
+        switch value {
+        case let bool as Bool:
+            try container.encode(bool)
+        case let int as Int:
+            try container.encode(int)
+        case let double as Double:
+            try container.encode(double)
+        case let string as String:
+            try container.encode(string)
+        case let array as [Any]:
+            try container.encode(array.map { AnyCodable(value: $0) })
+        case let dictionary as [String: Any]:
+            try container.encode(dictionary.mapValues { AnyCodable(value: $0) })
+        default:
+            try container.encodeNil()
+        }
     }
 }
 
@@ -236,7 +335,7 @@ struct StoryDraft: Codable, Identifiable {
     let storyOutline: StoryOutline
     let pageTexts: [String]
     let characterDescriptions: [String: CharacterDescription]
-    let artStyle: String
+    let artStyle: String?
     let status: String
     let tokensCost: Int
     let createdAt: String
@@ -283,10 +382,10 @@ struct GetDraftsResponse: Codable {
 struct UpdateDraftRequest: Codable {
     let title: String?
     let pageTexts: [String]?
-    
+
     enum CodingKeys: String, CodingKey {
         case title
-        case pageTexts = "page_texts"
+        case pageTexts = "pageTexts"
     }
 }
 
