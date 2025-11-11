@@ -136,7 +136,7 @@ struct GalleryView: View {
                     profileService: profileService,
                     tokenManager: tokenManager,
                     title: "gallery.title".localized,
-                    onProfileTap: { showingProfileMenu = true },
+                    onMenuTap: { showingProfileMenu = true },
                     onCreditsTap: { /* TODO: Show purchase credits modal */ },
                     onUpgradeTap: { showSubscriptionPlans = true }
                 ) {
@@ -241,21 +241,10 @@ struct GalleryView: View {
         .navigationBarTitleDisplayMode(UIDevice.current.userInterfaceIdiom == .pad ? .inline : .large)
         .toolbar {
             if UIDevice.current.userInterfaceIdiom != .pad {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { showingProfileMenu = true }) {
-                        HStack(spacing: 6) {
-                            if let currentProfile = profileService.currentProfile {
-                                Text(currentProfile.displayAvatar)
-                                    .font(.system(size: 24))
-
-                                Text(currentProfile.name)
-                                    .font(AppTypography.bodyMedium)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(AppColors.textPrimary)
-                            }
-                        }
-                    }
-                }
+                SimpleToolbarContent(
+                    profileService: profileService,
+                    onMenuTap: { showingProfileMenu = true }
+                )
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if !images.isEmpty {

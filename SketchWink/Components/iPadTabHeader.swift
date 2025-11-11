@@ -1,13 +1,13 @@
 import SwiftUI
 
 /// Unified iPad-only tab header that mirrors the Art tab layout.
-/// Renders the profile/credits toolbar plus the large title row with optional trailing actions.
+/// Renders the menu/profile/credits toolbar plus the large title row with optional trailing actions.
 struct iPadTabHeader<Actions: View>: View {
     @ObservedObject var profileService: ProfileService
     @ObservedObject var tokenManager: TokenBalanceManager
 
     let title: String
-    let onProfileTap: () -> Void
+    let onMenuTap: () -> Void
     let onCreditsTap: () -> Void
     let onUpgradeTap: () -> Void
     @ViewBuilder let trailingActions: () -> Actions
@@ -16,7 +16,7 @@ struct iPadTabHeader<Actions: View>: View {
         profileService: ProfileService,
         tokenManager: TokenBalanceManager,
         title: String,
-        onProfileTap: @escaping () -> Void,
+        onMenuTap: @escaping () -> Void,
         onCreditsTap: @escaping () -> Void,
         onUpgradeTap: @escaping () -> Void,
         @ViewBuilder trailingActions: @escaping () -> Actions = { EmptyView() }
@@ -24,7 +24,7 @@ struct iPadTabHeader<Actions: View>: View {
         self.profileService = profileService
         self.tokenManager = tokenManager
         self.title = title
-        self.onProfileTap = onProfileTap
+        self.onMenuTap = onMenuTap
         self.onCreditsTap = onCreditsTap
         self.onUpgradeTap = onUpgradeTap
         self.trailingActions = trailingActions
@@ -35,7 +35,7 @@ struct iPadTabHeader<Actions: View>: View {
             iPadTopToolbar(
                 profileService: profileService,
                 tokenManager: tokenManager,
-                onProfileTap: onProfileTap,
+                onMenuTap: onMenuTap,
                 onCreditsTap: onCreditsTap,
                 onUpgradeTap: onUpgradeTap
             )

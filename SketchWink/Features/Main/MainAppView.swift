@@ -53,7 +53,7 @@ extension MainAppView {
         case gallery
         case stories
         case books
-        case profiles
+        case folders
 
         var title: String {
             switch self {
@@ -61,7 +61,7 @@ extension MainAppView {
             case .gallery: return "nav.gallery".localized
             case .stories: return "nav.stories".localized
             case .books: return "nav.books".localized
-            case .profiles: return "nav.profiles".localized
+            case .folders: return "nav.folders".localized
             }
         }
 
@@ -71,7 +71,7 @@ extension MainAppView {
             case .gallery: return "photo.fill"
             case .stories: return "moon.stars.fill"
             case .books: return "book.fill"
-            case .profiles: return "person.2.fill"
+            case .folders: return "folder.fill"
             }
         }
     }
@@ -109,9 +109,9 @@ private extension MainAppView {
             NavigationStack {
                 BooksView()
             }
-        case .profiles:
+        case .folders:
             NavigationStack {
-                ProfilesView()
+                FolderView(selectedTab: selectedTabBinding)
             }
         }
     }

@@ -41,12 +41,14 @@
 "common.unknown.error" = "An unknown error occurred";
 "common.apply" = "Apply";
 "common.share" = "Share";
+"menu.button" = "Menu";
 
 // MARK: - Main Navigation
 "nav.art" = "Art";
 "nav.gallery" = "Gallery";
 "nav.stories" = "Stories";
 "nav.books" = "Books";
+"nav.folders" = "Folders";
 "nav.profiles" = "Profiles";
 
 // MARK: - Login Screen

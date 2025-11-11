@@ -8,16 +8,17 @@
 import SwiftUI
 
 /// Reusable iPad top toolbar that appears below the navigation bar
-/// Shows profile, credits, and plan badge with consistent styling
+/// Shows menu, profile, credits, and plan badge with consistent styling
 struct iPadTopToolbar: View {
     @ObservedObject var profileService: ProfileService
     @ObservedObject var tokenManager: TokenBalanceManager
 
-    let onProfileTap: () -> Void
+    let onMenuTap: () -> Void
     let onCreditsTap: () -> Void
     let onUpgradeTap: () -> Void
 
     // Configuration options
+    let showMenu: Bool
     let showProfile: Bool
     let showCredits: Bool
     let showPlanBadge: Bool
@@ -25,18 +26,20 @@ struct iPadTopToolbar: View {
     init(
         profileService: ProfileService,
         tokenManager: TokenBalanceManager,
-        onProfileTap: @escaping () -> Void,
+        onMenuTap: @escaping () -> Void,
         onCreditsTap: @escaping () -> Void,
         onUpgradeTap: @escaping () -> Void,
+        showMenu: Bool = true,
         showProfile: Bool = true,
         showCredits: Bool = true,
         showPlanBadge: Bool = true
     ) {
         self.profileService = profileService
         self.tokenManager = tokenManager
-        self.onProfileTap = onProfileTap
+        self.onMenuTap = onMenuTap
         self.onCreditsTap = onCreditsTap
         self.onUpgradeTap = onUpgradeTap
+        self.showMenu = showMenu
         self.showProfile = showProfile
         self.showCredits = showCredits
         self.showPlanBadge = showPlanBadge
@@ -44,38 +47,63 @@ struct iPadTopToolbar: View {
 
     var body: some View {
         HStack(spacing: AppSpacing.lg) {
-            // Profile button (left side)
-            if showProfile {
-                Button {
-                    onProfileTap()
-                } label: {
-                    HStack(spacing: AppSpacing.sm) {
-                        // Profile avatar
-                        if let currentProfile = profileService.currentProfile {
-                            Text(currentProfile.displayAvatar)
-                                .font(.system(size: 24))
-                                .frame(width: 40, height: 40)
-                                .background(
-                                    Circle()
-                                        .fill(Color(hex: currentProfile.profileColor).opacity(0.2))
-                                )
-                                .overlay(
-                                    Circle()
-                                        .stroke(Color(hex: currentProfile.profileColor), lineWidth: 2)
-                                )
+            // Left side: Menu + Profile
+            HStack(spacing: AppSpacing.xs) {
+                // Menu button (round)
+                if showMenu {
+                    Button {
+                        onMenuTap()
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.surfaceLight)
 
-                            Text(currentProfile.name)
-                                .font(AppTypography.bodyMedium)
-                                .fontWeight(.semibold)
-                                .foregroundColor(AppColors.textPrimary)
-                        } else {
-                            Image(systemName: "person.circle.fill")
-                                .font(.system(size: 32))
+                            Image(systemName: "line.3.horizontal")
+                                .font(.system(size: 18, weight: .semibold))
                                 .foregroundColor(AppColors.primaryBlue)
                         }
+                        .frame(width: 40, height: 40)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.borderLight, lineWidth: 1)
+                        )
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+
+                // Profile button (opens menu)
+                if showProfile {
+                    Button {
+                        onMenuTap()
+                    } label: {
+                        HStack(spacing: AppSpacing.sm) {
+                            // Profile avatar
+                            if let currentProfile = profileService.currentProfile {
+                                Text(currentProfile.displayAvatar)
+                                    .font(.system(size: 24))
+                                    .frame(width: 40, height: 40)
+                                    .background(
+                                        Circle()
+                                            .fill(Color(hex: currentProfile.profileColor).opacity(0.2))
+                                    )
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color(hex: currentProfile.profileColor), lineWidth: 2)
+                                    )
+
+                                Text(currentProfile.name)
+                                    .font(AppTypography.bodyMedium)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(AppColors.textPrimary)
+                            } else {
+                                Image(systemName: "person.circle.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(AppColors.primaryBlue)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             Spacer()

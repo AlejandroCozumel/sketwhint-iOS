@@ -38,7 +38,7 @@ struct ProfilesView: View {
                         profileService: profileService,
                         tokenManager: tokenManager,
                         title: "profiles.title".localized,
-                        onProfileTap: { showingProfileMenu = true },
+                        onMenuTap: { showingProfileMenu = true },
                         onCreditsTap: { /* TODO: Show purchase credits modal */ },
                         onUpgradeTap: { showingSubscriptionPlans = true }
                     )
@@ -65,13 +65,14 @@ struct ProfilesView: View {
             .navigationBarTitleDisplayMode(UIDevice.current.userInterfaceIdiom == .pad ? .inline : .large)
             .toolbar {
                 if UIDevice.current.userInterfaceIdiom != .pad {
-                    AppToolbarContent(
-                        profileService: profileService,
-                        tokenManager: tokenManager,
-                        onProfileTap: { showingProfileMenu = true },
-                        onCreditsTap: { /* TODO: Show purchase credits modal */ },
-                        onUpgradeTap: { showingSubscriptionPlans = true }
-                    )
+                    // Show only tokens and plan on trailing side (back button is automatic)
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        ToolbarTokenButtons(
+                            tokenManager: tokenManager,
+                            onCreditsTap: { /* TODO: Show purchase credits modal */ },
+                            onUpgradeTap: { showingSubscriptionPlans = true }
+                        )
+                    }
                 }
             }
         }

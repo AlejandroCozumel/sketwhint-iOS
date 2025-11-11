@@ -43,7 +43,7 @@ struct BedtimeStoriesLibraryView: View {
                     profileService: profileService,
                     tokenManager: tokenManager,
                     title: "stories.title".localized,
-                    onProfileTap: { showingProfileMenu = true },
+                    onMenuTap: { showingProfileMenu = true },
                     onCreditsTap: { /* TODO: Show purchase credits modal */ },
                     onUpgradeTap: { showSubscriptionPlans = true }
                 ) {
@@ -79,9 +79,10 @@ struct BedtimeStoriesLibraryView: View {
         .navigationBarTitleDisplayMode(UIDevice.current.userInterfaceIdiom == .pad ? .inline : .large)
         .toolbar {
             if UIDevice.current.userInterfaceIdiom != .pad {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    ProfileMenuButton(selectedTab: $selectedTab)
-                }
+                SimpleToolbarContent(
+                    profileService: profileService,
+                    onMenuTap: { showingProfileMenu = true }
+                )
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {

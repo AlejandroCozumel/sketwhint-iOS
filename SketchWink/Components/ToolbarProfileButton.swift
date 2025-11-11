@@ -20,6 +20,8 @@ struct ToolbarProfileButton: View {
                         .font(AppTypography.bodyMedium)
                         .fontWeight(.semibold)
                         .foregroundColor(AppColors.textPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
         }

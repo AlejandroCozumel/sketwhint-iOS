@@ -34,7 +34,7 @@ struct CategorySelectionView: View {
                     profileService: profileService,
                     tokenManager: tokenManager,
                     title: "generation.title".localized,
-                    onProfileTap: { showingProfileMenu = true },
+                    onMenuTap: { showingProfileMenu = true },
                     onCreditsTap: { /* TODO: Show purchase credits modal */ },
                     onUpgradeTap: { showSubscriptionPlans = true }
                 )
@@ -71,7 +71,7 @@ struct CategorySelectionView: View {
                 AppToolbarContent(
                     profileService: profileService,
                     tokenManager: tokenManager,
-                    onProfileTap: { showingProfileMenu = true },
+                    onMenuTap: { showingProfileMenu = true },
                     onCreditsTap: { /* TODO: Show purchase credits modal */ },
                     onUpgradeTap: { showSubscriptionPlans = true }
                 )

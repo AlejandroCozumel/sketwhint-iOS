@@ -1,18 +1,22 @@
 import SwiftUI
 
 /// Reusable toolbar content for app navigation bars
-/// Shows profile avatar + name on left, credits + plan badge on right
+/// Shows menu + profile on left, credits + plan badge on right
 struct AppToolbarContent: ToolbarContent {
     @ObservedObject var profileService: ProfileService
     @ObservedObject var tokenManager: TokenBalanceManager
 
-    let onProfileTap: () -> Void
+    let onMenuTap: () -> Void
     let onCreditsTap: () -> Void
     let onUpgradeTap: () -> Void
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .navigationBarLeading) {
-            ToolbarProfileButton(profileService: profileService, onTap: onProfileTap)
+            // Show menu + profile button together (both open same menu)
+            HStack(spacing: AppSpacing.xs) {
+                ToolbarMenuButton(onTap: onMenuTap)
+                ToolbarProfileButton(profileService: profileService, onTap: onMenuTap)
+            }
         }
 
         // On iPad, split credits and plan badge for better spacing
@@ -219,7 +223,7 @@ private struct ToolbarPlanButton: View {
 }
 
 // MARK: - Trailing Token / Plan Buttons
-private struct ToolbarTokenButtons: View {
+struct ToolbarTokenButtons: View {
     @ObservedObject var tokenManager: TokenBalanceManager
 
     let onCreditsTap: () -> Void
