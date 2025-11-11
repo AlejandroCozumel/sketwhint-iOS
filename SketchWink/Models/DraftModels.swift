@@ -405,7 +405,7 @@ struct GenerateBookFromDraftRequest: Codable {
     let quality: String?
     let dimensions: String?
 
-    init(draftId: String? = nil, confirm: Bool = true, model: String = "seedream", quality: String = "standard", dimensions: String = "a4") {
+    nonisolated init(draftId: String? = nil, confirm: Bool = true, model: String = "seedream", quality: String = "standard", dimensions: String = "a4") {
         self.draftId = draftId
         self.confirm = confirm
         self.model = model

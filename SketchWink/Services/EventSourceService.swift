@@ -284,12 +284,12 @@ extension EventSourceService: URLSessionDataDelegate {
         }
     }
 
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didCompleteWithError error: Error?) {
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         #if DEBUG
         print("🔗 EventSource: ⚠️ Connection completed/disconnected")
-        print("🔗 EventSource: ⚠️ URL: \(dataTask.originalRequest?.url?.absoluteString ?? "unknown")")
-        print("🔗 EventSource: ⚠️ Response status: \((dataTask.response as? HTTPURLResponse)?.statusCode ?? -1)")
-        print("🔗 EventSource: ⚠️ Bytes received: \(dataTask.countOfBytesReceived)")
+        print("🔗 EventSource: ⚠️ URL: \(task.originalRequest?.url?.absoluteString ?? "unknown")")
+        print("🔗 EventSource: ⚠️ Response status: \((task.response as? HTTPURLResponse)?.statusCode ?? -1)")
+        print("🔗 EventSource: ⚠️ Bytes received: \(task.countOfBytesReceived)")
         
         if let error = error {
             print("🔗 EventSource: ❌ Error: \(error)")

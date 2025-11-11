@@ -997,7 +997,7 @@ struct StoryDraftCreationView: View {
         )
 
         do {
-            let response = try await draftService.generateBookFromDraft(draftId: draft.id, options: options)
+            _ = try await draftService.generateBookFromDraft(draftId: draft.id, options: options)
 
             await MainActor.run {
                 isGeneratingBook = false

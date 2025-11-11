@@ -482,7 +482,7 @@ struct BooksView: View {
                     
                     #if DEBUG
                     print("📚 BooksView: Loaded \\(availableCategories.count) story book categories")
-                    for category in availableCategories {
+                    availableCategories.forEach { category in
                         print("   - \\(category.name)")
                     }
                     #endif
@@ -566,7 +566,7 @@ struct BooksView: View {
             if showFavoritesOnly && wasOriginallyFavorite {
                 // Find the book in the current list and remove with animation
                 if let currentIndex = booksService.books.firstIndex(where: { $0.id == book.id && !$0.isFavorite }) {
-                    withAnimation(.easeOut(duration: 0.3)) {
+                    _ = withAnimation(.easeOut(duration: 0.3)) {
                         booksService.books.remove(at: currentIndex)
                     }
                 }

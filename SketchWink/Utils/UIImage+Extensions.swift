@@ -176,8 +176,8 @@ extension UIImage {
     func safeProcessForUpload(maxSize: CGFloat = 1024, quality: CGFloat = 0.7, maxFileSize: Int = 2_097_152) -> Result<UIImage, ImageProcessingError> {
         
         // Validate original image
-        let validation = validateForUpload(maxSize: maxSize, maxFileSize: maxFileSize, quality: quality)
-        
+        _ = validateForUpload(maxSize: maxSize, maxFileSize: maxFileSize, quality: quality)
+
         // Process image
         let processedImage = self.processForUpload(maxSize: maxSize, quality: quality)
         

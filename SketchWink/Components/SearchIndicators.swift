@@ -40,14 +40,13 @@ struct SearchIndicatorOverlay: View {
     }
 }
 
-#Preview {
+#Preview(traits: .sizeThatFitsLayout) {
     ZStack {
         Rectangle()
             .fill(Color.gray.opacity(0.3))
             .frame(width: 200, height: 200)
-        
+
         SearchIndicatorOverlay(searchTerm: "unicorn")
     }
-    .previewLayout(.sizeThatFits)
     .padding()
 }

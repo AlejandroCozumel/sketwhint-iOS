@@ -125,52 +125,36 @@ struct CategorySelectionView: View {
             }
         }
         // Navigation-based flow instead of stacked sheets
-        .background(
-            Group {
-                NavigationLink(
-                    destination:
-                        Group {
-                            if let productCategory = selectedProductCategory {
-                                SimpleCreationMethodView(
-                                    productCategory: productCategory,
-                                    onDismiss: {
-                                        navigateToCreationMethod = false
-                                        selectedProductCategory = nil
-                                    },
-                                    onDraftCreated: { draft in
-                                        // Navigate to story review/preview before generating book
-                                        activeProductCategoryForGeneration = productCategory
-                                        createdDraft = draft
-                                        navigateToBookGeneration = true
-                                    }
-                                )
-                            } else {
-                                EmptyView()
-                            }
-                        },
-                    isActive: $navigateToCreationMethod
-                ) { EmptyView() }
-                NavigationLink(
-                    destination:
-                        Group {
-                            if let draft = createdDraft {
-                                StoryDraftDetailView(
-                                    draft: draft,
-                                    onDismiss: {
-                                        navigateToBookGeneration = false
-                                        selectedProductCategory = nil
-                                        createdDraft = nil
-                                        activeProductCategoryForGeneration = nil
-                                    }
-                                )
-                            } else {
-                                EmptyView()
-                            }
-                        },
-                    isActive: $navigateToBookGeneration
-                ) { EmptyView() }
+        .navigationDestination(isPresented: $navigateToCreationMethod) {
+            if let productCategory = selectedProductCategory {
+                SimpleCreationMethodView(
+                    productCategory: productCategory,
+                    onDismiss: {
+                        navigateToCreationMethod = false
+                        selectedProductCategory = nil
+                    },
+                    onDraftCreated: { draft in
+                        // Navigate to story review/preview before generating book
+                        activeProductCategoryForGeneration = productCategory
+                        createdDraft = draft
+                        navigateToBookGeneration = true
+                    }
+                )
             }
-        )
+        }
+        .navigationDestination(isPresented: $navigateToBookGeneration) {
+            if let draft = createdDraft {
+                StoryDraftDetailView(
+                    draft: draft,
+                    onDismiss: {
+                        navigateToBookGeneration = false
+                        selectedProductCategory = nil
+                        createdDraft = nil
+                        activeProductCategoryForGeneration = nil
+                    }
+                )
+            }
+        }
     }
 
     // MARK: - Loading View

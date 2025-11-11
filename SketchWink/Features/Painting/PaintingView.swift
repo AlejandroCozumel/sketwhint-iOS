@@ -164,17 +164,17 @@ struct PaintingView: View {
     }
 
     private func showToolPicker() {
-        guard let window = UIApplication.shared.connectedScenes
+        guard UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
             .flatMap({ $0.windows })
-            .first(where: { $0.isKeyWindow }) else {
+            .first(where: { $0.isKeyWindow }) != nil else {
             print("❌ No key window found")
             return
         }
 
         print("✅ Window found, showing tool picker")
-        let toolPicker = PKToolPicker.shared(for: window)
-        toolPicker?.setVisible(true, forFirstResponder: canvasView)
+        let toolPicker = PKToolPicker()
+        toolPicker.setVisible(true, forFirstResponder: canvasView)
         canvasView.becomeFirstResponder()
         print("✅ Tool picker visibility set, canvas became first responder")
     }
@@ -263,37 +263,32 @@ struct NativePencilKitCanvas: UIViewRepresentable {
         }
 
         func restoreToolPicker(for canvasView: PKCanvasView) {
-            guard let window = UIApplication.shared.connectedScenes
+            guard UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
                 .flatMap({ $0.windows })
-                .first(where: { $0.isKeyWindow }) else {
+                .first(where: { $0.isKeyWindow }) != nil else {
                 return
             }
 
-            let toolPicker = PKToolPicker.shared(for: window)
+            let toolPicker = PKToolPicker()
             canvasView.becomeFirstResponder()
-            toolPicker?.setVisible(true, forFirstResponder: canvasView)
+            toolPicker.setVisible(true, forFirstResponder: canvasView)
         }
 
         func setupToolPicker(for canvasView: PKCanvasView) {
-            guard let window = UIApplication.shared.connectedScenes
+            guard UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
                 .flatMap({ $0.windows })
-                .first(where: { $0.isKeyWindow }) else {
+                .first(where: { $0.isKeyWindow }) != nil else {
                 print("❌ Coordinator: No key window")
                 return
             }
 
             print("✅ Coordinator: Setting up tool picker")
-            let toolPicker = PKToolPicker.shared(for: window)
-
-            if toolPicker == nil {
-                print("❌ Coordinator: Tool picker is nil!")
-                return
-            }
+            let toolPicker = PKToolPicker()
 
             // Always add observer (PKCanvasView handles duplicates internally)
-            toolPicker?.addObserver(canvasView)
+            toolPicker.addObserver(canvasView)
 
             print("✅ Coordinator: Observer added")
 
@@ -302,10 +297,10 @@ struct NativePencilKitCanvas: UIViewRepresentable {
                 print("🎨 Coordinator: Making canvas first responder")
 
                 canvasView.becomeFirstResponder()
-                toolPicker?.setVisible(true, forFirstResponder: canvasView)
+                toolPicker.setVisible(true, forFirstResponder: canvasView)
 
                 print("✅ Coordinator: Canvas is first responder: \(canvasView.isFirstResponder)")
-                print("✅ Coordinator: Tool picker visible: \(toolPicker?.isVisible ?? false)")
+                print("✅ Coordinator: Tool picker visible: \(toolPicker.isVisible)")
             }
         }
     }

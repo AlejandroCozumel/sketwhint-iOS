@@ -47,8 +47,7 @@ class DraftService: ObservableObject {
         httpRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         // Add profile header for family profile support
-        if let profileService = try? ProfileService.shared,
-           let currentProfile = profileService.currentProfile {
+        if let currentProfile = ProfileService.shared.currentProfile {
             httpRequest.setValue(currentProfile.id, forHTTPHeaderField: "X-Profile-ID")
         }
 
@@ -107,7 +106,7 @@ class DraftService: ObservableObject {
             "ageGroup": draft.ageGroup,
             "pageCount": draft.pageCount,
             "focusTags": draft.focusTags,
-            "artStyle": draft.artStyle,
+            "artStyle": draft.artStyle as Any,
             "quality": "standard",
             "model": "seedream",
             "dimensions": "a4",
@@ -116,7 +115,7 @@ class DraftService: ObservableObject {
 
         // Only add customFocus if it has a value (omit if nil or empty)
         if let customFocus = draft.customFocus, !customFocus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            requestBody["customFocus"] = customFocus
+            requestBody["customFocus"] = customFocus as Any
         }
 
         let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
@@ -399,8 +398,7 @@ class DraftService: ObservableObject {
         httpRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         // Add profile header for family profile support
-        if let profileService = try? ProfileService.shared,
-           let currentProfile = profileService.currentProfile {
+        if let currentProfile = ProfileService.shared.currentProfile {
             httpRequest.setValue(currentProfile.id, forHTTPHeaderField: "X-Profile-ID")
         }
         

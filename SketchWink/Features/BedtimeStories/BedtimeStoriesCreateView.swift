@@ -679,7 +679,7 @@ struct BedtimeStoriesCreateView: View {
         guard let draft = currentDraft else { return }
 
         Task {
-            try? await service.generateStory(
+            _ = try? await service.generateStory(
                 draftId: draft.id,
                 voiceId: selectedVoice
             )

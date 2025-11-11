@@ -427,7 +427,7 @@ class GenerationService: ObservableObject {
     
     // MARK: - Polling Helper
     func pollGenerationUntilComplete(id: String, maxAttempts: Int = 60) async throws -> Generation {
-        for attempt in 1...maxAttempts {
+        for _ in 1...maxAttempts {
             let generation = try await getGeneration(id: id)
             
             switch generation.status {

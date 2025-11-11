@@ -155,7 +155,7 @@ struct AppCoordinator: View {
             }
         }
         .interactiveDismissDisabled($showingPINEntry.wrappedValue) // Prevent swipe-to-dismiss for PIN entry
-        .onChange(of: authService.hasCompletedOnboarding) { newValue in
+        .onChange(of: authService.hasCompletedOnboarding) { _, newValue in
             guard newValue else { return }
             performPostOnboardingSetup()
         }

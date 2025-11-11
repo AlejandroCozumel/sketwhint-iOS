@@ -243,8 +243,8 @@ struct GenerationProgressView: View {
     }
     
     private func startSSEConnection() async {
-        // Get auth token
-        guard let token = try? KeychainManager.shared.retrieveToken() else {
+        // Check auth token exists
+        guard (try? KeychainManager.shared.retrieveToken()) != nil else {
             onError("Authentication token not found")
             return
         }
@@ -422,7 +422,7 @@ struct GenerationProgressView: View {
         print("🔗 GenerationProgressView: Starting polling fallback")
         #endif
         
-        for attempt in 1...30 { // 30 attempts, 2 seconds each = 1 minute max
+        for _ in 1...30 { // 30 attempts, 2 seconds each = 1 minute max
             do {
                 let generation = try await generationService.getGeneration(id: currentGeneration.id)
                 

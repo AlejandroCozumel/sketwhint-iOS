@@ -101,11 +101,7 @@ struct OptimizedImageView: View {
 
     /// Generate optimized thumbnail with proper sizing and compression
     private func generateThumbnail(from image: UIImage, targetSize: CGSize) async -> UIImage {
-        let scale = await UIScreen.main.scale
-        let pixelSize = CGSize(
-            width: targetSize.width * scale,
-            height: targetSize.height * scale
-        )
+        let scale = UIScreen.main.scale
 
         return await Task.detached(priority: .userInitiated) {
             let format = UIGraphicsImageRendererFormat()

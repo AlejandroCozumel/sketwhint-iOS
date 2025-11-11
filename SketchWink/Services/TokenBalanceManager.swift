@@ -260,7 +260,7 @@ class TokenBalanceManager: ObservableObject {
     /// Deduct tokens after successful generation (optimistic update)
     /// - Parameter cost: Tokens to deduct
     func deductTokens(_ cost: Int) {
-        guard var balance = tokenBalance else {
+        guard let balance = tokenBalance else {
             print("⚠️ TokenBalanceManager: Cannot deduct tokens - no balance loaded")
             return
         }

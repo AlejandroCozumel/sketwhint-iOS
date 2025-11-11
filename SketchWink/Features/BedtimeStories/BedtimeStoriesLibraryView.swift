@@ -447,7 +447,7 @@ struct BedtimeStoriesLibraryView: View {
 
                     // Remove from list if viewing favorites only and unfavorited
                     if showFavoritesOnly && !newFavoriteStatus {
-                        withAnimation {
+                        _ = withAnimation {
                             stories.remove(at: index)
                         }
                     }

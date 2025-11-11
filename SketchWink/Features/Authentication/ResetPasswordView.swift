@@ -311,7 +311,7 @@ struct OTPDigitField: View {
                         lineWidth: isFocused ? 2 : 1
                     )
             )
-            .onChange(of: text) { newValue in
+            .onChange(of: text) { _, newValue in
                 onTextChange(newValue)
             }
     }

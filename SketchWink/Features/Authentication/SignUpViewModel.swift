@@ -118,7 +118,8 @@ class SignUpViewModel: ObservableObject, AppleSignInViewModel {
     
     // MARK: - Sign In with Google
     func signInWithGoogle() {
-        guard let topVC = UIApplication.shared.keyWindow?.rootViewController else {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let topVC = windowScene.windows.first?.rootViewController else {
             errorMessage = "Could not find top view controller."
             return
         }
