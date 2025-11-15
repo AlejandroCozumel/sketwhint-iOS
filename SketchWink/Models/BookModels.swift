@@ -15,6 +15,7 @@ struct StoryBook: Codable, Identifiable {
     let createdAt: String
     let updatedAt: String
     let createdBy: CreatedByProfile?
+    let pdfUrl: String? // PDF download URL (available when book generation is complete)
     
     // Custom decoder to handle API sending isFavorite as Int (0/1) instead of Bool
     init(from decoder: Decoder) throws {
@@ -48,6 +49,7 @@ struct StoryBook: Codable, Identifiable {
         createdAt = try container.decode(String.self, forKey: .createdAt)
         updatedAt = try container.decode(String.self, forKey: .updatedAt)
         createdBy = try container.decodeIfPresent(CreatedByProfile.self, forKey: .createdBy)
+        pdfUrl = try container.decodeIfPresent(String.self, forKey: .pdfUrl)
     }
     
     // Custom encoder to maintain Encodable conformance
@@ -65,10 +67,11 @@ struct StoryBook: Codable, Identifiable {
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(createdBy, forKey: .createdBy)
+        try container.encodeIfPresent(pdfUrl, forKey: .pdfUrl)
     }
-    
+
     private enum CodingKeys: String, CodingKey {
-        case id, title, description, coverImageUrl, totalPages, category, isFavorite, inFolder, createdAt, updatedAt, createdBy
+        case id, title, description, coverImageUrl, totalPages, category, isFavorite, inFolder, createdAt, updatedAt, createdBy, pdfUrl
     }
     
     // Regular initializer for creating instances manually (e.g., in previews)
@@ -83,7 +86,8 @@ struct StoryBook: Codable, Identifiable {
         inFolder: Bool = false,
         createdAt: String,
         updatedAt: String,
-        createdBy: CreatedByProfile? = nil
+        createdBy: CreatedByProfile? = nil,
+        pdfUrl: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -96,6 +100,7 @@ struct StoryBook: Codable, Identifiable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.createdBy = createdBy
+        self.pdfUrl = pdfUrl
     }
     
     /// UI helper for creator display

@@ -1,4 +1,5 @@
 import SwiftUI
+import PDFKit
 
 struct BookReadingView: View {
     let book: StoryBook
@@ -50,8 +51,31 @@ struct BookReadingView: View {
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if let bookWithPages = bookWithPages {
-                        pageCounter(bookWithPages)
+                    HStack(spacing: 12) {
+                        // PDF Download button
+                        if let pdfUrl = book.pdfUrl {
+                            Button(action: {
+                                if let url = URL(string: pdfUrl) {
+                                    UIApplication.shared.open(url)
+                                }
+                            }) {
+                                ZStack {
+                                    Circle()
+                                        .fill(AppColors.primaryBlue)
+                                    Image(systemName: "arrow.down.doc.fill")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                                .frame(width: 36, height: 36)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Download PDF")
+                        }
+
+                        // Page counter (only show for image-based books, not PDFs)
+                        if let bookWithPages = bookWithPages, book.pdfUrl == nil {
+                            pageCounter(bookWithPages)
+                        }
                     }
                 }
             }
@@ -112,17 +136,23 @@ struct BookReadingView: View {
     // MARK: - Reading View
     private func readingView(_ bookWithPages: BookWithPages) -> some View {
         VStack(spacing: 0) {
-            // Simple page view with TabView
-            TabView(selection: $currentPageIndex) {
-                ForEach(Array(bookWithPages.pages.enumerated()), id: \.offset) { index, page in
-                    BookPageView(page: page)
-                        .tag(index)
+            // If PDF is available, show PDF viewer; otherwise show images
+            if let pdfUrlString = book.pdfUrl,
+               let pdfUrl = URL(string: pdfUrlString) {
+                PDFKitView(url: pdfUrl)
+            } else {
+                // Fallback to image pages if PDF not available
+                TabView(selection: $currentPageIndex) {
+                    ForEach(Array(bookWithPages.pages.enumerated()), id: \.offset) { index, page in
+                        BookPageView(page: page)
+                            .tag(index)
+                    }
                 }
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+
+                // Navigation controls
+                navigationControls(bookWithPages)
             }
-            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-            
-            // Navigation controls
-            navigationControls(bookWithPages)
         }
     }
     
@@ -237,6 +267,30 @@ struct BookReadingView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - PDF Viewer
+
+struct PDFKitView: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> PDFView {
+        let pdfView = PDFView()
+        pdfView.autoScales = true
+        pdfView.displayMode = .singlePageContinuous
+        pdfView.displayDirection = .vertical
+
+        // Load PDF from URL
+        if let document = PDFDocument(url: url) {
+            pdfView.document = document
+        }
+
+        return pdfView
+    }
+
+    func updateUIView(_ pdfView: PDFView, context: Context) {
+        // Update if needed
     }
 }
 
