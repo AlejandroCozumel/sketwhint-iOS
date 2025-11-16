@@ -4,15 +4,57 @@ import Foundation
 
 /// Standard API error response structure
 struct APIError: Codable {
-    let error: String
+    let success: Bool?
+    let error: ErrorDetail?  // Can be an object with name/message
     let message: String?
     let statusCode: Int?
     let retryAfter: Int?  // For rate limiting (seconds until retry allowed)
 
     /// Use error message if available, fallback to message field
     var userMessage: String {
-        return error
+        // Priority: error.message > message > generic error
+        if let errorDetail = error {
+            // Handle Zod validation errors (extract specific field errors)
+            if let zodMessage = errorDetail.message {
+                // Try to parse Zod error JSON array to extract user-friendly message
+                if let zodErrors = parseZodErrors(zodMessage) {
+                    return zodErrors
+                }
+                return zodMessage
+            }
+            if let name = errorDetail.name {
+                return name
+            }
+        }
+        return message ?? "An error occurred"
     }
+
+    /// Parse Zod error JSON to extract user-friendly validation messages
+    private func parseZodErrors(_ zodMessage: String) -> String? {
+        // Try to parse the Zod error array
+        guard let data = zodMessage.data(using: .utf8),
+              let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return nil
+        }
+
+        // Extract all error messages
+        let messages = jsonArray.compactMap { errorDict -> String? in
+            guard let message = errorDict["message"] as? String else { return nil }
+            if let path = errorDict["path"] as? [Any], !path.isEmpty {
+                let field = path.map { "\($0)" }.joined(separator: ".")
+                return "\(field.capitalized): \(message)"
+            }
+            return message
+        }
+
+        return messages.isEmpty ? nil : messages.joined(separator: "\n")
+    }
+}
+
+/// Error detail object for complex error responses (e.g., Zod errors)
+struct ErrorDetail: Codable {
+    let name: String?
+    let message: String?
 }
 
 // MARK: - User Permissions & Token Balance

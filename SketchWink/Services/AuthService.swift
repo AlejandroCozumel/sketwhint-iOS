@@ -1182,7 +1182,7 @@ class AuthService: ObservableObject {
             throw AuthError.rateLimited(retryAfter: 900) // 15 minutes default
         default:
             if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
-                throw AuthError.networkError(apiError.error)
+                throw AuthError.networkError(apiError.userMessage)
             }
             throw AuthError.networkError("Failed to send reset code")
         }
@@ -1224,7 +1224,7 @@ class AuthService: ObservableObject {
             throw AuthError.userNotFound
         default:
             if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
-                throw AuthError.networkError(apiError.error)
+                throw AuthError.networkError(apiError.userMessage)
             }
             throw AuthError.networkError("Failed to reset password")
         }

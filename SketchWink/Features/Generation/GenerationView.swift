@@ -1259,7 +1259,7 @@ struct GenerationView: View {
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
             
-            HStack(spacing: AppSpacing.md) {
+            HStack(alignment: .top, spacing: AppSpacing.md) {
                 ForEach(InputMethod.allCases, id: \.rawValue) { method in
                     Button(action: {
                         handleInputMethodSelection(method)
@@ -1268,22 +1268,31 @@ struct GenerationView: View {
                             Image(systemName: method.icon)
                                 .font(.system(size: 24))
                                 .foregroundColor(self.inputMethod == method ? .white : AppColors.primaryBlue)
-                            
+                                .frame(height: 24)
+
                             VStack(spacing: 4) {
                                 Text(method.displayName)
                                     .titleMedium()
                                     .foregroundColor(self.inputMethod == method ? .white : AppColors.textPrimary)
-                                
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                                    .frame(maxWidth: .infinity, minHeight: 50, alignment: .top)
+                                    .fixedSize(horizontal: false, vertical: true)
+
                                 Text(method.description)
                                     .captionLarge()
                                     .foregroundColor(self.inputMethod == method ? .white.opacity(0.9) : AppColors.textSecondary)
                                     .multilineTextAlignment(.center)
                                     .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, alignment: .top)
                             }
+
+                            Spacer(minLength: 0)
                         }
                         .padding(.vertical, AppSpacing.md)
                         .padding(.horizontal, AppSpacing.sm)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
                                 .fill(self.inputMethod == method ? AppColors.primaryBlue : AppColors.backgroundLight)
@@ -1299,6 +1308,7 @@ struct GenerationView: View {
                     .childSafeTouchTarget()
                 }
             }
+            .fixedSize(horizontal: false, vertical: true)
         }
         .cardStyle()
     }
