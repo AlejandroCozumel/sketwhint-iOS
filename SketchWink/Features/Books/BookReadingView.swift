@@ -136,23 +136,17 @@ struct BookReadingView: View {
     // MARK: - Reading View
     private func readingView(_ bookWithPages: BookWithPages) -> some View {
         VStack(spacing: 0) {
-            // If PDF is available, show PDF viewer; otherwise show images
-            if let pdfUrlString = book.pdfUrl,
-               let pdfUrl = URL(string: pdfUrlString) {
-                PDFKitView(url: pdfUrl)
-            } else {
-                // Fallback to image pages if PDF not available
-                TabView(selection: $currentPageIndex) {
-                    ForEach(Array(bookWithPages.pages.enumerated()), id: \.offset) { index, page in
-                        BookPageView(page: page)
-                            .tag(index)
-                    }
+            // Always use image pages for the reading experience (PDF is available for download only)
+            TabView(selection: $currentPageIndex) {
+                ForEach(Array(bookWithPages.pages.enumerated()), id: \.offset) { index, page in
+                    BookPageView(page: page)
+                        .tag(index)
                 }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-
-                // Navigation controls
-                navigationControls(bookWithPages)
             }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+
+            // Navigation controls
+            navigationControls(bookWithPages)
         }
     }
     
@@ -224,7 +218,7 @@ struct BookReadingView: View {
             .childSafeTouchTarget()
         }
         .padding(.horizontal, AppSpacing.lg)
-        .padding(.vertical, AppSpacing.md)
+        .padding(.top, AppSpacing.md)
         .background(
             LinearGradient(
                 colors: [.black.opacity(0.6), .clear],
@@ -232,6 +226,7 @@ struct BookReadingView: View {
                 endPoint: .top
             )
         )
+        .ignoresSafeArea(.all, edges: .bottom)
     }
     
     // MARK: - Page Counter
@@ -301,101 +296,147 @@ struct BookPageView: View {
     
     @State private var imageScale: CGFloat = 1.0
     @State private var imageOffset: CGSize = .zero
+    @State private var textHeight: CGFloat = 0.0
     
     var body: some View {
-        GeometryReader { geometry in
-            AsyncImage(url: URL(string: page.imageUrl)) { imagePhase in
-                switch imagePhase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .scaleEffect(imageScale)
-                        .offset(imageOffset)
-                        .gesture(
-                            SimultaneousGesture(
-                                // Zoom gesture
-                                MagnificationGesture()
-                                    .onChanged { value in
-                                        imageScale = max(1.0, min(3.0, value))
-                                    }
-                                    .onEnded { _ in
-                                        withAnimation(.spring()) {
-                                            if imageScale < 1.2 {
-                                                imageScale = 1.0
-                                                imageOffset = .zero
-                                            }
-                                        }
-                                    },
-                                
-                                // Pan gesture (only when zoomed)
-                                DragGesture()
-                                    .onChanged { value in
-                                        if imageScale > 1.0 {
-                                            imageOffset = value.translation
-                                        }
-                                    }
-                                    .onEnded { _ in
-                                        withAnimation(.spring()) {
-                                            // Reset offset if not significantly zoomed
-                                            if imageScale < 1.2 {
-                                                imageOffset = .zero
-                                            } else {
-                                                // Constrain offset to keep image in bounds
-                                                let maxOffset = CGSize(
-                                                    width: geometry.size.width * (imageScale - 1) / 2,
-                                                    height: geometry.size.height * (imageScale - 1) / 2
-                                                )
-                                                
-                                                imageOffset.width = max(-maxOffset.width, min(maxOffset.width, imageOffset.width))
-                                                imageOffset.height = max(-maxOffset.height, min(maxOffset.height, imageOffset.height))
-                                            }
-                                        }
-                                    }
-                            )
-                        )
-                        .onTapGesture(count: 2) {
-                            // Double-tap to zoom
-                            withAnimation(.spring()) {
-                                if imageScale == 1.0 {
-                                    imageScale = 2.0
-                                } else {
-                                    imageScale = 1.0
-                                    imageOffset = .zero
-                                }
-                            }
-                        }
-                        .clipped()
-                
-                case .failure(_):
-                    VStack(spacing: AppSpacing.md) {
-                        Image(systemName: "photo")
-                            .font(.system(size: 48))
-                            .foregroundColor(.gray)
-                        
-                        Text("Failed to load page")
-                            .font(AppTypography.bodyMedium)
-                            .foregroundColor(.gray)
-                    }
-                
-                case .empty:
-                    VStack(spacing: AppSpacing.md) {
-                        ProgressView()
-                            .scaleEffect(1.2)
-                            .tint(.white)
-                        
-                        Text("Loading page \(page.pageNumber)...")
+        GeometryReader { outerGeometry in
+            VStack(alignment: .leading, spacing: AppSpacing.md) {
+                if let text = page.text, !text.isEmpty {
+                    ScrollView {
+                        Text(text)
                             .font(AppTypography.captionLarge)
                             .foregroundColor(.white)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, AppSpacing.md)
+                            .background(
+                                GeometryReader { proxy in
+                                    Color.clear
+                                        .preference(key: TextHeightPreferenceKey.self, value: proxy.size.height)
+                                }
+                            )
                     }
-                
-                @unknown default:
-                    EmptyView()
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: min(max(textHeight, 1), outerGeometry.size.height * 0.45),
+                        alignment: .leading
+                    )
+                    .onPreferenceChange(TextHeightPreferenceKey.self) { height in
+                        textHeight = height
+                    }
                 }
+
+                // Image container with explicit width calculation
+                let availableWidth = outerGeometry.size.width - (AppSpacing.lg * 2)
+
+                AsyncImage(url: URL(string: page.imageUrl)) { imagePhase in
+                    switch imagePhase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .interpolation(.high)
+                            .antialiased(true)
+                            .aspectRatio(contentMode: .fit)
+                            .frame(minWidth: availableWidth, maxWidth: availableWidth)
+                            .drawingGroup() // Optimize rendering for better performance
+                            .scaleEffect(imageScale)
+                            .offset(imageOffset)
+                            .gesture(
+                                SimultaneousGesture(
+                                    // Zoom gesture
+                                    MagnificationGesture()
+                                        .onChanged { value in
+                                            imageScale = max(1.0, min(3.0, value))
+                                        }
+                                        .onEnded { _ in
+                                            withAnimation(.spring()) {
+                                                if imageScale < 1.2 {
+                                                    imageScale = 1.0
+                                                    imageOffset = .zero
+                                                }
+                                            }
+                                        },
+
+                                    // Pan gesture (only when zoomed)
+                                    DragGesture()
+                                        .onChanged { value in
+                                            if imageScale > 1.0 {
+                                                imageOffset = value.translation
+                                            }
+                                        }
+                                        .onEnded { _ in
+                                            withAnimation(.spring()) {
+                                                // Reset offset if not significantly zoomed
+                                                if imageScale < 1.2 {
+                                                    imageOffset = .zero
+                                                } else {
+                                                    // Constrain offset to keep image in bounds
+                                                    let maxOffset = CGSize(
+                                                        width: availableWidth * (imageScale - 1) / 2,
+                                                        height: availableWidth * (imageScale - 1) / 2
+                                                    )
+
+                                                    imageOffset.width = max(-maxOffset.width, min(maxOffset.width, imageOffset.width))
+                                                    imageOffset.height = max(-maxOffset.height, min(maxOffset.height, imageOffset.height))
+                                                }
+                                            }
+                                        }
+                                )
+                            )
+                            .onTapGesture(count: 2) {
+                                // Double-tap to zoom
+                                withAnimation(.spring()) {
+                                    if imageScale == 1.0 {
+                                        imageScale = 2.0
+                                    } else {
+                                        imageScale = 1.0
+                                        imageOffset = .zero
+                                    }
+                                }
+                            }
+                            .clipped()
+
+                    case .failure(_):
+                        VStack(spacing: AppSpacing.md) {
+                            Image(systemName: "photo")
+                                .font(.system(size: 48))
+                                .foregroundColor(.gray)
+
+                            Text("Failed to load page")
+                                .font(AppTypography.bodyMedium)
+                                .foregroundColor(.gray)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    case .empty:
+                        VStack(spacing: AppSpacing.md) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                                .tint(.white)
+
+                            Text("Loading image...")
+                                .font(AppTypography.captionLarge)
+                                .foregroundColor(.white)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+                .padding(.bottom, AppSpacing.md)
             }
+            .padding(.horizontal, AppSpacing.lg)
+            .frame(width: outerGeometry.size.width, height: outerGeometry.size.height, alignment: .top)
+            .background(Color.black)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+    }
+}
+
+private struct TextHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

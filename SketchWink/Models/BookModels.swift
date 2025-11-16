@@ -146,6 +146,7 @@ struct BookPage: Codable, Identifiable {
     let pageNumber: Int
     let imageId: String
     let imageUrl: String
+    let text: String?
     var isFavorite: Bool
     
     var id: String { imageId }
