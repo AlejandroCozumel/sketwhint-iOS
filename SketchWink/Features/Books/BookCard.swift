@@ -27,7 +27,7 @@ struct BookCard: View {
             )
             .scaleEffect(isPressed ? 0.98 : 1.0)
             .shadow(
-                color: AppColors.primaryBlue.opacity(0.1),
+                color: AppColors.primaryPink.opacity(0.1),
                 radius: isPressed ? 2 : 4,
                 x: 0,
                 y: isPressed ? 1 : 2
@@ -145,10 +145,10 @@ struct BookCard: View {
     private var folderIndicator: some View {
         Image(systemName: "folder.fill")
             .font(.system(size: 24))
-            .foregroundColor(AppColors.primaryBlue)
+            .foregroundColor(AppColors.primaryPink)
             .background(.ultraThinMaterial, in: Circle())
             .frame(width: 40, height: 40)
-            .shadow(color: AppColors.primaryBlue.opacity(0.3), radius: 4, x: 0, y: 2)
+            .shadow(color: AppColors.primaryPink.opacity(0.3), radius: 4, x: 0, y: 2)
     }
     
     private var loadingPlaceholder: some View {
@@ -157,7 +157,7 @@ struct BookCard: View {
             .frame(height: 120)
             .overlay(
                 ProgressView()
-                    .tint(AppColors.primaryBlue)
+                    .tint(AppColors.primaryPink)
             )
     }
     
@@ -192,7 +192,7 @@ struct BookCard: View {
             // Category (single line)
             Text(book.category)
                 .font(AppTypography.captionLarge)
-                .foregroundColor(AppColors.primaryBlue)
+                .foregroundColor(AppColors.primaryPink)
                 .fontWeight(.medium)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)

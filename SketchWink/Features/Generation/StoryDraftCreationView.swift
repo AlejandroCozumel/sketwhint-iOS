@@ -104,7 +104,7 @@ struct StoryDraftCreationView: View {
                                     .fill(AppColors.surfaceLight)
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(AppColors.primaryIndigo)
+                                    .foregroundColor(AppColors.primaryPink)
                             }
                             .frame(width: 36, height: 36)
                             .overlay(
@@ -246,8 +246,8 @@ struct StoryDraftCreationView: View {
         VStack(spacing: AppSpacing.xl) {
             ProgressView()
                 .scaleEffect(1.5)
-                .tint(AppColors.primaryIndigo)
-            
+                .tint(AppColors.primaryPink)
+
             Text("books.preparing".localized)
                 .font(AppTypography.bodyLarge)
                 .foregroundColor(AppColors.textSecondary)
@@ -626,30 +626,30 @@ struct StoryDraftCreationView: View {
                             VStack(alignment: .leading, spacing: AppSpacing.xxxs) {
                                 Text("\(ageGroup.displayName) \("books.age.years".localized)")
                                     .font(AppTypography.titleMedium)
-                                    .foregroundColor(selectedAgeGroup == ageGroup ? AppColors.primaryIndigo : AppColors.textPrimary)
+                                    .foregroundColor(selectedAgeGroup == ageGroup ? AppColors.primaryPink : AppColors.textPrimary)
 
                                 Text(ageGroup.description)
                                     .font(AppTypography.captionMedium)
                                     .foregroundColor(AppColors.textSecondary)
                             }
-                            
+
                             Spacer()
-                            
+
                             if selectedAgeGroup == ageGroup {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(AppColors.primaryIndigo)
+                                    .foregroundColor(AppColors.primaryPink)
                                     .font(.system(size: 20))
                             }
                         }
                         .padding(AppSpacing.sm)
                         .background(
                             RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                .fill(selectedAgeGroup == ageGroup ? AppColors.primaryIndigo.opacity(0.1) : AppColors.backgroundLight)
+                                .fill(selectedAgeGroup == ageGroup ? AppColors.primaryPink.opacity(0.1) : AppColors.backgroundLight)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
                                 .stroke(
-                                    selectedAgeGroup == ageGroup ? AppColors.primaryIndigo : AppColors.textSecondary.opacity(0.2),
+                                    selectedAgeGroup == ageGroup ? AppColors.primaryPink : AppColors.textSecondary.opacity(0.2),
                                     lineWidth: 1
                                 )
                         )
@@ -678,7 +678,7 @@ struct StoryDraftCreationView: View {
                     .cornerRadius(AppSizing.cornerRadius.md)
                     .overlay(
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                            .stroke(AppColors.primaryIndigo.opacity(0.3), lineWidth: 1)
+                            .stroke(AppColors.primaryPink.opacity(0.3), lineWidth: 1)
                     )
                     .lineLimit(3...6)
                 
@@ -727,12 +727,12 @@ struct StoryDraftCreationView: View {
                             .frame(minWidth: 52, maxWidth: .infinity, minHeight: 44, maxHeight: 44)
                             .background(
                                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
-                                    .fill(isSelected ? AppColors.primaryIndigo : AppColors.backgroundLight)
+                                    .fill(isSelected ? AppColors.primaryPink : AppColors.backgroundLight)
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.sm)
                                     .stroke(
-                                        isSelected ? AppColors.primaryIndigo : AppColors.textSecondary.opacity(0.2),
+                                        isSelected ? AppColors.primaryPink : AppColors.textSecondary.opacity(0.2),
                                         lineWidth: 1
                                     )
                             )
@@ -817,7 +817,7 @@ struct StoryDraftCreationView: View {
                     .cornerRadius(AppSizing.cornerRadius.md)
                     .overlay(
                         RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                            .stroke(AppColors.primaryIndigo.opacity(0.3), lineWidth: 1)
+                            .stroke(AppColors.primaryPink.opacity(0.3), lineWidth: 1)
                     )
                     .lineLimit(2...4)
 
@@ -875,14 +875,8 @@ struct StoryDraftCreationView: View {
     }
     
     private var productColor: Color {
-        if !productCategory.color.isEmpty {
-            return Color(hex: productCategory.color)
-        }
-        
-        switch productCategory.productType {
-        case "book": return Color(hex: "#D97706") // Amber-600
-        default: return AppColors.primaryIndigo
-        }
+        // Always use primary pink for books tab
+        return AppColors.primaryPink
     }
     
     // MARK: - Methods
@@ -1072,12 +1066,12 @@ struct DraftCreationProgressView: View {
         VStack(spacing: AppSpacing.xl) {
             ProgressView()
                 .scaleEffect(1.5)
-                .tint(AppColors.primaryIndigo)
-            
+                .tint(AppColors.primaryPink)
+
             Text("Creating your story...")
                 .headlineMedium()
                 .foregroundColor(AppColors.textPrimary)
-            
+
             Text("AI is crafting a personalized story for you")
                 .bodyMedium()
                 .foregroundColor(AppColors.textSecondary)
@@ -1112,7 +1106,7 @@ struct DraftPreviewView: View {
                     Button("Generate Book") {
                         onGenerateBook(draft)
                     }
-                    .largeButtonStyle(backgroundColor: AppColors.primaryIndigo)
+                    .largeButtonStyle(backgroundColor: AppColors.primaryPink)
                     .childSafeTouchTarget()
                 }
                 .pageMargins()

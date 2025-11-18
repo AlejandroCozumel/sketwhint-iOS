@@ -156,7 +156,7 @@ struct BooksView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 28))
-                            .foregroundColor(Color(hex: "#6366F1"))
+                            .foregroundColor(AppColors.primaryPink)
                             .frame(width: 36, height: 36)
                     }
                     .childSafeTouchTarget()
@@ -186,7 +186,7 @@ struct BooksView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 28))
-                            .foregroundColor(Color(hex: "#6366F1"))
+                            .foregroundColor(AppColors.primaryPink)
                             .frame(width: 36, height: 36)
                     }
                 }
@@ -277,7 +277,7 @@ struct BooksView: View {
                     applyFilters()
                 },
                 onSearchToggle: { },
-                chipSelectedColor: AppColors.primaryBlue
+                chipSelectedColor: AppColors.primaryPink
             )
         )
         .id("books-filter-chips-\(availableCategories.count)-\(profileService.availableProfiles.count)")
@@ -350,8 +350,8 @@ struct BooksView: View {
         VStack(spacing: AppSpacing.lg) {
             ProgressView()
                 .scaleEffect(1.2)
-                .tint(AppColors.primaryBlue)
-            
+                .tint(AppColors.primaryPink)
+
             Text("Loading story books...")
                 .font(AppTypography.bodyMedium)
                 .foregroundColor(AppColors.textSecondary)
@@ -364,7 +364,7 @@ struct BooksView: View {
             // SF Symbol icon (matching Folders pattern)
             Image(systemName: emptyStateSFSymbol)
                 .font(.system(size: 60))
-                .foregroundColor(AppColors.primaryBlue.opacity(0.6))
+                .foregroundColor(AppColors.primaryPink.opacity(0.6))
 
             VStack(spacing: AppSpacing.sm) {
                 Text(emptyStateTitle)
@@ -394,7 +394,7 @@ struct BooksView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, AppSpacing.lg)
                     .padding(.vertical, AppSpacing.md)
-                    .background(AppColors.primaryBlue)
+                    .background(AppColors.primaryPink)
                     .clipShape(Capsule())
                 }
                 .childSafeTouchTarget()
@@ -409,7 +409,7 @@ struct BooksView: View {
             if isLoadingMore {
                 ProgressView()
                     .scaleEffect(0.8)
-                    .tint(AppColors.primaryBlue)
+                    .tint(AppColors.primaryPink)
             }
         }
         .frame(height: 50)
@@ -422,8 +422,8 @@ struct BooksView: View {
                 // Favorites toggle
                 Toggle("Favorites Only", isOn: $showFavoritesOnly)
                     .font(AppTypography.bodyMedium)
-                    .toggleStyle(SwitchToggleStyle(tint: AppColors.primaryBlue))
-                
+                    .toggleStyle(SwitchToggleStyle(tint: AppColors.primaryPink))
+
                 Spacer()
             }
             .padding(AppSpacing.md)
@@ -435,9 +435,9 @@ struct BooksView: View {
                         showFavoritesOnly = false
                         selectedProfileFilter = nil
                     }
-                    .foregroundColor(AppColors.primaryBlue)
+                    .foregroundColor(AppColors.primaryPink)
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Apply") {
                         showingFilters = false
@@ -447,7 +447,7 @@ struct BooksView: View {
                             await loadBooks(page: 1, replace: true)
                         }
                     }
-                    .foregroundColor(AppColors.primaryBlue)
+                    .foregroundColor(AppColors.primaryPink)
                     .fontWeight(.semibold)
                 }
             }
@@ -475,7 +475,7 @@ struct BooksView: View {
                                 id: option.name,
                                 name: option.name,
                                 icon: "📚",
-                                color: AppColors.primaryBlue
+                                color: AppColors.primaryPink
                             )
                         }
                     }
