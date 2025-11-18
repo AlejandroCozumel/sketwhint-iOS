@@ -516,15 +516,19 @@ struct StoryCard: View {
                     Spacer(minLength: 0)
 
                     if let theme = story.theme {
-                        Label(theme, systemImage: "tag")
+                        Text(theme)
                             .font(AppTypography.captionLarge)
-                            .foregroundColor(AppColors.textSecondary)
+                            .foregroundColor(AppColors.primaryIndigo)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    Label(formatDuration(story.duration), systemImage: "clock")
-                        .font(AppTypography.captionLarge)
+                    Text(formatDuration(story.duration))
+                        .font(.system(size: 10))
                         .foregroundColor(AppColors.textSecondary)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .padding(.horizontal, AppSpacing.md)
