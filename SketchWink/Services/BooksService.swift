@@ -218,33 +218,33 @@ class BooksService: ObservableObject {
     /// Move book to folder
     func moveBookToFolder(bookId: String, folderId: String, notes: String? = nil) async throws -> MoveBookToFolderResponse {
         let endpoint = "\(baseURL)\(String(format: AppConfig.API.Endpoints.moveBookToFolder, bookId))"
-        
+
         guard let url = URL(string: endpoint) else {
             throw BooksError.invalidURL
         }
-        
+
         let moveRequest = MoveBookToFolderRequest(
             folderId: folderId,
             notes: notes?.isEmpty == true ? nil : notes
         )
-        
+
         #if DEBUG
         print("📁 BooksService: Moving book \(bookId) to folder \(folderId)")
         #endif
-        
+
         let request = try APIRequestHelper.shared.createJSONRequest(
             url: url,
             method: "POST",
             body: moveRequest,
             includeProfileHeader: true
         )
-        
+
         let (data, response) = try await URLSession.shared.data(for: request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BooksError.invalidResponse
         }
-        
+
         guard 200...299 ~= httpResponse.statusCode else {
             if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
                 throw BooksError.serverError(apiError.userMessage)
@@ -252,14 +252,54 @@ class BooksService: ObservableObject {
                 throw BooksError.httpError(httpResponse.statusCode)
             }
         }
-        
+
         let moveResponse = try JSONDecoder().decode(MoveBookToFolderResponse.self, from: data)
-        
+
         #if DEBUG
         print("✅ BooksService: \(moveResponse.message)")
         #endif
-        
+
         return moveResponse
+    }
+
+    /// Delete a book
+    func deleteBook(bookId: String) async throws {
+        let endpoint = "\(baseURL)\(String(format: AppConfig.API.Endpoints.deleteBook, bookId))"
+
+        guard let url = URL(string: endpoint) else {
+            throw BooksError.invalidURL
+        }
+
+        #if DEBUG
+        print("🗑️ BooksService: Deleting book \(bookId)")
+        #endif
+
+        let request = try APIRequestHelper.shared.createRequest(
+            url: url,
+            method: "DELETE",
+            includeProfileHeader: true
+        )
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BooksError.invalidResponse
+        }
+
+        guard 200...299 ~= httpResponse.statusCode else {
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw BooksError.serverError(apiError.userMessage)
+            } else {
+                throw BooksError.httpError(httpResponse.statusCode)
+            }
+        }
+
+        // Update local state
+        books.removeAll { $0.id == bookId }
+
+        #if DEBUG
+        print("✅ BooksService: Successfully deleted book \(bookId)")
+        #endif
     }
     
     // MARK: - Helper Methods

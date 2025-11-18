@@ -86,6 +86,7 @@ struct AppConfig {
             static let bookPages = "/books/%@/pages" // %@ = bookId
             static let bookFavorite = "/books/%@/favorite" // %@ = bookId
             static let moveBookToFolder = "/books/%@/move-to-folder" // %@ = bookId
+            static let deleteBook = "/books/%@" // %@ = bookId
 
             // Server-Sent Events (SSE)
             static let sseGenerationProgress = "/sse/generation-progress/%@" // %@ = generationId

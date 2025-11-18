@@ -12,12 +12,21 @@ struct BookReadingView: View {
     @State private var isLoading = true
     @State private var error: String?
     @State private var showingError = false
+    @State private var showingDeleteConfirmation = false
+    @State private var isDeleting = false
+    @State private var showingShareSheet = false
+    @State private var shareItems: [Any] = []
+    @State private var isDownloadingPDF = false
+    @State private var isSharingPDF = false
+    @State private var showingToast = false
+    @State private var toastMessage = ""
+    @State private var toastType: ToastModifier.ToastType = .success
     
     var body: some View {
         NavigationView {
             ZStack {
                 Color.black.ignoresSafeArea()
-                
+
                 if isLoading {
                     loadingView
                 } else if let bookWithPages = bookWithPages {
@@ -52,29 +61,56 @@ struct BookReadingView: View {
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 12) {
-                        // PDF Download button
-                        if let pdfUrl = book.pdfUrl {
-                            Button(action: {
-                                if let url = URL(string: pdfUrl) {
-                                    UIApplication.shared.open(url)
-                                }
-                            }) {
-                                ZStack {
-                                    Circle()
-                                        .fill(AppColors.primaryBlue)
-                                    Image(systemName: "arrow.down.doc.fill")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.white)
-                                }
-                                .frame(width: 36, height: 36)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Download PDF")
-                        }
-
                         // Page counter (only show for image-based books, not PDFs)
                         if let bookWithPages = bookWithPages, book.pdfUrl == nil {
                             pageCounter(bookWithPages)
+                        }
+
+                        // Show loading spinner when downloading or sharing, otherwise show menu
+                        if isDownloadingPDF || isSharingPDF {
+                            ProgressView()
+                                .tint(AppColors.primaryBlue)
+                                .frame(width: 36, height: 36)
+                        } else {
+                            // 3-dots menu
+                            Menu {
+                                // Download PDF button
+                                if book.pdfUrl != nil {
+                                    Button(action: {
+                                        Task {
+                                            await downloadPDFToDevice()
+                                        }
+                                    }) {
+                                        Label("Download PDF", systemImage: "arrow.down.doc")
+                                    }
+                                }
+
+                                // Share PDF button
+                                if book.pdfUrl != nil {
+                                    Button(action: {
+                                        Task {
+                                            await sharePDF()
+                                        }
+                                    }) {
+                                        Label("Share PDF", systemImage: "square.and.arrow.up")
+                                    }
+                                }
+
+                                // Delete button
+                                Button(role: .destructive, action: {
+                                    showingDeleteConfirmation = true
+                                }) {
+                                    Label("Delete Book", systemImage: "trash")
+                                }
+                                .tint(AppColors.errorRed)
+                                .disabled(isDeleting)
+                            } label: {
+                                Image(systemName: "ellipsis.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(AppColors.primaryBlue)
+                                    .frame(width: 36, height: 36)
+                            }
+                            .disabled(isDeleting)
                         }
                     }
                 }
@@ -82,6 +118,7 @@ struct BookReadingView: View {
             .toolbarBackground(.black, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
         }
+        .toast(isShowing: $showingToast, message: toastMessage, type: toastType)
         .onAppear {
             loadBookPages()
         }
@@ -92,6 +129,21 @@ struct BookReadingView: View {
             }
         } message: {
             Text(error ?? "Failed to load book pages")
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            if !shareItems.isEmpty {
+                ActivityViewController(activityItems: shareItems)
+            }
+        }
+        .alert("Delete Book", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await deleteBook()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this book? This action cannot be undone.")
         }
     }
     
@@ -152,73 +204,53 @@ struct BookReadingView: View {
     
     // MARK: - Navigation Controls
     private func navigationControls(_ bookWithPages: BookWithPages) -> some View {
-        HStack {
-            // Previous button with book-style icon
-            Button {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                    currentPageIndex = max(0, currentPageIndex - 1)
-                }
-            } label: {
-                HStack(spacing: AppSpacing.sm) {
-                    Image(systemName: "book.closed")
-                    Text("Previous")
-                }
-                .font(AppTypography.bodyMedium)
-                .foregroundColor(currentPageIndex > 0 ? .white : .gray)
-                .padding(.horizontal, AppSpacing.md)
-                .padding(.vertical, AppSpacing.sm)
-                .background(.ultraThinMaterial.opacity(0.3), in: Capsule())
-            }
-            .disabled(currentPageIndex <= 0)
-            .childSafeTouchTarget()
-            
-            Spacer()
-            
-            // Book spine indicator with page numbers
-            VStack(spacing: 4) {
-                HStack(spacing: 4) {
-                    ForEach(0..<min(bookWithPages.pages.count, 8), id: \.self) { index in
-                        Rectangle()
-                            .fill(index == currentPageIndex ? AppColors.primaryBlue : Color.gray.opacity(0.5))
-                            .frame(width: index == currentPageIndex ? 6 : 4, height: 20)
-                            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: currentPageIndex)
-                    }
-                    
-                    if bookWithPages.pages.count > 8 {
-                        Text("...")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-                }
-                
+        VStack(spacing: 0) {
+            ZStack {
+                // Page counter text (centered)
                 Text("Page \(currentPageIndex + 1) of \(bookWithPages.pages.count)")
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.8))
-            }
-            
-            Spacer()
-            
-            // Next button with book-style icon
-            Button {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                    currentPageIndex = min(bookWithPages.pages.count - 1, currentPageIndex + 1)
+
+                HStack {
+                    // Previous button with arrow icon
+                    Button {
+                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                            currentPageIndex = max(0, currentPageIndex - 1)
+                        }
+                    } label: {
+                        Image(systemName: "arrow.left")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(currentPageIndex > 0 ? .white : .gray)
+                            .padding(.horizontal, AppSpacing.md)
+                            .padding(.vertical, AppSpacing.sm)
+                            .background(.ultraThinMaterial.opacity(0.3), in: Capsule())
+                    }
+                    .disabled(currentPageIndex <= 0)
+                    .childSafeTouchTarget()
+
+                    Spacer()
+
+                    // Next button with arrow icon
+                    Button {
+                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                            currentPageIndex = min(bookWithPages.pages.count - 1, currentPageIndex + 1)
+                        }
+                    } label: {
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(currentPageIndex < bookWithPages.pages.count - 1 ? .white : .gray)
+                            .padding(.horizontal, AppSpacing.md)
+                            .padding(.vertical, AppSpacing.sm)
+                            .background(.ultraThinMaterial.opacity(0.3), in: Capsule())
+                    }
+                    .disabled(currentPageIndex >= bookWithPages.pages.count - 1)
+                    .childSafeTouchTarget()
                 }
-            } label: {
-                HStack(spacing: AppSpacing.sm) {
-                    Text("Next")
-                    Image(systemName: "book.closed")
-                }
-                .font(AppTypography.bodyMedium)
-                .foregroundColor(currentPageIndex < bookWithPages.pages.count - 1 ? .white : .gray)
-                .padding(.horizontal, AppSpacing.md)
-                .padding(.vertical, AppSpacing.sm)
-                .background(.ultraThinMaterial.opacity(0.3), in: Capsule())
             }
-            .disabled(currentPageIndex >= bookWithPages.pages.count - 1)
-            .childSafeTouchTarget()
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.top, AppSpacing.md)
+            .padding(.bottom, AppSpacing.md)
         }
-        .padding(.horizontal, AppSpacing.lg)
-        .padding(.top, AppSpacing.md)
         .background(
             LinearGradient(
                 colors: [.black.opacity(0.6), .clear],
@@ -226,7 +258,7 @@ struct BookReadingView: View {
                 endPoint: .top
             )
         )
-        .ignoresSafeArea(.all, edges: .bottom)
+        .ignoresSafeArea(edges: .bottom)
     }
     
     // MARK: - Page Counter
@@ -243,23 +275,176 @@ struct BookReadingView: View {
     private func loadBookPages() {
         isLoading = true
         error = nil
-        
+
         Task {
             do {
                 let result = try await booksService.getBookPages(bookId: book.id)
-                
+
                 await MainActor.run {
                     self.bookWithPages = result
                     self.isLoading = false
                     self.currentPageIndex = 0
                 }
-                
+
             } catch {
                 await MainActor.run {
                     self.error = error.localizedDescription
                     self.isLoading = false
                     self.showingError = true
                 }
+            }
+        }
+    }
+
+    // MARK: - Download PDF
+    private func downloadPDFToDevice() async {
+        guard !isDownloadingPDF else { return }
+        guard let pdfUrlString = book.pdfUrl,
+              let pdfURL = URL(string: pdfUrlString) else {
+            await MainActor.run {
+                toastMessage = "Invalid PDF URL"
+                toastType = .error
+                showingToast = true
+            }
+            return
+        }
+
+        await MainActor.run {
+            isDownloadingPDF = true
+        }
+
+        do {
+            // Download PDF data
+            let (data, response) = try await URLSession.shared.data(from: pdfURL)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  200...299 ~= httpResponse.statusCode else {
+                throw URLError(.badServerResponse)
+            }
+
+            // Create a safe filename
+            let safeFileName = book.title.replacingOccurrences(of: "[^a-zA-Z0-9 ]", with: "", options: .regularExpression)
+            let fileName = "\(safeFileName).pdf"
+
+            // Save to temporary directory first
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+            try data.write(to: tempURL)
+
+            #if DEBUG
+            print("📥 BookReadingView: PDF downloaded to temp directory")
+            #endif
+
+            // Present the document picker to let user choose save location
+            await MainActor.run {
+                // Use UIDocumentPickerViewController to save to Files app
+                let documentPicker = UIDocumentPickerViewController(forExporting: [tempURL], asCopy: true)
+
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let rootViewController = windowScene.windows.first?.rootViewController {
+
+                    // Find the topmost view controller
+                    var topController = rootViewController
+                    while let presented = topController.presentedViewController {
+                        topController = presented
+                    }
+
+                    topController.present(documentPicker, animated: true)
+                }
+
+                isDownloadingPDF = false
+            }
+
+        } catch {
+            await MainActor.run {
+                isDownloadingPDF = false
+                toastMessage = "Failed to download PDF"
+                toastType = .error
+                showingToast = true
+            }
+
+            #if DEBUG
+            print("❌ BookReadingView: PDF download error - \(error)")
+            #endif
+        }
+    }
+
+    // MARK: - Share PDF
+    private func sharePDF() async {
+        guard !isSharingPDF else { return }
+        guard let pdfUrlString = book.pdfUrl,
+              let pdfURL = URL(string: pdfUrlString) else {
+            await MainActor.run {
+                toastMessage = "Invalid PDF URL"
+                toastType = .error
+                showingToast = true
+            }
+            return
+        }
+
+        await MainActor.run {
+            isSharingPDF = true
+        }
+
+        do {
+            // Download PDF data
+            let (data, response) = try await URLSession.shared.data(from: pdfURL)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  200...299 ~= httpResponse.statusCode else {
+                throw URLError(.badServerResponse)
+            }
+
+            // Create a safe filename
+            let safeFileName = book.title.replacingOccurrences(of: "[^a-zA-Z0-9 ]", with: "", options: .regularExpression)
+            let fileName = "\(safeFileName).pdf"
+
+            // Save to temporary directory
+            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+            try data.write(to: tempURL)
+
+            #if DEBUG
+            print("📤 BookReadingView: PDF prepared for sharing at \(tempURL.path)")
+            #endif
+
+            await MainActor.run {
+                shareItems = [tempURL]
+                showingShareSheet = true
+                isSharingPDF = false
+            }
+
+        } catch {
+            await MainActor.run {
+                isSharingPDF = false
+                toastMessage = "Failed to prepare PDF for sharing"
+                toastType = .error
+                showingToast = true
+            }
+
+            #if DEBUG
+            print("❌ BookReadingView: PDF share error - \(error)")
+            #endif
+        }
+    }
+
+    // MARK: - Delete Book
+    private func deleteBook() async {
+        guard !isDeleting else { return }
+
+        isDeleting = true
+
+        do {
+            try await booksService.deleteBook(bookId: book.id)
+
+            await MainActor.run {
+                isDeleting = false
+                // Dismiss the view after successful deletion
+                dismiss()
+            }
+        } catch {
+            await MainActor.run {
+                isDeleting = false
+                self.error = error.localizedDescription
+                showingError = true
             }
         }
     }
@@ -293,10 +478,12 @@ struct PDFKitView: UIViewRepresentable {
 
 struct BookPageView: View {
     let page: BookPage
-    
+
     @State private var imageScale: CGFloat = 1.0
     @State private var imageOffset: CGSize = .zero
     @State private var textHeight: CGFloat = 0.0
+    @State private var retryCount = 0
+    @State private var isRetrying = false
     
     var body: some View {
         GeometryReader { outerGeometry in
@@ -328,7 +515,8 @@ struct BookPageView: View {
                 // Image container with explicit width calculation
                 let availableWidth = outerGeometry.size.width - (AppSpacing.lg * 2)
 
-                AsyncImage(url: URL(string: page.imageUrl)) { imagePhase in
+                // Use cache-optimized AsyncImage with retry mechanism
+                AsyncImage(url: URL(string: "\(page.imageUrl)?retry=\(retryCount)")) { imagePhase in
                     switch imagePhase {
                     case .success(let image):
                         image
@@ -340,47 +528,39 @@ struct BookPageView: View {
                             .drawingGroup() // Optimize rendering for better performance
                             .scaleEffect(imageScale)
                             .offset(imageOffset)
+                            // Zoom gesture (pinch to zoom)
                             .gesture(
-                                SimultaneousGesture(
-                                    // Zoom gesture
-                                    MagnificationGesture()
-                                        .onChanged { value in
-                                            imageScale = max(1.0, min(3.0, value))
-                                        }
-                                        .onEnded { _ in
-                                            withAnimation(.spring()) {
-                                                if imageScale < 1.2 {
-                                                    imageScale = 1.0
-                                                    imageOffset = .zero
-                                                }
+                                MagnificationGesture()
+                                    .onChanged { value in
+                                        imageScale = max(1.0, min(3.0, value))
+                                    }
+                                    .onEnded { _ in
+                                        withAnimation(.spring()) {
+                                            if imageScale < 1.2 {
+                                                imageScale = 1.0
+                                                imageOffset = .zero
                                             }
-                                        },
+                                        }
+                                    }
+                            )
+                            // Pan gesture (only when zoomed) - uses simultaneousGesture to not interfere with TabView swipe
+                            .simultaneousGesture(
+                                imageScale > 1.2 ? DragGesture()
+                                    .onChanged { value in
+                                        imageOffset = value.translation
+                                    }
+                                    .onEnded { _ in
+                                        withAnimation(.spring()) {
+                                            // Constrain offset to keep image in bounds
+                                            let maxOffset = CGSize(
+                                                width: availableWidth * (imageScale - 1) / 2,
+                                                height: availableWidth * (imageScale - 1) / 2
+                                            )
 
-                                    // Pan gesture (only when zoomed)
-                                    DragGesture()
-                                        .onChanged { value in
-                                            if imageScale > 1.0 {
-                                                imageOffset = value.translation
-                                            }
+                                            imageOffset.width = max(-maxOffset.width, min(maxOffset.width, imageOffset.width))
+                                            imageOffset.height = max(-maxOffset.height, min(maxOffset.height, imageOffset.height))
                                         }
-                                        .onEnded { _ in
-                                            withAnimation(.spring()) {
-                                                // Reset offset if not significantly zoomed
-                                                if imageScale < 1.2 {
-                                                    imageOffset = .zero
-                                                } else {
-                                                    // Constrain offset to keep image in bounds
-                                                    let maxOffset = CGSize(
-                                                        width: availableWidth * (imageScale - 1) / 2,
-                                                        height: availableWidth * (imageScale - 1) / 2
-                                                    )
-
-                                                    imageOffset.width = max(-maxOffset.width, min(maxOffset.width, imageOffset.width))
-                                                    imageOffset.height = max(-maxOffset.height, min(maxOffset.height, imageOffset.height))
-                                                }
-                                            }
-                                        }
-                                )
+                                    } : nil
                             )
                             .onTapGesture(count: 2) {
                                 // Double-tap to zoom
@@ -395,15 +575,52 @@ struct BookPageView: View {
                             }
                             .clipped()
 
-                    case .failure(_):
+                    case .failure(let error):
                         VStack(spacing: AppSpacing.md) {
-                            Image(systemName: "photo")
+                            Image(systemName: "exclamationmark.triangle")
                                 .font(.system(size: 48))
-                                .foregroundColor(.gray)
+                                .foregroundColor(AppColors.warningOrange)
 
                             Text("Failed to load page")
                                 .font(AppTypography.bodyMedium)
+                                .foregroundColor(.white)
+
+                            if retryCount < 3 {
+                                Button(action: {
+                                    retryLoadImage()
+                                }) {
+                                    HStack(spacing: AppSpacing.sm) {
+                                        if isRetrying {
+                                            ProgressView()
+                                                .scaleEffect(0.8)
+                                                .tint(.white)
+                                        } else {
+                                            Image(systemName: "arrow.clockwise")
+                                                .font(.system(size: 14))
+                                        }
+                                        Text(isRetrying ? "Retrying..." : "Retry")
+                                            .font(AppTypography.bodyMedium)
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, AppSpacing.lg)
+                                    .padding(.vertical, AppSpacing.sm)
+                                    .background(AppColors.primaryBlue, in: Capsule())
+                                }
+                                .disabled(isRetrying)
+                                .childSafeTouchTarget()
+                            } else {
+                                Text("Please try reloading the book")
+                                    .font(AppTypography.captionLarge)
+                                    .foregroundColor(.gray)
+                            }
+
+                            #if DEBUG
+                            Text("Error: \(error.localizedDescription)")
+                                .font(AppTypography.captionLarge)
                                 .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, AppSpacing.md)
+                            #endif
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -428,6 +645,31 @@ struct BookPageView: View {
             .padding(.horizontal, AppSpacing.lg)
             .frame(width: outerGeometry.size.width, height: outerGeometry.size.height, alignment: .top)
             .background(Color.black)
+        }
+    }
+
+    // MARK: - Retry Logic
+    private func retryLoadImage() {
+        guard retryCount < 3 else { return }
+
+        isRetrying = true
+
+        #if DEBUG
+        print("📷 BookPageView: Retrying image load (attempt \(retryCount + 1)/3)")
+        #endif
+
+        // Delay to give network time to recover
+        Task {
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
+
+            await MainActor.run {
+                retryCount += 1
+                isRetrying = false
+
+                #if DEBUG
+                print("📷 BookPageView: Retry triggered - new retry count: \(retryCount)")
+                #endif
+            }
         }
     }
 }
