@@ -4,6 +4,7 @@ struct BedtimeStoriesCreateView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var service = BedtimeStoriesService.shared
     @StateObject private var tokenManager = TokenBalanceManager.shared
+    @StateObject private var localization = LocalizationManager.shared
 
     @State private var currentStep = 1
     @State private var isLoading = false
@@ -16,6 +17,8 @@ struct BedtimeStoriesCreateView: View {
     @State private var category: BedtimeStoryCategory?
 
     // Step 2: Details
+    @State private var selectedFocusTag: BedtimeFocusTag?
+    @State private var hasPreselectedFocusTag = false
     @State private var prompt = ""
     @State private var selectedLength: BedtimeStoryLength = .short
     @State private var characterName = ""
@@ -155,7 +158,12 @@ struct BedtimeStoriesCreateView: View {
         .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .task {
-            await loadConfig()
+            await loadConfigAndData()
+        }
+        .onChange(of: localization.currentLanguage) { oldValue, newValue in
+            Task {
+                await reloadTranslatedContent()
+            }
         }
         .alert("common.error".localized, isPresented: $showingError) {
             Button("common.ok".localized) { }
@@ -236,6 +244,10 @@ struct BedtimeStoriesCreateView: View {
     // MARK: - Step 2: Story Details
     private var step2StoryDetails: some View {
         VStack(alignment: .leading, spacing: AppSpacing.lg) {
+            // Focus Tags - First (like books flow)
+            focusTagsSelectionView
+
+            // Story Idea Input
             VStack(spacing: AppSpacing.md) {
                 HStack {
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
@@ -260,6 +272,7 @@ struct BedtimeStoriesCreateView: View {
                     .focused($focusedField, equals: .prompt)
             }.cardStyle()
 
+            // Character Name
             VStack(spacing: AppSpacing.md) {
                 HStack {
                     VStack(alignment: .leading, spacing: AppSpacing.xs) {
@@ -381,6 +394,68 @@ struct BedtimeStoriesCreateView: View {
 
             createDraftButtonView
         }
+    }
+
+    // MARK: - Focus Tags Selection
+    private var focusTagsSelectionView: some View {
+        VStack(spacing: AppSpacing.md) {
+            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                Text("stories.focus.tags".localized)
+                    .font(AppTypography.headlineMedium)
+                    .foregroundColor(AppColors.textPrimary)
+
+                Text("stories.focus.tags.desc".localized)
+                    .font(AppTypography.captionLarge)
+                    .foregroundColor(AppColors.textSecondary)
+            }
+
+            if isLoading && service.focusTags.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppSpacing.xl)
+            } else {
+                LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.md) {
+                    ForEach(service.focusTags) { focusTag in
+                        let isSelected = selectedFocusTag?.id == focusTag.id
+
+                        Button(action: {
+                            selectedFocusTag = focusTag
+                        }) {
+                            VStack(spacing: AppSpacing.sm) {
+                                // Icon - Use Image(systemName:) for SF Symbols
+                                Image(systemName: focusTag.icon)
+                                    .font(.system(size: 32))
+                                    .foregroundColor(isSelected ? .white : AppColors.primaryIndigo)
+                                    .frame(height: 40)
+
+                                // Title
+                                Text(focusTag.name)
+                                    .font(AppTypography.titleSmall)
+                                    .foregroundColor(isSelected ? .white : AppColors.textPrimary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                            }
+                            .padding(AppSpacing.sm)
+                            .frame(height: 140)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                                    .fill(isSelected ? AppColors.primaryIndigo : AppColors.primaryIndigo.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                                            .stroke(
+                                                isSelected ? AppColors.primaryIndigo : AppColors.textSecondary.opacity(0.2),
+                                                lineWidth: isSelected ? 2 : 1
+                                            )
+                                    )
+                            )
+                        }
+                        .childSafeTouchTarget()
+                    }
+                }
+            }
+        }
+        .cardStyle()
     }
 
     // MARK: - Create Draft Button
@@ -578,18 +653,74 @@ struct BedtimeStoriesCreateView: View {
     }
 
     // MARK: - Actions
-    private func loadConfig() async {
+
+    /// Load config, themes, and focus tags on initial view appearance
+    private func loadConfigAndData() async {
         do {
-            let config = try await service.loadConfig()
+            // Load all data in parallel for better performance
+            async let configTask = service.loadConfig()
+            async let themesTask = service.getThemes()
+            async let focusTagsTask = service.getFocusTags()
+
+            let (config, themesResponse, _) = try await (configTask, themesTask, focusTagsTask)
+
             await MainActor.run {
                 voices = config.voices
                 selectedVoice = config.defaults.voiceId
+                category = themesResponse.category
+
+                // Preselect first focus tag if not already selected
+                if !hasPreselectedFocusTag, let firstTag = service.focusTags.first {
+                    selectedFocusTag = firstTag
+                    hasPreselectedFocusTag = true
+                }
             }
+
+            #if DEBUG
+            print("🌙 BedtimeStoriesCreateView: Loaded config, \(service.themes.count) themes, and \(service.focusTags.count) focus tags")
+            print("🎯 BedtimeStoriesCreateView: Preselected focus tag: \(selectedFocusTag?.name ?? "none")")
+            #endif
         } catch {
             await MainActor.run {
                 self.error = error.localizedDescription
                 showingError = true
             }
+        }
+    }
+
+    /// Reload only translated content when language changes
+    private func reloadTranslatedContent() async {
+        do {
+            // Save currently selected focus tag ID
+            let currentFocusTagId = selectedFocusTag?.id
+
+            // Only reload themes and focus tags (backend provides translated content)
+            async let themesTask = service.getThemes()
+            async let focusTagsTask = service.getFocusTags()
+
+            let (themesResponse, _) = try await (themesTask, focusTagsTask)
+
+            await MainActor.run {
+                category = themesResponse.category
+
+                // Restore focus tag selection with updated translation
+                if let tagId = currentFocusTagId {
+                    selectedFocusTag = service.focusTags.first { $0.id == tagId }
+                } else if !hasPreselectedFocusTag, let firstTag = service.focusTags.first {
+                    // Preselect first tag if nothing was selected
+                    selectedFocusTag = firstTag
+                    hasPreselectedFocusTag = true
+                }
+            }
+
+            #if DEBUG
+            print("🌐 BedtimeStoriesCreateView: Reloaded translated content - \(service.themes.count) themes, \(service.focusTags.count) focus tags")
+            print("🎯 BedtimeStoriesCreateView: Restored focus tag: \(selectedFocusTag?.name ?? "none")")
+            #endif
+        } catch {
+            #if DEBUG
+            print("❌ BedtimeStoriesCreateView: Error reloading translated content - \(error.localizedDescription)")
+            #endif
         }
     }
 
@@ -617,7 +748,8 @@ struct BedtimeStoriesCreateView: View {
                 length: selectedLength,
                 optionId: theme.id,
                 characterName: characterName.isEmpty ? nil : characterName,
-                ageGroup: ageGroup
+                ageGroup: ageGroup,
+                focusTagId: selectedFocusTag?.id
             )
             await MainActor.run {
                 currentDraft = draft

@@ -688,6 +688,8 @@
 "stories.generating" = "Creating your story...";
 "stories.generating.story" = "Generating Story...";
 "stories.read" = "Read Story";
+"stories.focus.tags" = "Story Focus";
+"stories.focus.tags.desc" = "Choose what your story should focus on";
 "stories.listen" = "Listen";
 "stories.pages" = "%d pages";
 "stories.story.idea" = "Story Idea";

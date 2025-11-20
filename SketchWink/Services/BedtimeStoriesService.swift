@@ -10,6 +10,7 @@ class BedtimeStoriesService: ObservableObject {
     @Published var category: BedtimeStoryCategory?
     @Published var stories: [BedtimeStory] = []
     @Published var currentDraft: BedtimeDraft?
+    @Published var focusTags: [BedtimeFocusTag] = []
     @Published var error: String?
 
     private let baseURL = AppConfig.API.baseURL
@@ -124,6 +125,61 @@ class BedtimeStoriesService: ObservableObject {
         return themesResponse
     }
 
+    // MARK: - 2.5. Get Focus Tags
+
+    func getFocusTags() async throws -> BedtimeFocusTagsResponse {
+        guard let token = try KeychainManager.shared.retrieveToken() else {
+            throw BedtimeStoryError.noToken
+        }
+
+        let url = URL(string: "\(baseURL)/bedtime-stories/focus-tags")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        // Add profile ID if available
+        if let profileId = ProfileService.shared.currentProfile?.id {
+            request.setValue(profileId, forHTTPHeaderField: "X-Profile-ID")
+        }
+
+        #if DEBUG
+        print("📖 BedtimeStoriesService: Loading focus tags from \(url)")
+        print("   - Token: \(token.prefix(20))...")
+        print("   - Profile ID: \(ProfileService.shared.currentProfile?.id ?? "none")")
+        #endif
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BedtimeStoryError.invalidResponse
+        }
+
+        guard 200...299 ~= httpResponse.statusCode else {
+            #if DEBUG
+            print("❌ BedtimeStoriesService getFocusTags: HTTP Error \(httpResponse.statusCode)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("   - Response: \(responseString)")
+            }
+            #endif
+
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw BedtimeStoryError.apiError(apiError.userMessage)
+            }
+            throw BedtimeStoryError.httpError(httpResponse.statusCode)
+        }
+
+        let focusTagsResponse = try JSONDecoder().decode(BedtimeFocusTagsResponse.self, from: data)
+
+        #if DEBUG
+        print("✅ BedtimeStoriesService: Loaded \(focusTagsResponse.focusTags.count) focus tags")
+        #endif
+
+        await MainActor.run {
+            self.focusTags = focusTagsResponse.focusTags
+        }
+
+        return focusTagsResponse
+    }
+
     // MARK: - 3. Create Draft (FREE - No Tokens)
 
     func createDraft(
@@ -131,7 +187,8 @@ class BedtimeStoriesService: ObservableObject {
         length: BedtimeStoryLength,
         optionId: String,
         characterName: String? = nil,
-        ageGroup: String? = nil
+        ageGroup: String? = nil,
+        focusTagId: String? = nil
     ) async throws -> BedtimeDraft {
         guard let token = try KeychainManager.shared.retrieveToken() else {
             throw BedtimeStoryError.noToken
@@ -154,7 +211,8 @@ class BedtimeStoriesService: ObservableObject {
             length: length,
             optionId: optionId,
             characterName: characterName,
-            ageGroup: ageGroup
+            ageGroup: ageGroup,
+            focusTagId: focusTagId
         )
         request.httpBody = try JSONEncoder().encode(body)
 

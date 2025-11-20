@@ -688,6 +688,8 @@
 "stories.generating" = "Creando tu cuento...";
 "stories.generating.story" = "Generando Cuento...";
 "stories.read" = "Leer Cuento";
+"stories.focus.tags" = "Enfoque del Cuento";
+"stories.focus.tags.desc" = "Elige en qué debe enfocarse tu cuento";
 "stories.listen" = "Escuchar";
 "stories.pages" = "%d páginas";
 "stories.story.idea" = "Idea del Cuento";

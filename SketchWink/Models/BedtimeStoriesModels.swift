@@ -76,6 +76,7 @@ struct CreateBedtimeDraftRequest: Codable {
     let optionId: String
     let characterName: String?
     let ageGroup: String?
+    let focusTagId: String?
 }
 
 enum BedtimeStoryLength: String, Codable, CaseIterable {
@@ -188,4 +189,17 @@ struct BedtimeFavoriteResponse: Codable {
 
 struct BedtimeDeleteResponse: Codable {
     let message: String
+}
+
+// MARK: - Focus Tag Models
+
+struct BedtimeFocusTag: Codable, Identifiable, Hashable {
+    let id: String
+    let value: String
+    let icon: String
+    let name: String
+}
+
+struct BedtimeFocusTagsResponse: Codable {
+    let focusTags: [BedtimeFocusTag]
 }

@@ -128,6 +128,11 @@ struct BedtimeStoriesLibraryView: View {
         .task {
             await loadInitialData()
         }
+        .onChange(of: localization.currentLanguage) { oldValue, newValue in
+            Task {
+                await reloadTranslatedContent()
+            }
+        }
     }
 
     // MARK: - Filter Chips
@@ -301,7 +306,25 @@ struct BedtimeStoriesLibraryView: View {
 
     // MARK: - Data Methods
     private func loadInitialData() async {
+        // Load themes for filter categories
+        _ = try? await service.getThemes()
         await loadStories()
+    }
+
+    /// Reload only translated content when language changes
+    private func reloadTranslatedContent() async {
+        do {
+            // Reload themes to get updated translations for filter chips
+            _ = try await service.getThemes()
+
+            #if DEBUG
+            print("🌐 BedtimeStoriesLibraryView: Reloaded translated themes - \(service.themes.count) themes")
+            #endif
+        } catch {
+            #if DEBUG
+            print("❌ BedtimeStoriesLibraryView: Error reloading themes - \(error.localizedDescription)")
+            #endif
+        }
     }
 
     private func loadStories() async {
