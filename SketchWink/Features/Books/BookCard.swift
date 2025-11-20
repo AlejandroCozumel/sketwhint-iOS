@@ -177,18 +177,19 @@ struct BookCard: View {
             )
     }
     
-    // MARK: - Book Info Section  
+    // MARK: - Book Info Section
     private var bookInfoSection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.xs) {
             // Book title (up to 2 lines)
             Text(book.title)
                 .font(AppTypography.titleMedium)
-                .fontWeight(.semibold)
                 .foregroundColor(AppColors.textPrimary)
                 .lineLimit(2)
-                .truncationMode(.tail)
+                .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            
+
+            Spacer(minLength: 0)
+
             // Category (single line)
             Text(book.category)
                 .font(AppTypography.captionLarge)
@@ -196,7 +197,7 @@ struct BookCard: View {
                 .fontWeight(.medium)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             // Date (single line below category)
             Text(book.formattedCreatedAt)
                 .font(.system(size: 10))
@@ -204,9 +205,9 @@ struct BookCard: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, AppSpacing.sm)
-        .padding(.vertical, AppSpacing.sm)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(.horizontal, AppSpacing.md)
+        .padding(.vertical, AppSpacing.md)
     }
     
     // MARK: - Creator Badge

@@ -4,14 +4,17 @@ import Combine
 @MainActor
 class BooksService: ObservableObject {
     static let shared = BooksService()
-    
+
     @Published var books: [StoryBook] = []
+    @Published var themes: [BookThemeOption] = []
+    @Published var category: BookCategory?
+    @Published var focusTags: [BookFocusTag] = []
     @Published var isLoading = false
     @Published var error: String?
-    
+
     private let baseURL = AppConfig.API.baseURL
     private var cancellables = Set<AnyCancellable>()
-    
+
     private init() {}
     
     // MARK: - Books Management
@@ -301,7 +304,123 @@ class BooksService: ObservableObject {
         print("✅ BooksService: Successfully deleted book \(bookId)")
         #endif
     }
-    
+
+    // MARK: - Themes & Focus Tags (Dynamic from Backend)
+
+    /// Get book themes with translations based on user's preferred language
+    func getThemes() async throws -> BookThemesResponse {
+        guard let token = try KeychainManager.shared.retrieveToken() else {
+            throw BooksError.invalidURL
+        }
+
+        let url = URL(string: "\(baseURL)/books/themes")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        // Add profile ID if available
+        if let profileId = ProfileService.shared.currentProfile?.id {
+            request.setValue(profileId, forHTTPHeaderField: "X-Profile-ID")
+        }
+
+        #if DEBUG
+        print("📚 BooksService: Loading themes from \(url)")
+        print("   - Token: \(token.prefix(20))...")
+        print("   - Profile ID: \(ProfileService.shared.currentProfile?.id ?? "none")")
+        print("   - Headers: \(request.allHTTPHeaderFields ?? [:])")
+        #endif
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BooksError.invalidResponse
+        }
+
+        guard 200...299 ~= httpResponse.statusCode else {
+            #if DEBUG
+            print("❌ BooksService getThemes: HTTP Error \(httpResponse.statusCode)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("   - Response: \(responseString)")
+            }
+            #endif
+
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw BooksError.serverError(apiError.userMessage)
+            }
+            throw BooksError.httpError(httpResponse.statusCode)
+        }
+
+        let themesResponse = try JSONDecoder().decode(BookThemesResponse.self, from: data)
+
+        #if DEBUG
+        print("✅ BooksService: Loaded \(themesResponse.themes.count) themes")
+        for theme in themesResponse.themes.prefix(3) {
+            print("   - \(theme.name) (id: \(theme.id))")
+        }
+        #endif
+
+        // Update published properties
+        self.themes = themesResponse.themes
+        self.category = themesResponse.category
+
+        return themesResponse
+    }
+
+    /// Get book focus tags with translations based on user's preferred language
+    func getFocusTags() async throws -> BookFocusTagsResponse {
+        guard let token = try KeychainManager.shared.retrieveToken() else {
+            throw BooksError.invalidURL
+        }
+
+        let url = URL(string: "\(baseURL)/books/focus-tags")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        // Add profile ID if available
+        if let profileId = ProfileService.shared.currentProfile?.id {
+            request.setValue(profileId, forHTTPHeaderField: "X-Profile-ID")
+        }
+
+        #if DEBUG
+        print("📚 BooksService: Loading focus tags from \(url)")
+        print("   - Token: \(token.prefix(20))...")
+        print("   - Profile ID: \(ProfileService.shared.currentProfile?.id ?? "none")")
+        #endif
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw BooksError.invalidResponse
+        }
+
+        guard 200...299 ~= httpResponse.statusCode else {
+            #if DEBUG
+            print("❌ BooksService getFocusTags: HTTP Error \(httpResponse.statusCode)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("   - Response: \(responseString)")
+            }
+            #endif
+
+            if let apiError = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw BooksError.serverError(apiError.userMessage)
+            }
+            throw BooksError.httpError(httpResponse.statusCode)
+        }
+
+        let focusTagsResponse = try JSONDecoder().decode(BookFocusTagsResponse.self, from: data)
+
+        #if DEBUG
+        print("✅ BooksService: Loaded \(focusTagsResponse.focusTags.count) focus tags")
+        for tag in focusTagsResponse.focusTags.prefix(3) {
+            print("   - \(tag.name) (id: \(tag.id), icon: \(tag.icon))")
+        }
+        #endif
+
+        // Update published property
+        self.focusTags = focusTagsResponse.focusTags
+
+        return focusTagsResponse
+    }
+
     // MARK: - Helper Methods
     
     func clearBooks() {

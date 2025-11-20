@@ -2,7 +2,9 @@ import Foundation
 
 // MARK: - Draft Creation Models
 
-/// Story type options for draft creation
+// DEPRECATED: This enum is deprecated in favor of dynamic BookThemeOption from backend API
+// Kept for backward compatibility during migration
+/// Story type options for draft creation (DEPRECATED - use BookThemeOption from BooksService)
 enum StoryType: String, CaseIterable, Codable {
     case bedtimeStory = "bedtime_story"
     case adventureStory = "adventure_story"
@@ -10,7 +12,7 @@ enum StoryType: String, CaseIterable, Codable {
     case friendshipStory = "friendship_story"
     case fantasyStory = "fantasy_story"
     case coloringBook = "coloring_book"
-    
+
     var displayName: String {
         switch self {
         case .bedtimeStory: return "books.story.type.bedtime".localized
@@ -32,7 +34,7 @@ enum StoryType: String, CaseIterable, Codable {
         case .coloringBook: return "Stories designed for coloring activities"  // Not used in UI
         }
     }
-    
+
     var icon: String {
         switch self {
         case .bedtimeStory: return "moon.stars.fill"
@@ -66,7 +68,9 @@ enum AgeGroup: String, CaseIterable, Codable {
     }
 }
 
-/// Focus tags for story themes
+// DEPRECATED: This enum is deprecated in favor of dynamic BookFocusTag from backend API
+// Kept for backward compatibility during migration
+/// Focus tags for story themes (DEPRECATED - use BookFocusTag from BooksService)
 enum FocusTag: String, CaseIterable, Codable {
     case magicImagination = "Magic & Imagination"
     case adventureProblemSolving = "Adventure & Problem Solving"
@@ -87,7 +91,7 @@ enum FocusTag: String, CaseIterable, Codable {
         case .friendshipSocialSkills: return "books.focus.friendship".localized
         }
     }
-    
+
     var icon: String {
         switch self {
         case .magicImagination: return "sparkles"

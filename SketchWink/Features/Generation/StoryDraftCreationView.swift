@@ -20,15 +20,18 @@ enum DraftCreationState {
 
 struct StoryDraftCreationView: View {
     @StateObject private var draftService = DraftService.shared
+    @StateObject private var booksService = BooksService.shared
+    @StateObject private var localization = LocalizationManager.shared
     @State private var currentStep = 1
-    @State private var selectedStoryType: StoryType?
+    @State private var selectedTheme: BookThemeOption? // UPDATED: Use dynamic BookThemeOption
     @State private var selectedAgeGroup: AgeGroup = .preschool
     @State private var userTheme = ""
     @State private var selectedPageCount = 4
-    @State private var selectedFocusTag: FocusTag = .magicImagination
+    @State private var selectedFocusTag: BookFocusTag? // UPDATED: Use dynamic BookFocusTag
     @State private var customFocus = ""
     @State private var draftCreationState: DraftCreationState = .idle
     @State private var isLoading = false
+    @State private var isLoadingThemes = false
     @State private var error: Error?
     @State private var showingError = false
     @State private var isShowingProgress = false
@@ -138,6 +141,20 @@ struct StoryDraftCreationView: View {
             }
             .toolbarBackground(AppColors.backgroundLight, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+        }
+        .task {
+            // Always load themes and focus tags to get current language translations
+            await loadThemesAndFocusTags()
+        }
+        .onChange(of: localization.currentLanguage) { oldValue, newValue in
+            // Reload themes and focus tags when language changes
+            #if DEBUG
+            print("🌍 StoryDraftCreationView: Language changed from \(oldValue.displayName) to \(newValue.displayName)")
+            #endif
+
+            Task {
+                await reloadTranslatedContent()
+            }
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
@@ -280,7 +297,7 @@ struct StoryDraftCreationView: View {
     // MARK: - Can Proceed
     private var canProceedToNextStep: Bool {
         switch currentStep {
-        case 1: return selectedStoryType != nil
+        case 1: return selectedTheme != nil  // UPDATED: Use selectedTheme
         case 2: return !userTheme.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         default: return false
         }
@@ -301,33 +318,37 @@ struct StoryDraftCreationView: View {
         }
     }
 
-    // MARK: - Step 1: Story Type Selection
+    // MARK: - Step 1: Story Type Selection (Dynamic from Backend)
     private var step1StoryTypeSelection: some View {
         VStack(alignment: .leading, spacing: AppSpacing.lg) {
-            // Header
             VStack(alignment: .center, spacing: AppSpacing.md) {
                 Text("books.choose.story.type".localized)
                     .font(AppTypography.categoryTitle)
                     .foregroundColor(AppColors.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.bottom, 10)
-            }
 
-            // Story types grid
-            LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.md) {
-                ForEach(StoryType.allCases, id: \.rawValue) { storyType in
-                    StoryTypeCard(
-                        storyType: storyType,
-                        isSelected: selectedStoryType == storyType,
-                        productColor: productColor,
-                        action: {
-                            selectedStoryType = storyType
-                            // Auto-advance to next step after brief delay
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                goToNextStep()
-                            }
+                if isLoadingThemes {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, AppSpacing.xl)
+                } else {
+                    LazyVGrid(columns: GridLayouts.styleGrid, spacing: AppSpacing.grid.itemSpacing) {
+                        ForEach(booksService.themes) { theme in
+                            BookThemeCard(
+                                theme: theme,
+                                isSelected: selectedTheme?.id == theme.id,
+                                productColor: productColor,
+                                action: {
+                                    selectedTheme = theme
+                                    // Auto-advance to next step after brief delay
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                        goToNextStep()
+                                    }
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
@@ -576,22 +597,33 @@ struct StoryDraftCreationView: View {
         )
     }
     
-    // MARK: - Story Type Selection
+    // MARK: - Story Type Selection (Dynamic from Backend)
     @ViewBuilder
     private var storyTypeSelectionView: some View {
         VStack(alignment: .leading, spacing: AppSpacing.md) {
             Text("Choose Story Type")
                 .font(AppTypography.headlineMedium)
                 .foregroundColor(AppColors.textPrimary)
-            
-            LazyVGrid(columns: GridLayouts.styleGrid, spacing: AppSpacing.grid.itemSpacing) {
-                ForEach(StoryType.allCases, id: \.rawValue) { storyType in
-                    StoryTypeCard(
-                        storyType: storyType,
-                        isSelected: selectedStoryType == storyType,
-                        productColor: productColor
-                    ) {
-                        selectedStoryType = storyType
+
+            if isLoadingThemes {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .tint(productColor)
+            } else if booksService.themes.isEmpty {
+                Text("No themes available")
+                    .bodyMedium()
+                    .foregroundColor(AppColors.textSecondary)
+                    .frame(maxWidth: .infinity)
+            } else {
+                LazyVGrid(columns: GridLayouts.styleGrid, spacing: AppSpacing.grid.itemSpacing) {
+                    ForEach(booksService.themes) { theme in
+                        BookThemeCard(
+                            theme: theme,
+                            isSelected: selectedTheme?.id == theme.id,
+                            productColor: productColor
+                        ) {
+                            selectedTheme = theme
+                        }
                     }
                 }
             }
@@ -756,44 +788,52 @@ struct StoryDraftCreationView: View {
                     .font(AppTypography.captionLarge)
                     .foregroundColor(AppColors.textSecondary)
             }
-            
-            LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.md) {
-                ForEach(FocusTag.allCases, id: \.rawValue) { focusTag in
-                    let isSelected = selectedFocusTag == focusTag
 
-                    Button(action: {
-                        selectedFocusTag = focusTag
-                    }) {
-                        VStack(spacing: AppSpacing.sm) {
-                            // Icon
-                            Image(systemName: focusTag.icon)
-                                .font(.system(size: 32))
-                                .foregroundColor(isSelected ? .white : productColor)
-                                .frame(height: 40)
+            if isLoadingThemes {
+                // Loading state
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .tint(productColor)
+            } else {
+                // Focus tags grid (dynamic from backend)
+                LazyVGrid(columns: GridLayouts.categoryGrid, spacing: AppSpacing.md) {
+                    ForEach(booksService.focusTags) { focusTag in
+                        let isSelected = selectedFocusTag?.id == focusTag.id
 
-                            // Title
-                            Text(focusTag.displayName)
-                                .font(AppTypography.titleSmall)
-                                .foregroundColor(isSelected ? .white : AppColors.textPrimary)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
+                        Button(action: {
+                            selectedFocusTag = focusTag
+                        }) {
+                            VStack(spacing: AppSpacing.sm) {
+                                // Icon
+                                Image(systemName: focusTag.icon)
+                                    .font(.system(size: 32))
+                                    .foregroundColor(isSelected ? .white : productColor)
+                                    .frame(height: 40)
+
+                                // Title (translated from backend)
+                                Text(focusTag.name)
+                                    .font(AppTypography.titleSmall)
+                                    .foregroundColor(isSelected ? .white : AppColors.textPrimary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                            }
+                            .padding(AppSpacing.sm)
+                            .frame(height: 140)
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                                    .fill(isSelected ? productColor : productColor.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
+                                            .stroke(
+                                                isSelected ? productColor : AppColors.textSecondary.opacity(0.2),
+                                                lineWidth: isSelected ? 2 : 1
+                                            )
+                                    )
+                            )
                         }
-                        .padding(AppSpacing.sm)
-                        .frame(height: 140)
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                                .fill(isSelected ? productColor : productColor.opacity(0.05))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                                        .stroke(
-                                            isSelected ? productColor : AppColors.textSecondary.opacity(0.2),
-                                            lineWidth: isSelected ? 2 : 1
-                                        )
-                                )
-                        )
+                        .childSafeTouchTarget()
                     }
-                    .childSafeTouchTarget()
                 }
             }
         }
@@ -881,40 +921,42 @@ struct StoryDraftCreationView: View {
     
     // MARK: - Methods
     private func createDraft() async {
-        guard let storyType = selectedStoryType else { return }
+        guard let selectedTheme = selectedTheme else { return }
 
         let trimmedTheme = userTheme.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let request = CreateDraftRequest(
             theme: trimmedTheme,
-            storyType: storyType,
+            storyType: StoryType.bedtimeStory, // Fallback enum value for API compatibility
             ageGroup: selectedAgeGroup,
             pageCount: selectedPageCount,
-            focusTags: [selectedFocusTag],
+            focusTags: [], // Backend doesn't use this anymore - uses theme ID
             customFocus: customFocus.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : customFocus.trimmingCharacters(in: .whitespacesAndNewlines),
             aiGenerated: true // Manual creation still uses AI for story generation
         )
-        
+
         // Validate request
         if let validationError = draftService.validateDraftRequest(request) {
             error = DraftError.validationError(validationError)
             showingError = true
             return
         }
-        
+
         #if DEBUG
         print("📝 StoryDraftCreationView: Creating draft with theme: \(trimmedTheme)")
-        print("📝 Story Type: \(storyType.displayName)")
+        print("📝 Selected Theme: \(selectedTheme.name) (ID: \(selectedTheme.id))")
         print("📝 Age Group: \(selectedAgeGroup.displayName)")
         print("📝 Page Count: \(selectedPageCount)")
-        print("📝 Focus Tag: \(selectedFocusTag.displayName)")
+        if let focusTag = selectedFocusTag {
+            print("📝 Focus Tag: \(focusTag.name) (ID: \(focusTag.id))")
+        }
         print("📝 Custom Focus: \(customFocus)")
         #endif
-        
+
         await MainActor.run {
             isShowingProgress = true
         }
-        
+
         do {
             let response = try await draftService.createDraft(request)
             await MainActor.run {
@@ -977,6 +1019,86 @@ struct StoryDraftCreationView: View {
         }
     }
 
+    // MARK: - Load Themes & Focus Tags from Backend
+
+    private func loadThemesAndFocusTags() async {
+        isLoadingThemes = true
+
+        do {
+            // Load themes and focus tags in parallel
+            async let themesTask = booksService.getThemes()
+            async let focusTagsTask = booksService.getFocusTags()
+
+            _ = try await (themesTask, focusTagsTask)
+
+            #if DEBUG
+            print("✅ StoryDraftCreationView: Loaded \(booksService.themes.count) themes and \(booksService.focusTags.count) focus tags")
+            #endif
+
+            // Auto-select first focus tag if available and nothing selected
+            if selectedFocusTag == nil, let firstFocusTag = booksService.focusTags.first {
+                selectedFocusTag = firstFocusTag
+            }
+
+        } catch {
+            #if DEBUG
+            print("❌ StoryDraftCreationView: Error loading themes/focus tags - \(error)")
+            #endif
+
+            self.error = error
+            showingError = true
+        }
+
+        isLoadingThemes = false
+    }
+
+    private func reloadTranslatedContent() async {
+        isLoadingThemes = true
+
+        do {
+            // Save currently selected focus tag ID to restore after reload
+            let currentFocusTagId = selectedFocusTag?.id
+            let currentThemeId = selectedTheme?.id
+
+            // Reload themes and focus tags in parallel (backend provides translated content)
+            async let themesTask = booksService.getThemes()
+            async let focusTagsTask = booksService.getFocusTags()
+
+            _ = try await (themesTask, focusTagsTask)
+
+            await MainActor.run {
+                // Restore theme selection with updated translation
+                if let themeId = currentThemeId {
+                    selectedTheme = booksService.themes.first { $0.id == themeId }
+                }
+
+                // Restore focus tag selection with updated translation
+                if let tagId = currentFocusTagId {
+                    selectedFocusTag = booksService.focusTags.first { $0.id == tagId }
+                } else if selectedFocusTag == nil, let firstTag = booksService.focusTags.first {
+                    // Auto-select first tag if nothing was selected
+                    selectedFocusTag = firstTag
+                }
+            }
+
+            #if DEBUG
+            print("🌐 StoryDraftCreationView: Reloaded translated content - \(booksService.themes.count) themes, \(booksService.focusTags.count) focus tags")
+            print("🎯 StoryDraftCreationView: Restored theme: \(selectedTheme?.name ?? "none")")
+            print("🎯 StoryDraftCreationView: Restored focus tag: \(selectedFocusTag?.name ?? "none")")
+            #endif
+
+        } catch {
+            #if DEBUG
+            print("❌ StoryDraftCreationView: Error reloading translated content - \(error)")
+            #endif
+
+            self.error = error
+            showingError = true
+        }
+
+        isLoadingThemes = false
+    }
+
     private func generateBook() async {
         guard let draft = activeDraft else { return }
 
@@ -1009,27 +1131,27 @@ struct StoryDraftCreationView: View {
 
 }
 
-// MARK: - Story Type Card
+// MARK: - Story Type Card (DEPRECATED - use BookThemeCard)
 struct StoryTypeCard: View {
     let storyType: StoryType
     let isSelected: Bool
     let productColor: Color
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: AppSpacing.sm) {
                 Image(systemName: storyType.icon)
                     .font(.system(size: 32))
                     .foregroundColor(isSelected ? .white : productColor)
-                
+
                 VStack(spacing: AppSpacing.xxs) {
                     Text(storyType.displayName)
                         .font(AppTypography.titleSmall)
                         .foregroundColor(isSelected ? .white : AppColors.textPrimary)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
-                    
+
                     Text(storyType.description)
                         .font(AppTypography.captionMedium)
                         .foregroundColor(isSelected ? .white.opacity(0.9) : AppColors.textSecondary)
@@ -1050,6 +1172,67 @@ struct StoryTypeCard: View {
                                 lineWidth: isSelected ? 2 : 1
                             )
                     )
+            )
+        }
+        .childSafeTouchTarget()
+    }
+}
+
+// MARK: - Book Theme Card (Dynamic from Backend)
+struct BookThemeCard: View {
+    let theme: BookThemeOption
+    let isSelected: Bool
+    let productColor: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 0) {
+                // Icon area (matching bedtime stories layout)
+                Rectangle()
+                    .fill(productColor.opacity(0.2))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 100)
+                    .overlay(
+                        Image(systemName: "book.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(productColor)
+                    )
+
+                // Text area (matching bedtime stories layout exactly)
+                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                    Text(theme.name)
+                        .font(AppTypography.titleMedium)
+                        .foregroundColor(AppColors.textPrimary)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+
+                    Text(theme.description)
+                        .font(AppTypography.captionLarge)
+                        .foregroundColor(AppColors.textSecondary)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
+                }
+                .padding(AppSpacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 100)
+            }
+            .frame(height: 200)
+            .frame(maxWidth: .infinity)
+            .background(productColor.opacity(0.08))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                    .stroke(
+                        isSelected ? productColor : productColor.opacity(0.3),
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
+            .shadow(
+                color: productColor.opacity(isSelected ? 0.3 : 0.1),
+                radius: 10,
+                x: 0,
+                y: 10
             )
         }
         .childSafeTouchTarget()

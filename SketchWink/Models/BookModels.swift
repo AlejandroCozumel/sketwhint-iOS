@@ -171,3 +171,47 @@ struct MoveBookToFolderResponse: Codable {
     let message: String
     let success: Bool
 }
+
+// MARK: - Book Themes & Focus Tags (Dynamic from Backend)
+
+/// Book category metadata from /api/books/themes
+struct BookCategory: Codable {
+    let id: String
+    let name: String
+    let description: String
+    let icon: String
+    let imageUrl: String?
+    let color: String
+}
+
+/// Book theme option from /api/books/themes
+struct BookThemeOption: Codable, Identifiable {
+    let id: String
+    let name: String
+    let description: String
+    let imageUrl: String?
+    let color: String?
+    let style: String?
+    let requiresCustomContent: Bool?
+    let isDefault: Bool?
+    let sortOrder: Int?
+}
+
+/// Response from /api/books/themes endpoint
+struct BookThemesResponse: Codable {
+    let category: BookCategory
+    let themes: [BookThemeOption]
+}
+
+/// Book focus tag from /api/books/focus-tags
+struct BookFocusTag: Codable, Identifiable {
+    let id: String
+    let value: String
+    let name: String
+    let icon: String
+}
+
+/// Response from /api/books/focus-tags endpoint
+struct BookFocusTagsResponse: Codable {
+    let focusTags: [BookFocusTag]
+}
