@@ -196,6 +196,12 @@ struct BooksView: View {
             loadInitialBooks()
             loadCategories()
         }
+        .onChange(of: localization.currentLanguage) { oldValue, newValue in
+            #if DEBUG
+            print("📚 BooksView: Language changed from \(oldValue) to \(newValue), reloading categories")
+            #endif
+            loadCategories()
+        }
         .dismissableFullScreenCover(item: $selectedBook) { book in
             BookReadingView(book: book)
         }
@@ -465,31 +471,35 @@ struct BooksView: View {
     private func loadCategories() {
         Task {
             do {
-                let categories = try await generationService.getCategoriesWithOptions()
-                
-                // Find story_books category and extract its options
-                if let storyBooksCategory = categories.first(where: { $0.category.id == "story_books" }) {
-                    await MainActor.run {
-                        availableCategories = storyBooksCategory.options.map { option in
-                            FilterCategory(
-                                id: option.name,
-                                name: option.name,
-                                icon: "📚",
-                                color: AppColors.primaryPink
-                            )
-                        }
+                // Load book themes (translated based on user's preferred language)
+                let themesResponse = try await booksService.getThemes()
+
+                await MainActor.run {
+                    // Map themes to FilterCategory format
+                    // Store theme responses for later use when filtering
+                    self.booksService.themes = themesResponse.themes
+
+                    // IMPORTANT: Use theme.id as the filter ID (contains the option ID like "sb1-bedtime-stories")
+                    // Display the translated name to the user, but we'll map back to the English name when filtering
+                    availableCategories = themesResponse.themes.map { theme in
+                        FilterCategory(
+                            id: theme.id,           // Use option ID (e.g., "sb1-bedtime-stories")
+                            name: theme.name,       // Display translated name (e.g., "Cuentos para Dormir")
+                            icon: "📚",
+                            color: AppColors.primaryPink  // Always use pink for book categories
+                        )
                     }
-                    
-                    #if DEBUG
-                    print("📚 BooksView: Loaded \\(availableCategories.count) story book categories")
-                    availableCategories.forEach { category in
-                        print("   - \\(category.name)")
-                    }
-                    #endif
                 }
+
+                #if DEBUG
+                print("📚 BooksView: Loaded \(themesResponse.themes.count) book themes")
+                themesResponse.themes.forEach { theme in
+                    print("   - \(theme.name) (id: \(theme.id))")
+                }
+                #endif
             } catch {
                 #if DEBUG
-                print("❌ BooksView: Error loading categories - \\(error)")
+                print("❌ BooksView: Error loading book themes - \(error)")
                 #endif
             }
         }
