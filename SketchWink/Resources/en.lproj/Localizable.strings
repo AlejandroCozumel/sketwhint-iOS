@@ -64,6 +64,7 @@
 "login.error.invalid.email" = "Please enter a valid email";
 "login.error.empty.password" = "Please enter your password";
 "login.signin.loading" = "Signing in...";
+"login.error.email.not.verified" = "Email not verified. Please sign up again to receive a new verification code.";
 
 // MARK: - Sign Up Screen
 "signup.title" = "Create Account";

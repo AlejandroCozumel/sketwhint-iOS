@@ -5,15 +5,20 @@ import Foundation
 /// Standard API error response structure
 struct APIError: Codable {
     let success: Bool?
-    let error: ErrorDetail?  // Can be an object with name/message
+    let errorString: String?  // Simple string error
+    let errorDetail: ErrorDetail?  // Complex object error
     let message: String?
     let statusCode: Int?
     let retryAfter: Int?  // For rate limiting (seconds until retry allowed)
+    let code: String?
 
     /// Use error message if available, fallback to message field
     var userMessage: String {
-        // Priority: error.message > message > generic error
-        if let errorDetail = error {
+        // Priority: errorString > errorDetail.message > message > generic error
+        if let errorString = errorString {
+            return errorString
+        }
+        if let errorDetail = errorDetail {
             // Handle Zod validation errors (extract specific field errors)
             if let zodMessage = errorDetail.message {
                 // Try to parse Zod error JSON array to extract user-friendly message
@@ -27,6 +32,51 @@ struct APIError: Codable {
             }
         }
         return message ?? "An error occurred"
+    }
+
+    // Custom decoder to handle "error" field as either string or object
+    enum CodingKeys: String, CodingKey {
+        case success, message, statusCode, retryAfter, code
+        case error  // Will be decoded manually
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        success = try container.decodeIfPresent(Bool.self, forKey: .success)
+        message = try container.decodeIfPresent(String.self, forKey: .message)
+        statusCode = try container.decodeIfPresent(Int.self, forKey: .statusCode)
+        retryAfter = try container.decodeIfPresent(Int.self, forKey: .retryAfter)
+        code = try container.decodeIfPresent(String.self, forKey: .code)
+
+        // Try to decode "error" as string first, then as object
+        if let errorStr = try? container.decode(String.self, forKey: .error) {
+            errorString = errorStr
+            errorDetail = nil
+        } else if let errorObj = try? container.decode(ErrorDetail.self, forKey: .error) {
+            errorString = nil
+            errorDetail = errorObj
+        } else {
+            errorString = nil
+            errorDetail = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encodeIfPresent(success, forKey: .success)
+        try container.encodeIfPresent(message, forKey: .message)
+        try container.encodeIfPresent(statusCode, forKey: .statusCode)
+        try container.encodeIfPresent(retryAfter, forKey: .retryAfter)
+        try container.encodeIfPresent(code, forKey: .code)
+
+        // Encode error as string or object
+        if let errorString = errorString {
+            try container.encode(errorString, forKey: .error)
+        } else if let errorDetail = errorDetail {
+            try container.encode(errorDetail, forKey: .error)
+        }
     }
 
     /// Parse Zod error JSON to extract user-friendly validation messages

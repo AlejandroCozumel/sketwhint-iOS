@@ -64,6 +64,7 @@
 "login.error.invalid.email" = "Por favor ingresa un correo válido";
 "login.error.empty.password" = "Por favor ingresa tu contraseña";
 "login.signin.loading" = "Iniciando sesión...";
+"login.error.email.not.verified" = "Correo no verificado. Por favor regístrate nuevamente para recibir un nuevo código de verificación.";
 
 // MARK: - Sign Up Screen
 "signup.title" = "Crear Cuenta";

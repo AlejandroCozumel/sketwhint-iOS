@@ -220,6 +220,7 @@ enum AuthError: LocalizedError {
     case userNotFound
     case rateLimited(retryAfter: Int?)
     case invalidOrExpiredCode
+    case emailNotVerified(message: String)
     
     var errorDescription: String? {
         switch self {
@@ -251,6 +252,8 @@ enum AuthError: LocalizedError {
             return "Too many requests. Please try again later."
         case .invalidOrExpiredCode:
             return "Invalid or expired reset code. Please request a new one."
+        case .emailNotVerified(let message):
+            return message
         }
     }
 
@@ -617,6 +620,13 @@ class AuthService: ObservableObject {
             if !(200...299).contains(httpResponse.statusCode) {
                 // Try to decode error message
                 if let apiError = try? decoder.decode(APIError.self, from: data) {
+                    // Check for email not verified error (by code OR message content)
+                    if apiError.code?.uppercased() == "EMAIL_NOT_VERIFIED" ||
+                       apiError.userMessage.lowercased().contains("email not verified") {
+                        // Clear, actionable message telling user what to do (localized)
+                        let localizedMessage = "login.error.email.not.verified".localized
+                        throw AuthError.emailNotVerified(message: localizedMessage)
+                    }
                     throw AuthError.networkError(apiError.userMessage)
                 } else {
                     throw AuthError.networkError("Server error: \(httpResponse.statusCode)")
