@@ -49,6 +49,10 @@ class OTPVerificationViewModel: ObservableObject {
                 // Store session token securely first
                 do {
                     try KeychainManager.shared.storeToken(session.token)
+
+                    // Cache session expiry for future optimizations
+                    SessionCache.cacheExpiry(session.expiresAt)
+
                     if AppConfig.Debug.enableLogging {
                         print("✅ Token stored in keychain successfully")
                         // Verify token was stored

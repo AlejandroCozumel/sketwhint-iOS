@@ -206,6 +206,13 @@ struct Session: Codable {
     let expiresAt: String
 }
 
+struct ValidateSessionResponse: Codable {
+    let valid: Bool
+    let user: User?
+    let session: Session?
+    let error: String?
+}
+
 // MARK: - Authentication Errors
 enum AuthError: LocalizedError {
     case invalidCredentials
@@ -388,6 +395,7 @@ class KeychainManager {
 class AuthService: ObservableObject {
     static let shared = AuthService()
     private let userDefaultsKey = "currentUser"
+
     private init() {
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey) {
             do {
@@ -399,7 +407,7 @@ class AuthService: ObservableObject {
             }
         }
     }
-    
+
     @Published var currentUser: User? {
         didSet {
             if let user = currentUser {
@@ -417,7 +425,7 @@ class AuthService: ObservableObject {
     @Published var networkStatus: NetworkStatus = .connected
     @Published var lastAuthCheckError: AuthError?
     @Published var hasCompletedOnboarding = false
-    
+
     private let session = URLSession.shared
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
@@ -579,44 +587,44 @@ class AuthService: ObservableObject {
         guard let url = URL(string: AppConfig.apiURL(for: AppConfig.API.Endpoints.signIn)) else {
             throw AuthError.invalidResponse
         }
-        
+
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.timeoutInterval = AppConfig.API.timeout
-        
+
         do {
             urlRequest.httpBody = try encoder.encode(request)
         } catch {
             throw AuthError.decodingError
         }
-        
+
         do {
             // Debug logging
             if AppConfig.Debug.enableLogging {
                 print("🌐 Making request to: \(urlRequest.url?.absoluteString ?? "unknown")")
                 print("📤 Request body: \(String(data: urlRequest.httpBody ?? Data(), encoding: .utf8) ?? "empty")")
             }
-            
+
             let (data, response) = try await session.data(for: urlRequest)
-            
+
             // Debug logging
             if AppConfig.Debug.enableLogging {
                 print("📥 Response data: \(String(data: data, encoding: .utf8) ?? "no data")")
             }
-            
+
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw AuthError.invalidResponse
             }
-            
+
             if AppConfig.Debug.enableLogging {
                 print("📊 HTTP Status: \(httpResponse.statusCode)")
             }
-            
+
             if httpResponse.statusCode == 401 {
                 throw AuthError.invalidCredentials
             }
-            
+
             if !(200...299).contains(httpResponse.statusCode) {
                 // Try to decode error message
                 if let apiError = try? decoder.decode(APIError.self, from: data) {
@@ -632,7 +640,7 @@ class AuthService: ObservableObject {
                     throw AuthError.networkError("Server error: \(httpResponse.statusCode)")
                 }
             }
-            
+
             let signInResponse = try decoder.decode(SignInResponse.self, from: data)
 
             guard let token = signInResponse.session?.token ?? signInResponse.token else {
@@ -640,6 +648,11 @@ class AuthService: ObservableObject {
             }
 
             try KeychainManager.shared.storeToken(token)
+
+            // Cache session expiry for future optimizations
+            if let expiresAt = signInResponse.session?.expiresAt {
+                SessionCache.cacheExpiry(expiresAt)
+            }
 
             await MainActor.run {
                 self.currentUser = signInResponse.user
@@ -735,6 +748,11 @@ class AuthService: ObservableObject {
 
             try KeychainManager.shared.storeToken(token)
 
+            // Cache session expiry for future optimizations
+            if let expiresAt = signInResponse.session?.expiresAt {
+                SessionCache.cacheExpiry(expiresAt)
+            }
+
             await MainActor.run {
                 self.currentUser = signInResponse.user
                 self.isAuthenticated = true
@@ -829,6 +847,11 @@ class AuthService: ObservableObject {
 
             try KeychainManager.shared.storeToken(token)
 
+            // Cache session expiry for future optimizations
+            if let expiresAt = signInResponse.session?.expiresAt {
+                SessionCache.cacheExpiry(expiresAt)
+            }
+
             await MainActor.run {
                 self.currentUser = signInResponse.user
                 self.isAuthenticated = true
@@ -859,7 +882,73 @@ class AuthService: ObservableObject {
 
         return SocialIdTokenUser(name: name, email: hasEmail ? email : nil)
     }
-    
+
+    // MARK: - Validate Session
+    func validateSession() async throws -> ValidateSessionResponse {
+        guard let token = try KeychainManager.shared.retrieveToken() else {
+            return ValidateSessionResponse(valid: false, user: nil, session: nil, error: "No token found")
+        }
+
+        guard let url = URL(string: AppConfig.apiURL(for: AppConfig.API.Endpoints.validateSession)) else {
+            throw AuthError.invalidResponse
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "GET"
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest.timeoutInterval = AppConfig.API.timeout
+
+        do {
+            let (data, response) = try await session.data(for: urlRequest)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw AuthError.invalidResponse
+            }
+
+            if httpResponse.statusCode == 401 {
+                // Session is invalid or expired
+                let errorResponse = try? decoder.decode(ValidateSessionResponse.self, from: data)
+                return ValidateSessionResponse(
+                    valid: false,
+                    user: nil,
+                    session: nil,
+                    error: errorResponse?.error ?? "Session expired"
+                )
+            }
+
+            if !(200...299).contains(httpResponse.statusCode) {
+                throw AuthError.networkError("Server error: \(httpResponse.statusCode)")
+            }
+
+            let validationResponse = try decoder.decode(ValidateSessionResponse.self, from: data)
+
+            // Update token if it was refreshed
+            if let newToken = validationResponse.session?.token, newToken != token {
+                try KeychainManager.shared.storeToken(newToken)
+
+                #if DEBUG
+                print("🔄 AuthService: Session token refreshed")
+                #endif
+            }
+
+            // Update current user if returned
+            if let user = validationResponse.user {
+                await MainActor.run {
+                    self.currentUser = user
+                    self.isAuthenticated = true
+                }
+            }
+
+            return validationResponse
+
+        } catch let error as AuthError {
+            throw error
+        } catch {
+            throw AuthError.networkError(error.localizedDescription)
+        }
+    }
+
     // MARK: - Sign Out
     func signOut() {
         // Clear auth state FIRST (immediate, no delay for local operations)
@@ -871,76 +960,116 @@ class AuthService: ObservableObject {
             }
         }
 
-        // Then clear keychain and profile state (can happen in background)
+        // Then clear keychain, profile state, and session cache (can happen in background)
         KeychainManager.shared.deleteToken()
         KeychainManager.shared.deleteSelectedProfile()
         ProfileService.shared.clearSelectedProfile()
         TokenBalanceManager.shared.clearState()
+        SessionCache.clearCache()
     }
     
-    // MARK: - Check Authentication Status
+    // MARK: - Check Authentication Status (Cached Expiry)
     func checkAuthenticationStatus() async {
-        guard let token = try? KeychainManager.shared.retrieveToken() else {
+        #if DEBUG
+        print("🔍 AuthService: checkAuthenticationStatus() called")
+        print("🔍 Token exists in Keychain: \((try? KeychainManager.shared.retrieveToken()) != nil)")
+        print("🔍 Has cached expiry: \(SessionCache.hasCachedExpiry())")
+        if let expiry = SessionCache.getExpiry() {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .medium
+            print("🔍 Cached expiry date: \(formatter.string(from: expiry))")
+        }
+        #endif
+
+        guard (try? KeychainManager.shared.retrieveToken()) != nil else {
+            #if DEBUG
+            print("❌ No token in Keychain - logging out")
+            #endif
             await MainActor.run {
                 self.isAuthenticated = false
                 self.currentUser = nil
                 self.networkStatus = .connected
                 self.lastAuthCheckError = nil
             }
+            SessionCache.clearCache()
             return
         }
-        
-        // Validate token with backend by making a test API call
-        do {
-            let endpoint = AppConfig.apiURL(for: AppConfig.API.Endpoints.tokenBalance)
-            guard let url = URL(string: endpoint) else {
-                await handleNetworkIssue(.networkError)
-                return
-            }
-            
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-            request.timeoutInterval = 8.0 // Shorter timeout for faster detection
-            
-            let (_, response) = try await session.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                await handleNetworkIssue(.networkError)
-                return
-            }
-            
-            // ONLY logout for actual authentication failures (401/403)
-            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-                // Token is invalid - user was deleted, token expired, or unauthorized
+
+        // STEP 1: Check if we have cached expiry
+        if SessionCache.hasCachedExpiry() {
+            // We have cached expiry - check if expired locally
+            if SessionCache.isExpired() {
+                // Session expired locally - logout immediately
+                #if DEBUG
+                print("❌ AuthService: Session expired locally (cached expiry), logging out")
+                #endif
                 await handleInvalidAuth()
                 return
             }
-            
-            if 200...299 ~= httpResponse.statusCode {
-                // Token is valid and server is working
+
+            // STEP 2: Check if validation is needed (only if expiring within 7 days)
+            if !SessionCache.isExpiringSoon(withinDays: 7) {
+                // Session valid for > 7 days - no need to validate
                 await MainActor.run {
                     self.isAuthenticated = true
                     self.networkStatus = .connected
                     self.lastAuthCheckError = nil
                 }
-                // If currentUser is not set, fetch it
+
+                // If currentUser is not set, fetch it (one-time only)
                 if self.currentUser == nil {
                     await self.fetchAndSetCurrentUser()
                 }
-            } else if httpResponse.statusCode >= 500 {
-                // Server error - keep user logged in
-                await handleNetworkIssue(.serverUnavailable)
-            } else {
-                // Other client errors (4xx) - keep user logged in but note the issue
+
+                #if DEBUG
+                print("✅ AuthService: Session valid locally (cached expiry), skipping API validation")
+                #endif
+                return
+            }
+        }
+
+        // STEP 3: No cache OR session expiring soon - validate with backend
+        #if DEBUG
+        if SessionCache.hasCachedExpiry() {
+            print("⚠️ AuthService: Session expiring soon, validating with backend")
+        } else {
+            print("⚠️ AuthService: No cached expiry, validating with backend")
+        }
+        #endif
+
+        do {
+            let validationResponse = try await validateSession()
+
+            if validationResponse.valid {
+                // Session is valid - cache the new expiry
+                if let expiresAt = validationResponse.session?.expiresAt {
+                    SessionCache.cacheExpiry(expiresAt)
+                }
+
                 await MainActor.run {
                     self.isAuthenticated = true
                     self.networkStatus = .connected
-                    self.lastAuthCheckError = .networkError("Server returned error \(httpResponse.statusCode)")
+                    self.lastAuthCheckError = nil
+
+                    // Update user if provided
+                    if let user = validationResponse.user {
+                        self.currentUser = user
+                    }
                 }
+
+                #if DEBUG
+                print("✅ AuthService: Session validated and refreshed successfully")
+                #endif
+            } else {
+                // Session is invalid or expired
+                await handleInvalidAuth()
+
+                #if DEBUG
+                print("❌ AuthService: Session validation failed - \(validationResponse.error ?? "unknown error")")
+                #endif
             }
-            
+
         } catch {
             // Analyze the specific error to provide better user experience
             if let urlError = error as? URLError {
@@ -955,7 +1084,7 @@ class AuthService: ObservableObject {
                     await handleNetworkIssue(.networkError)
                 }
             } else {
-                // Unknown error - treat as network issue
+                // Unknown error - treat as network issue to keep user logged in
                 await handleNetworkIssue(.networkError)
             }
         }
@@ -964,12 +1093,13 @@ class AuthService: ObservableObject {
     // MARK: - Handle Invalid Authentication
     private func handleInvalidAuth() async {
         print("🚨 AuthService: Invalid token detected - logging out user")
-        
+
         // Token is invalid - clear everything and force re-login
         KeychainManager.shared.deleteToken()
         KeychainManager.shared.deleteSelectedProfile()
         ProfileService.shared.clearSelectedProfile()
-        
+        SessionCache.clearCache() // Clear cached expiry
+
         await MainActor.run {
             self.isAuthenticated = false
             self.currentUser = nil

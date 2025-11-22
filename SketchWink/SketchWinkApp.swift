@@ -11,6 +11,9 @@ import GoogleSignIn
 
 @main
 struct SketchWinkApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var authService = AuthService.shared
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -35,12 +38,17 @@ struct SketchWinkApp: App {
                     configureApp()
                     // Setup global keyboard dismissal
                     setupGlobalKeyboardDismissal()
+                    // Validate session on app launch
+                    validateSessionOnLaunch()
                 }
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
                 }
         }
         .modelContainer(sharedModelContainer)
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            handleScenePhaseChange(from: oldPhase, to: newPhase)
+        }
     }
     
     private func configureApp() {
@@ -49,6 +57,46 @@ struct SketchWinkApp: App {
             print("🚀 SketchWink app launched - Version \(AppConfig.appVersion)")
             print("📱 Environment: \(AppConfig.environmentName)")
             print("🔗 API Base URL: \(AppConfig.API.baseURL)")
+        }
+    }
+
+    /// Validate session on app launch (smart JWT-based)
+    private func validateSessionOnLaunch() {
+        #if DEBUG
+        print("🚀 SketchWinkApp: validateSessionOnLaunch() called - Current isAuthenticated: \(authService.isAuthenticated)")
+        #endif
+
+        Task {
+            await authService.checkAuthenticationStatus()
+        }
+    }
+
+    /// Handle scene phase changes (app foreground/background)
+    private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) {
+        switch newPhase {
+        case .active:
+            // App became active (from background or inactive)
+            if oldPhase == .background {
+                #if DEBUG
+                print("📱 App returned from background - validating session")
+                #endif
+
+                Task {
+                    await authService.checkAuthenticationStatus()
+                }
+            }
+
+        case .background:
+            #if DEBUG
+            print("📱 App entered background")
+            #endif
+
+        case .inactive:
+            // App is transitioning (e.g., control center, notification)
+            break
+
+        @unknown default:
+            break
         }
     }
 
