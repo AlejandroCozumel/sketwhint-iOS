@@ -480,7 +480,7 @@ class ProfileService: ObservableObject {
             await MainActor.run {
                 if let profileId = profileId {
                     // We have a stored profile ID, assume it's valid for now
-                    // Will validate when ProfileSelectionRequiredView loads profiles
+                    // Will validate when ProfileSelectionView loads profiles
                     self.hasSelectedProfile = true
                     
                     #if DEBUG

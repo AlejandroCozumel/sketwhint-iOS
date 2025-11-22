@@ -76,7 +76,7 @@ struct AppCoordinator: View {
                     },
                     onShowCreateProfile: {
                         #if DEBUG
-                        print("➕ DEBUG: Showing create profile")
+                        print("➕ DEBUG: Show create profile requested from ProfileSelectionRequiredView")
                         #endif
                         showingProfileCreation = true
                     }
@@ -370,11 +370,11 @@ struct ProfileSelectionRequiredView: View {
     @State private var isLoading = true
     @State private var error: Error?
     @State private var showingError = false
-    
+
     // Closures to communicate with AppCoordinator
     let onProfileSelection: (FamilyProfile) -> Void
     let onShowCreateProfile: () -> Void
-    
+
     init(
         onProfileSelection: @escaping (FamilyProfile) -> Void = { _ in },
         onShowCreateProfile: @escaping () -> Void = {}
@@ -382,7 +382,7 @@ struct ProfileSelectionRequiredView: View {
         self.onProfileSelection = onProfileSelection
         self.onShowCreateProfile = onShowCreateProfile
     }
-    
+
     var body: some View {
         NavigationStack {
             VStack(spacing: AppSpacing.xl) {
@@ -411,27 +411,27 @@ struct ProfileSelectionRequiredView: View {
         .task {
             await loadProfiles()
         }
-        .alert("Error", isPresented: $showingError) {
-            Button("OK") { }
+        .alert("common.error".localized, isPresented: $showingError) {
+            Button("common.ok".localized) { }
         } message: {
-            Text(error?.localizedDescription ?? "An error occurred")
+            Text(error?.localizedDescription ?? "common.unknown.error".localized)
         }
     }
-    
+
     // MARK: - Loading View
     private var loadingView: some View {
         VStack(spacing: AppSpacing.xl) {
             ProgressView()
                 .scaleEffect(1.5)
                 .tint(AppColors.primaryBlue)
-            
-            Text("Loading profiles...")
+
+            Text("common.loading".localized)
                 .font(AppTypography.bodyLarge)
                 .foregroundColor(AppColors.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     // MARK: - Create First Profile View
     private var createFirstProfileView: some View {
         VStack(spacing: AppSpacing.xl) {
@@ -447,20 +447,20 @@ struct ProfileSelectionRequiredView: View {
                             x: AppSizing.shadows.large.x,
                             y: AppSizing.shadows.large.y
                         )
-                    
+
                     Text("👨‍👩‍👧‍👦")
                         .font(.system(size: 60))
                 }
-                
+
                 VStack(spacing: AppSpacing.sm) {
-                    Text("profiles.welcome.title".localized)
+                    Text("Welcome to SketchWink!")
                         .displaySmaller()
                         .foregroundColor(AppColors.textPrimary)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Text("profiles.welcome.subtitle".localized)
+                    Text("Create your first family profile to start your creative journey")
                         .bodyMedium()
                         .foregroundColor(AppColors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -469,14 +469,14 @@ struct ProfileSelectionRequiredView: View {
                 }
             }
             .contentPadding()
-            
+
             VStack(spacing: AppSpacing.sm) {
-                Text("profiles.welcome.info.title".localized)
+                Text("SketchWink works best with a family profile")
                     .headlineSmall()
                     .foregroundColor(AppColors.primaryPurple)
                     .multilineTextAlignment(.center)
 
-                Text("profiles.welcome.info.description".localized)
+                Text("Create your profile so we can save drawings, favorites, and rewards in one safe spot for your family.")
                     .bodyMedium()
                     .foregroundColor(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -492,14 +492,14 @@ struct ProfileSelectionRequiredView: View {
                     .stroke(AppColors.primaryPurple.opacity(0.15), lineWidth: 1)
             )
             .contentPadding()
-            
+
             Spacer()
-            
+
             // Create Profile Button
             Button(action: {
                 onShowCreateProfile()
             }) {
-                Text("profiles.create.your.first".localized)
+                Text("Create Your First Profile")
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -509,12 +509,14 @@ struct ProfileSelectionRequiredView: View {
             .contentPadding()
         }
     }
-    
+
     // MARK: - Select Profile View
     private var selectProfileView: some View {
         VStack(spacing: 0) {
+            Spacer()
+
             // Header
-            VStack(spacing: AppSpacing.sm) {
+            VStack(spacing: AppSpacing.lg) {
                 Text("profiles.choose.title".localized)
                     .displaySmaller()
                     .foregroundColor(AppColors.textPrimary)
@@ -522,9 +524,15 @@ struct ProfileSelectionRequiredView: View {
 
                 Image("sketchwink-logo")
                     .resizable()
-                    .scaledToFill()
-                    .frame(width: 180, height: 180)
+                    .scaledToFit()
+                    .frame(width: 150, height: 150)
                     .clipShape(Circle())
+                    .shadow(
+                        color: AppColors.primaryPurple.opacity(0.2),
+                        radius: AppSizing.shadows.large.radius,
+                        x: AppSizing.shadows.large.x,
+                        y: AppSizing.shadows.large.y
+                    )
 
                 Text("profiles.choose.subtitle".localized)
                     .bodyLarge()
@@ -532,9 +540,9 @@ struct ProfileSelectionRequiredView: View {
                     .multilineTextAlignment(.center)
             }
             .contentPadding()
-            .padding(.bottom, AppSpacing.md)
+            .padding(.bottom, AppSpacing.xl)
 
-            // Profiles Grid - Simplified for debugging
+            // Profiles List
             VStack(spacing: AppSpacing.md) {
                 ForEach(profileService.availableProfiles) { profile in
                     Button(action: {
@@ -543,63 +551,67 @@ struct ProfileSelectionRequiredView: View {
                         #endif
                         onProfileSelection(profile)
                     }) {
-                        HStack {
-                            Text(profile.avatar ?? "👤")
+                        HStack(spacing: AppSpacing.md) {
+                            Text(profile.displayAvatar)
                                 .font(.system(size: 40))
-                            
-                            VStack(alignment: .leading) {
+
+                            VStack(alignment: .leading, spacing: AppSpacing.xs) {
                                 Text(profile.name)
                                     .font(AppTypography.titleMedium)
                                     .foregroundColor(AppColors.textPrimary)
-                                
+
                                 HStack(spacing: AppSpacing.xs) {
-                                    Image(systemName: profile.hasPin ? "lock.fill" : "lock.open.fill")
-                                        .font(.system(size: 14, weight: .semibold))
-                                    Text(profile.hasPin ? "profiles.protected".localized : "profiles.open".localized)
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 14))
+                                    Text("profiles.protected".localized)
                                 }
                                 .font(AppTypography.captionLarge)
                                 .foregroundColor(AppColors.textSecondary)
+                                .opacity(profile.hasPin ? 1.0 : 0.0)
                             }
-                            
+
                             Spacer()
-                            
+
                             Image(systemName: "chevron.right")
+                                .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(AppColors.textSecondary)
                         }
                         .padding(AppSpacing.md)
                         .background(AppColors.surfaceLight)
                         .cornerRadius(AppSizing.cornerRadius.md)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .contentPadding()
-            
+
             Spacer()
 
             // Footer text
             Text("profiles.choose.help".localized)
-                .bodyMedium()
+                .captionLarge()
                 .foregroundColor(AppColors.textSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.bottom, AppSpacing.lg)
+                .padding(.bottom, AppSpacing.xl)
+                .contentPadding()
         }
     }
-    
+
     // MARK: - Methods
     private func loadProfiles() async {
         isLoading = true
-        
+
         do {
             let profiles = try await profileService.loadFamilyProfiles()
-            
+
             // Validate stored profile against loaded profiles
             await profileService.validateStoredProfile(profiles)
-            
+
         } catch {
             #if DEBUG
             print("❌ DEBUG: ProfileSelectionRequiredView: Error loading profiles: \(error)")
             #endif
-            
+
             // Don't show error alert if server is down (handled by AppCoordinator)
             // Network issues will be handled by NetworkStatusBanner
             if case .serverDown = profileService.serverStatus {
@@ -611,7 +623,7 @@ struct ProfileSelectionRequiredView: View {
                 }
             }
         }
-        
+
         await MainActor.run {
             isLoading = false
         }

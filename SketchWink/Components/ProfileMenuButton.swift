@@ -43,7 +43,6 @@ struct ProfileMenuButton: View {
 // MARK: - Profile Menu Sheet (Twitter-style slide-out menu)
 struct ProfileMenuSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var profileService = ProfileService.shared
     @Binding var selectedTab: Int
     @Binding var showPainting: Bool
     @Binding var showSettings: Bool
@@ -59,6 +58,23 @@ struct ProfileMenuSheet: View {
                         showsChevron: true
                     ) {
                         showPainting = true
+                    }
+
+                    Divider()
+
+                    menuButton(
+                        icon: "person.2.fill",
+                        title: "Switch Profile",
+                        showsChevron: true
+                    ) {
+                        #if DEBUG
+                        print("🔄 ProfileMenuSheet: Switch Profile tapped - clearing current profile")
+                        #endif
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            // Simply clear the current profile - AppCoordinator will show ProfileSelectionView
+                            ProfileService.shared.clearSelectedProfile()
+                        }
                     }
 
                     Divider()

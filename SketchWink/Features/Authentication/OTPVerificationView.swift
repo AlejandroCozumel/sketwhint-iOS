@@ -16,247 +16,271 @@ struct OTPVerificationView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: AppSpacing.xl) {
+            let isIPad = geometry.size.width > 600
+            let horizontalInset = isIPad
+                ? min(max(geometry.size.width * 0.12, 70), 180)
+                : 0
+            let bottomPadding = isIPad ? AppSpacing.xl : AppSpacing.lg
+            let cardCorners: UIRectCorner = isIPad ? [.allCorners] : [.topLeft, .topRight]
 
-                    // Header Section
-                    VStack(spacing: AppSpacing.lg) {
-                        // Back button
-                        HStack {
-                            Button(action: { dismiss() }) {
-                                HStack {
-                                    Image(systemName: "arrow.left")
-                                    Text("common.back".localized)
-                                }
-                                .foregroundColor(AppColors.primaryBlue)
-                            }
-                            Spacer()
-                        }
+            ZStack(alignment: .topTrailing) {
+                // Background for safe areas
+                VStack(spacing: 0) {
+                    AppColors.primaryBlue
+                        .ignoresSafeArea(edges: .top)
 
-                        // Verification icon
+                    Spacer()
+
+                    Color.white
+                        .ignoresSafeArea(edges: .bottom)
+                }
+
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Header section
                         ZStack {
-                            // Outer glow ring
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [AppColors.successGreen.opacity(0.3), AppColors.aqua.opacity(0.3)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 140, height: 140)
+                            // Solid blue background
+                            AppColors.primaryBlue
 
-                            // Main logo circle
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [AppColors.successGreen, AppColors.aqua],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 100, height: 100)
-                                .overlay(
-                                    Text("📧")
-                                        .font(.system(size: 50))
-                                )
-                                .shadow(
-                                    color: AppColors.successGreen.opacity(0.4),
-                                    radius: 20,
-                                    x: 0,
-                                    y: 8
-                                )
-                        }
-
-                        // Verification text
-                        VStack(spacing: AppSpacing.sm) {
-                            Text("otp.title".localized)
-                                .font(AppTypography.appTitle)
-                                .foregroundColor(AppColors.successGreen)
-
-                            Text("otp.subtitle".localized)
-                                .onboardingBody()
-                                .foregroundColor(AppColors.textSecondary)
-                                .multilineTextAlignment(.center)
-
-                            Text(email)
-                                .titleMedium()
-                                .foregroundColor(AppColors.primaryBlue)
-                                .padding(.horizontal, AppSpacing.md)
-                                .padding(.vertical, AppSpacing.xs)
-                                .background(AppColors.primaryBlue.opacity(0.1))
-                                .cornerRadius(AppSizing.cornerRadius.sm)
-                        }
-                    }
-
-                    // OTP Input Section
-                    VStack(spacing: AppSpacing.lg) {
-                        VStack(spacing: AppSpacing.md) {
-                            Text("otp.code.placeholder".localized)
-                                .headlineMedium()
-                                .foregroundColor(AppColors.textPrimary)
-
-                            // OTP Input Field
-                            HStack(spacing: AppSpacing.sm) {
-                                ForEach(0..<6, id: \.self) { index in
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                                            .fill(AppColors.surfaceLight)
-                                            .frame(width: 45, height: 55)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                                                    .stroke(
-                                                        isOTPFocused && index == otpCode.count ? AppColors.successGreen : AppColors.borderLight,
-                                                        lineWidth: isOTPFocused && index == otpCode.count ? 2 : 1
-                                                    )
-                                            )
-
-                                        if index < otpCode.count {
-                                            Text(String(otpCode[otpCode.index(otpCode.startIndex, offsetBy: index)]))
-                                                .font(.title2)
-                                                .fontWeight(.semibold)
-                                                .foregroundColor(AppColors.textPrimary)
+                            VStack(spacing: 0) {
+                                // Back button
+                                HStack {
+                                    Button(action: { dismiss() }) {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "arrow.left")
+                                                .font(.system(size: 20, weight: .semibold))
+                                            Text("common.back".localized)
+                                                .font(AppTypography.bodyMedium)
                                         }
+                                        .foregroundColor(.white)
                                     }
+                                    Spacer()
+                                }
+                                .padding(.horizontal, AppSpacing.xl)
+                                .padding(.top, AppSpacing.md)
+                                
+                                Spacer()
+                                    .frame(height: 20)
+
+                                // Icon/Logo area
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white.opacity(0.2))
+                                        .frame(width: 100, height: 100)
+                                    
+                                    Image(systemName: "envelope.fill")
+                                        .font(.system(size: 50))
+                                        .foregroundColor(.white)
+                                }
+                                .padding(.bottom, AppSpacing.md)
+
+                                // Title
+                                VStack(spacing: AppSpacing.sm) {
+                                    Text("otp.title".localized)
+                                        .font(AppTypography.displayLarge)
+                                        .foregroundColor(.white)
+
+                                    Text("otp.subtitle".localized)
+                                        .font(AppTypography.bodyMedium)
+                                        .foregroundColor(.white.opacity(0.9))
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal, AppSpacing.lg)
+                                    
+                                    Text(email)
+                                        .font(AppTypography.bodyMedium)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, AppSpacing.md)
+                                        .padding(.vertical, 4)
+                                        .background(Color.white.opacity(0.2))
+                                        .cornerRadius(8)
                                 }
                             }
-                            .overlay(
-                                // Hidden text field for input
-                                TextField("", text: $otpCode)
-                                    .keyboardType(.numberPad)
-                                    .textContentType(.oneTimeCode)
-                                    .focused($isOTPFocused)
-                                    .opacity(0)
-                                    .onChange(of: otpCode) { _, newValue in
-                                        // Limit to 6 digits
-                                        if newValue.count > 6 {
-                                            otpCode = String(newValue.prefix(6))
-                                        }
+                            .padding(.bottom, 40)
+                        }
 
-                                        // Auto-verify when 6 digits are entered
-                                        if otpCode.count == 6 {
-                                            Task {
-                                                await viewModel.verifyOTP(email: email, code: otpCode)
+                        // White card with content
+                        VStack(spacing: 0) {
+                            Spacer()
+
+                            VStack(spacing: AppSpacing.lg) {
+                                // OTP Input Section
+                                VStack(spacing: AppSpacing.xl) {
+                                    Text("otp.code.placeholder".localized)
+                                        .font(AppTypography.headlineMedium)
+                                        .foregroundColor(AppColors.textPrimary)
+
+                                    // OTP Input Field
+                                    HStack(spacing: AppSpacing.sm) {
+                                        ForEach(0..<6, id: \.self) { index in
+                                            ZStack {
+                                                RoundedRectangle(cornerRadius: 16)
+                                                    .fill(AppColors.backgroundLight)
+                                                    .frame(width: 50, height: 60)
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 16)
+                                                            .stroke(
+                                                                isOTPFocused && index == otpCode.count ? AppColors.primaryBlue : AppColors.borderLight,
+                                                                lineWidth: isOTPFocused && index == otpCode.count ? 2 : 1
+                                                            )
+                                                    )
+
+                                                if index < otpCode.count {
+                                                    Text(String(otpCode[otpCode.index(otpCode.startIndex, offsetBy: index)]))
+                                                        .font(.title)
+                                                        .fontWeight(.bold)
+                                                        .foregroundColor(AppColors.primaryBlue)
+                                                }
                                             }
                                         }
                                     }
-                            )
-                            .onTapGesture {
-                                isOTPFocused = true
-                            }
+                                    .frame(maxWidth: .infinity)
+                                    .overlay(
+                                        // Hidden text field for input
+                                        TextField("", text: $otpCode)
+                                            .keyboardType(.numberPad)
+                                            .textContentType(.oneTimeCode)
+                                            .focused($isOTPFocused)
+                                            .opacity(0)
+                                            .onChange(of: otpCode) { _, newValue in
+                                                // Limit to 6 digits
+                                                if newValue.count > 6 {
+                                                    otpCode = String(newValue.prefix(6))
+                                                }
 
-                            Text("otp.tap.to.enter".localized)
-                                .captionLarge()
-                                .foregroundColor(AppColors.textSecondary)
-                        }
+                                                // Auto-verify when 6 digits are entered
+                                                if otpCode.count == 6 {
+                                                    Task {
+                                                        await viewModel.verifyOTP(email: email, code: otpCode)
+                                                    }
+                                                }
+                                            }
+                                    )
+                                    .onTapGesture {
+                                        isOTPFocused = true
+                                    }
 
-                        // Error Message
-                        if let errorMessage = viewModel.errorMessage {
-                            HStack(spacing: AppSpacing.sm) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(AppColors.errorRed)
-                                    .font(.title3)
+                                    Text("otp.tap.to.enter".localized)
+                                        .font(AppTypography.captionLarge)
+                                        .foregroundColor(AppColors.textSecondary)
+                                }
+                                .frame(maxWidth: .infinity)
 
-                                Text(errorMessage)
-                                    .bodyMedium()
-                                    .foregroundColor(AppColors.errorRed)
-                                    .multilineTextAlignment(.leading)
+                                // Error Message
+                                if let errorMessage = viewModel.errorMessage {
+                                    HStack(spacing: AppSpacing.sm) {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .foregroundColor(AppColors.errorRed)
+                                            .font(.title3)
 
-                                Spacer()
-                            }
-                            .padding(AppSpacing.md)
-                            .background(AppColors.errorRed.opacity(0.1))
-                            .cornerRadius(AppSizing.cornerRadius.lg)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                                    .stroke(AppColors.errorRed.opacity(0.3), lineWidth: 1)
-                            )
-                        }
+                                        Text(errorMessage)
+                                            .font(AppTypography.bodyMedium)
+                                            .foregroundColor(AppColors.errorRed)
+                                            .multilineTextAlignment(.leading)
 
-                        // Auto-verification status
-                        if viewModel.isLoading {
-                            HStack(spacing: AppSpacing.sm) {
-                                ProgressView()
-                                    .tint(AppColors.successGreen)
-                                    .scaleEffect(0.8)
+                                        Spacer()
+                                    }
+                                    .padding(AppSpacing.md)
+                                    .background(AppColors.errorRed.opacity(0.1))
+                                    .cornerRadius(12)
+                                }
 
-                                Text("otp.verifying.loading".localized)
-                                    .bodyMedium()
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                            .padding(.vertical, AppSpacing.sm)
-                        }
+                                // Auto-verification status
+                                if viewModel.isLoading {
+                                    HStack(spacing: AppSpacing.sm) {
+                                        ProgressView()
+                                            .tint(AppColors.primaryBlue)
+                                            .scaleEffect(0.8)
 
-                        // Resend Code Section
-                        VStack(spacing: AppSpacing.sm) {
-                            Text("otp.resend.prompt".localized)
-                                .bodyMedium()
-                                .foregroundColor(AppColors.textSecondary)
-
-                            if viewModel.canResendOTP {
-                                Button("otp.resend.button".localized) {
-                                    Task {
-                                        await viewModel.resendOTP(email: email)
+                                        Text("otp.verifying.loading".localized)
+                                            .font(AppTypography.bodyMedium)
+                                            .foregroundColor(AppColors.textSecondary)
                                     }
                                 }
-                                .padding(.horizontal, AppSpacing.lg)
-                                .padding(.vertical, AppSpacing.sm)
-                                .background(AppColors.buttonSecondary)
-                                .foregroundColor(AppColors.primaryBlue)
-                                .cornerRadius(AppSizing.cornerRadius.lg)
-                                .childSafeTouchTarget()
-                            } else {
-                                Text("otp.resend.countdown".localized(with: viewModel.resendCountdown))
-                                    .captionLarge()
-                                    .foregroundColor(AppColors.textSecondary)
+
+                                // Resend Code Section
+                                VStack(spacing: AppSpacing.sm) {
+                                    Text("otp.resend.prompt".localized)
+                                        .font(AppTypography.bodyMedium)
+                                        .foregroundColor(AppColors.textSecondary)
+
+                                    if viewModel.canResendOTP {
+                                        Button(action: {
+                                            Task {
+                                                await viewModel.resendOTP(email: email)
+                                            }
+                                        }) {
+                                            Text("otp.resend.button".localized)
+                                                .font(AppTypography.buttonText)
+                                                .foregroundColor(AppColors.primaryBlue)
+                                                .padding(.horizontal, AppSpacing.lg)
+                                                .padding(.vertical, AppSpacing.sm)
+                                                .background(AppColors.primaryBlue.opacity(0.1))
+                                                .cornerRadius(AppSizing.cornerRadius.round)
+                                        }
+                                    } else {
+                                        Text("otp.resend.countdown".localized(with: viewModel.resendCountdown))
+                                            .font(AppTypography.captionLarge)
+                                            .foregroundColor(AppColors.textSecondary)
+                                            .monospacedDigit()
+                                    }
+                                }
+                                .padding(.top, AppSpacing.sm)
+
+                                // Success Message (Resend)
+                                if viewModel.showSuccessMessage {
+                                    HStack(spacing: AppSpacing.sm) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(AppColors.successGreen)
+                                            .font(.title3)
+
+                                        Text("otp.resent.message".localized)
+                                            .font(AppTypography.bodyMedium)
+                                            .foregroundColor(AppColors.successGreen)
+
+                                        Spacer()
+                                    }
+                                    .padding(AppSpacing.md)
+                                    .background(AppColors.successGreen.opacity(0.1))
+                                    .cornerRadius(12)
+                                }
                             }
+
+                            Spacer()
                         }
-
-                        // Success Message
-                        if viewModel.showSuccessMessage {
-                            HStack(spacing: AppSpacing.sm) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(AppColors.successGreen)
-                                    .font(.title3)
-
-                                Text("otp.resent.message".localized)
-                                    .bodyMedium()
-                                    .foregroundColor(AppColors.successGreen)
-
-                                Spacer()
-                            }
-                            .padding(AppSpacing.md)
-                            .background(AppColors.successGreen.opacity(0.1))
-                            .cornerRadius(AppSizing.cornerRadius.lg)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                                    .stroke(AppColors.successGreen.opacity(0.3), lineWidth: 1)
-                            )
-                        }
+                        .padding(.horizontal, AppSpacing.xl)
+                        .padding(.top, AppSpacing.xl)
+                        .padding(.bottom, bottomPadding)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white)
+                        .cornerRadius(32, corners: cardCorners)
+                        .overlay(
+                            RoundedCorner(radius: 32, corners: cardCorners)
+                                .stroke(
+                                    AppColors.borderLight.opacity(isIPad ? 0.6 : 0),
+                                    lineWidth: isIPad ? 1 : 0
+                                )
+                        )
+                        .shadow(
+                            color: Color.black.opacity(isIPad ? 0.08 : 0),
+                            radius: isIPad ? 24 : 0,
+                            x: 0,
+                            y: isIPad ? 12 : 0
+                        )
                     }
-
-                    Spacer()
-                        .frame(minHeight: AppSpacing.xl)
+                    .frame(minHeight: geometry.size.height)
+                    .padding(.horizontal, horizontalInset)
                 }
-                .pageMargins()
-                .frame(minHeight: geometry.size.height)
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollDismissesKeyboard(.interactively)
             }
         }
-        .background(
-            LinearGradient(
-                colors: [
-                    AppColors.softMint.opacity(0.3),
-                    AppColors.babyBlue.opacity(0.3),
-                    AppColors.aqua.opacity(0.1)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
         .navigationBarHidden(true)
         .onAppear {
             viewModel.startResendTimer()
             viewModel.onVerificationComplete = onVerificationComplete
+            isOTPFocused = true
         }
         .overlay(
             // Success Toast
@@ -269,28 +293,25 @@ struct OTPVerificationView: View {
                                 .font(.title2)
 
                             Text("otp.success.message".localized)
-                                .titleMedium()
+                                .font(AppTypography.titleMedium)
                                 .foregroundColor(AppColors.successGreen)
 
                             Spacer()
                         }
                         .padding(AppSpacing.md)
                         .background(
-                            RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
+                            RoundedRectangle(cornerRadius: 16)
                                 .fill(Color.white)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                                        .stroke(AppColors.successGreen.opacity(0.3), lineWidth: 1)
-                                )
+                                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 4)
                         )
                     }
                     .padding(.horizontal, AppSpacing.lg)
+                    .padding(.top, 60) // Adjust for safe area
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .animation(.spring(response: 0.6, dampingFraction: 0.8), value: viewModel.showSuccessToast)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.top, 0)
         )
     }
 }
