@@ -446,14 +446,14 @@ struct CategoryCard: View {
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 100, alignment: .top)
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200, alignment: .top)
                                 .clipped()
                         case .failure(_):
                             Rectangle()
                                 .fill(categoryColor.opacity(0.2))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 100)
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
                                 .overlay(
                                     Text(category.icon ?? "🎨")
                                         .font(.system(size: 40))
@@ -462,14 +462,14 @@ struct CategoryCard: View {
                             // Skeleton loading state
                             Rectangle()
                                 .fill(AppColors.textSecondary.opacity(0.3))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 100)
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
                                 .shimmer()
                         @unknown default:
                             Rectangle()
                                 .fill(categoryColor.opacity(0.2))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 100)
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
                                 .overlay(
                                     Text(category.icon ?? "🎨")
                                         .font(.system(size: 40))
@@ -479,8 +479,8 @@ struct CategoryCard: View {
                 } else {
                     Rectangle()
                         .fill(categoryColor.opacity(0.2))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 100)
+                        .frame(minWidth: 0, maxWidth: .infinity)
+                        .frame(height: 200)
                         .overlay(
                             Text(category.icon ?? "🎨")
                                 .font(.system(size: 40))
@@ -505,8 +505,8 @@ struct CategoryCard: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 100)
             }
-            .frame(height: 200)
-            .frame(maxWidth: .infinity)
+            .frame(height: 300)
+            .frame(minWidth: 0, maxWidth: .infinity)
             .background(categoryColor.opacity(0.08))
             .overlay(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
@@ -532,7 +532,7 @@ struct SkeletonCategoryCard: View {
             Rectangle()
                 .fill(AppColors.textSecondary.opacity(0.3))
                 .frame(maxWidth: .infinity)
-                .frame(height: 100)
+                .frame(height: 200)
                 .shimmer()
 
             // Bottom half - Text skeleton
@@ -551,7 +551,7 @@ struct SkeletonCategoryCard: View {
             .frame(maxWidth: .infinity)
             .frame(height: 100)
         }
-        .frame(height: 200)
+        .frame(height: 300)
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)

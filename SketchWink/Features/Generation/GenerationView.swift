@@ -1516,14 +1516,14 @@ struct StyleOptionCard: View {
                             image
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 100, alignment: .top)
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200, alignment: .top)
                                 .clipped()
                         case .failure(_):
                             Rectangle()
                                 .fill(optionColor.opacity(0.2))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 100)
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
                                 .overlay(
                                     Text("🎨")
                                         .font(.system(size: 40))
@@ -1532,14 +1532,14 @@ struct StyleOptionCard: View {
                             // Skeleton loading state
                             Rectangle()
                                 .fill(AppColors.textSecondary.opacity(0.3))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 100)
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
                                 .shimmer()
                         @unknown default:
                             Rectangle()
                                 .fill(optionColor.opacity(0.2))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 100)
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
                                 .overlay(
                                     Text("🎨")
                                         .font(.system(size: 40))
@@ -1549,8 +1549,8 @@ struct StyleOptionCard: View {
                 } else {
                     Rectangle()
                         .fill(optionColor.opacity(0.2))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 100)
+                        .frame(minWidth: 0, maxWidth: .infinity)
+                        .frame(height: 200)
                         .overlay(
                             Text("🎨")
                                 .font(.system(size: 40))
@@ -1575,16 +1575,16 @@ struct StyleOptionCard: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 100)
             }
-            .frame(height: 200)
-            .frame(maxWidth: .infinity)
-            .background(isSelected ? categoryColor.opacity(0.15) : categoryColor.opacity(0.08))
+            .frame(height: 300)
+            .frame(minWidth: 0, maxWidth: .infinity)
+            .background(isSelected ? optionColor.opacity(0.15) : optionColor.opacity(0.08))
             .overlay(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
-                    .stroke(isSelected ? AppColors.primaryBlue : categoryColor.opacity(0.3), lineWidth: isSelected ? 3 : 1)
+                    .stroke(isSelected ? AppColors.primaryBlue : optionColor.opacity(0.3), lineWidth: isSelected ? 3 : 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
             .shadow(
-                color: categoryColor.opacity(0.3),
+                color: optionColor.opacity(0.3),
                 radius: 10,
                 x: 0,
                 y: 10
