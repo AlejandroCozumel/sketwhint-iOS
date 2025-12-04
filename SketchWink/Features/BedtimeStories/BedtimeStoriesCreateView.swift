@@ -826,15 +826,62 @@ struct ThemeCard: View {
     let theme: BedtimeThemeOption
     let isSelected: Bool
     let action: () -> Void
+    
+    private var themeColor: Color {
+        if let colorHex = theme.color {
+            return Color(hex: colorHex)
+        }
+        return AppColors.primaryIndigo
+    }
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {
-                Rectangle()
-                    .fill(AppColors.primaryIndigo.opacity(0.2))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 100)
-                    .overlay(Text("🌙").font(.system(size: 40)))
+                // Top half - Image
+                if let imageUrl = theme.imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { imagePhase in
+                        switch imagePhase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200, alignment: .top)
+                                .clipped()
+                        case .failure(_):
+                            Rectangle()
+                                .fill(themeColor.opacity(0.2))
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
+                                .overlay(
+                                    Text("🌙")
+                                        .font(.system(size: 40))
+                                )
+                        case .empty:
+                            Rectangle()
+                                .fill(AppColors.textSecondary.opacity(0.3))
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
+                                .shimmer()
+                        @unknown default:
+                            Rectangle()
+                                .fill(themeColor.opacity(0.2))
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
+                        }
+                    }
+                } else {
+                    Rectangle()
+                        .fill(themeColor.opacity(0.2))
+                        .frame(minWidth: 0, maxWidth: .infinity)
+                        .frame(height: 200)
+                        .overlay(
+                            Text("🌙")
+                                .font(.system(size: 40))
+                        )
+                }
+
+                // Bottom half - Text
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     Text(theme.name)
                         .font(AppTypography.titleMedium)
@@ -851,19 +898,19 @@ struct ThemeCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: 100)
             }
-            .frame(height: 200)
-            .frame(maxWidth: .infinity)
-            .background(AppColors.primaryIndigo.opacity(0.08))
+            .frame(height: 300)
+            .frame(minWidth: 0, maxWidth: .infinity)
+            .background(themeColor.opacity(0.08))
             .overlay(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
                     .stroke(
-                        isSelected ? AppColors.primaryIndigo : AppColors.primaryIndigo.opacity(0.3),
+                        isSelected ? AppColors.primaryIndigo : themeColor.opacity(0.3),
                         lineWidth: isSelected ? 2 : 1
                     )
             )
             .clipShape(RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg))
             .shadow(
-                color: AppColors.primaryIndigo.opacity(isSelected ? 0.3 : 0.1),
+                color: themeColor.opacity(isSelected ? 0.3 : 0.1),
                 radius: 10,
                 x: 0,
                 y: 10

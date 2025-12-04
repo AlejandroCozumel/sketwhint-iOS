@@ -629,7 +629,7 @@ struct BooksFeatureCard: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(maxWidth: .infinity)
+                    .frame(minWidth: 0, maxWidth: .infinity)
                     .frame(height: 200)
                     .overlay(
                         Text("📖")
@@ -655,8 +655,8 @@ struct BooksFeatureCard: View {
                     HStack {
                         HStack(spacing: 4) {
                             Image(systemName: "star.fill")
-                                .foregroundColor(AppColors.warningOrange)
-                                .font(.system(size: 12))
+                            .foregroundColor(AppColors.warningOrange)
+                            .font(.system(size: 12))
                             Text("4+ tokens")
                                 .captionLarge()
                                 .foregroundColor(AppColors.textSecondary)
@@ -677,7 +677,7 @@ struct BooksFeatureCard: View {
                 .padding(AppSpacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity)
+            .frame(minWidth: 0, maxWidth: .infinity)
             .background(categoryColor.opacity(0.08))
             .cornerRadius(AppSizing.cornerRadius.lg)
             .overlay(

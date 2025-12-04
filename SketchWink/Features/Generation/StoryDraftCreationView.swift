@@ -1188,18 +1188,53 @@ struct BookThemeCard: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 0) {
-                // Icon area (matching bedtime stories layout)
-                Rectangle()
-                    .fill(productColor.opacity(0.2))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 100)
-                    .overlay(
-                        Image(systemName: "book.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(productColor)
-                    )
+                // Top half - Image
+                if let imageUrl = theme.imageUrl, let url = URL(string: imageUrl) {
+                    AsyncImage(url: url) { imagePhase in
+                        switch imagePhase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200, alignment: .top)
+                                .clipped()
+                        case .failure(_):
+                            Rectangle()
+                                .fill(productColor.opacity(0.2))
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
+                                .overlay(
+                                    Image(systemName: "book.fill")
+                                        .font(.system(size: 40))
+                                        .foregroundColor(productColor)
+                                )
+                        case .empty:
+                            Rectangle()
+                                .fill(AppColors.textSecondary.opacity(0.3))
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
+                                .shimmer()
+                        @unknown default:
+                            Rectangle()
+                                .fill(productColor.opacity(0.2))
+                                .frame(minWidth: 0, maxWidth: .infinity)
+                                .frame(height: 200)
+                        }
+                    }
+                } else {
+                    Rectangle()
+                        .fill(productColor.opacity(0.2))
+                        .frame(minWidth: 0, maxWidth: .infinity)
+                        .frame(height: 200)
+                        .overlay(
+                            Image(systemName: "book.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(productColor)
+                        )
+                }
 
-                // Text area (matching bedtime stories layout exactly)
+                // Bottom half - Text
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
                     Text(theme.name)
                         .font(AppTypography.titleMedium)
@@ -1217,8 +1252,8 @@ struct BookThemeCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: 100)
             }
-            .frame(height: 200)
-            .frame(maxWidth: .infinity)
+            .frame(height: 300)
+            .frame(minWidth: 0, maxWidth: .infinity)
             .background(productColor.opacity(0.08))
             .overlay(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.lg)
