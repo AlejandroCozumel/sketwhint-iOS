@@ -925,9 +925,27 @@ struct StoryDraftCreationView: View {
 
         let trimmedTheme = userTheme.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // Use the style from the API response (no hardcoded mapping!)
+        let storyType: StoryType = {
+            guard let styleString = selectedTheme.style else {
+                print("⚠️ Theme \(selectedTheme.id) has no style, defaulting to bedtimeStory")
+                return .bedtimeStory
+            }
+
+            // Convert API style string to StoryType enum
+            guard let type = StoryType(rawValue: styleString) else {
+                print("⚠️ Unknown style '\(styleString)' for theme \(selectedTheme.id), defaulting to bedtimeStory")
+                return .bedtimeStory
+            }
+
+            return type
+        }()
+
+        print("📚 Theme: \(selectedTheme.name) (ID: \(selectedTheme.id)) → Style: \(selectedTheme.style ?? "none") → StoryType: \(storyType.rawValue)")
+
         let request = CreateDraftRequest(
             theme: trimmedTheme,
-            storyType: StoryType.bedtimeStory, // Fallback enum value for API compatibility
+            storyType: storyType, // Dynamically determined from API response
             ageGroup: selectedAgeGroup,
             pageCount: selectedPageCount,
             focusTags: [], // Backend doesn't use this anymore - uses theme ID
