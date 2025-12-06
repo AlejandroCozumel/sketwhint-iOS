@@ -70,7 +70,7 @@ class BooksService: ObservableObject {
             includeProfileHeader: true
         )
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
         
         #if DEBUG
         if let responseString = String(data: data, encoding: .utf8) {
@@ -157,7 +157,7 @@ class BooksService: ObservableObject {
             includeProfileHeader: true
         )
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
         
         #if DEBUG
         if let responseString = String(data: data, encoding: .utf8) {
@@ -198,7 +198,7 @@ class BooksService: ObservableObject {
             includeProfileHeader: true
         )
         
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (_, response) = try await APIRequestHelper.shared.performRequest(request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BooksError.invalidResponse
@@ -242,7 +242,7 @@ class BooksService: ObservableObject {
             includeProfileHeader: true
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BooksError.invalidResponse
@@ -283,7 +283,7 @@ class BooksService: ObservableObject {
             includeProfileHeader: true
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BooksError.invalidResponse
@@ -329,7 +329,7 @@ class BooksService: ObservableObject {
         print("   - Headers: \(request.allHTTPHeaderFields ?? [:])")
         #endif
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BooksError.invalidResponse
@@ -386,7 +386,7 @@ class BooksService: ObservableObject {
         print("   - Profile ID: \(ProfileService.shared.currentProfile?.id ?? "none")")
         #endif
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BooksError.invalidResponse

@@ -1298,23 +1298,41 @@ struct DraftCreationProgressView: View {
     let onComplete: (StoryDraft) -> Void
     let onError: (String) -> Void
     
+    @State private var isAnimating = false
+    
     var body: some View {
         VStack(spacing: AppSpacing.xl) {
+            // Animated Icon
+            Text(productCategory.icon)
+                .font(.system(size: 80))
+                .scaleEffect(isAnimating ? 1.1 : 0.9)
+                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isAnimating)
+                .onAppear { isAnimating = true }
+                .shadow(color: AppColors.primaryPink.opacity(0.3), radius: 20, x: 0, y: 10)
+            
+            VStack(spacing: AppSpacing.sm) {
+                Text("books.creating.story".localized)
+                    .font(AppTypography.headlineLarge)
+                    .foregroundColor(AppColors.textPrimary)
+                
+                Text("books.creating.story.desc".localized)
+                    .font(AppTypography.bodyLarge)
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppSpacing.xl)
+            }
+            
             ProgressView()
-                .scaleEffect(1.5)
                 .tint(AppColors.primaryPink)
-
-            Text("Creating your story...")
-                .headlineMedium()
-                .foregroundColor(AppColors.textPrimary)
-
-            Text("AI is crafting a personalized story for you")
-                .bodyMedium()
-                .foregroundColor(AppColors.textSecondary)
-                .multilineTextAlignment(.center)
+                .scaleEffect(1.2)
+                .padding(.top, AppSpacing.lg)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.backgroundLight)
+        .onAppear {
+            // Hide Keyboard immediately when loading starts
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
     }
 }
 

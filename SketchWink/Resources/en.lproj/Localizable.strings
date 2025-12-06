@@ -731,6 +731,8 @@
 "stories.enter.character.name" = "Enter character name";
 "stories.enter.story.title" = "Enter story title";
 "stories.placeholder.example" = "A sleepy bunny finding the perfect spot to nap...";
+"stories.loading.title" = "Weaving your story...";
+"stories.loading.desc" = "Our AI is crafting a magical bedtime tale...";
 
 // MARK: - Books
 "books.title" = "Books";
@@ -960,3 +962,7 @@
 "photo.picker.take.photo.desc" = "Use your camera to capture a new photo";
 "photo.picker.choose.gallery" = "Choose from Gallery";
 "photo.picker.choose.gallery.desc" = "Select an existing photo from your library";
+
+// MARK: - Book Draft Loading
+"books.creating.story" = "Drafting your book...";
+"books.creating.story.desc" = "Our AI is writing and illustrating your pages...";

@@ -229,7 +229,7 @@ class BedtimeStoriesService: ObservableObject {
         }
         #endif
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BedtimeStoryError.invalidResponse
@@ -348,7 +348,7 @@ class BedtimeStoriesService: ObservableObject {
         print("   - Speed: \(speed)")
         #endif
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BedtimeStoryError.invalidResponse
@@ -425,7 +425,7 @@ class BedtimeStoriesService: ObservableObject {
         print("📖 BedtimeStoriesService: Loading stories - page \(page)")
         #endif
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw BedtimeStoryError.invalidResponse

@@ -53,6 +53,8 @@ struct GenerationProgressView: View {
         .onAppear {
             startAnimations()
             startCloseButtonCountdown()
+            // Hide Keyboard immediately when loading starts
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
         .onDisappear {
             stopCloseButtonCountdown()
@@ -61,54 +63,14 @@ struct GenerationProgressView: View {
     
     // MARK: - Progress Animation View
     private var progressAnimationView: some View {
-        ZStack {
-            // Outer pulse ring
-            Circle()
-                .stroke(AppColors.coloringPagesColor.opacity(0.3), lineWidth: 4)
-                .frame(width: 200, height: 200)
-                .scaleEffect(isAnimating ? 1.2 : 1.0)
-                .opacity(isAnimating ? 0.0 : 1.0)
-                .animation(
-                    .easeInOut(duration: 2.0).repeatForever(autoreverses: false),
-                    value: isAnimating
-                )
-            
-            // Middle ring
-            Circle()
-                .stroke(AppColors.coloringPagesColor.opacity(0.5), lineWidth: 3)
-                .frame(width: 160, height: 160)
-                .scaleEffect(isAnimating ? 1.1 : 1.0)
-                .opacity(isAnimating ? 0.3 : 0.8)
-                .animation(
-                    .easeInOut(duration: 1.5).repeatForever(autoreverses: false),
-                    value: isAnimating
-                )
-            
-            // Inner circle with icon
-            Circle()
-                .fill(AppColors.coloringPagesColor)
-                .frame(width: 120, height: 120)
-                .shadow(
-                    color: AppColors.coloringPagesColor.opacity(0.4),
-                    radius: 20,
-                    x: 0,
-                    y: 10
-                )
-                .scaleEffect(isAnimating ? 1.05 : 1.0)
-                .animation(
-                    .easeInOut(duration: 1.0).repeatForever(autoreverses: true),
-                    value: isAnimating
-                )
-                .overlay(
-                    Text(currentStatus.icon)
-                        .font(.system(size: 50))
-                        .rotationEffect(.degrees(progressAnimation))
-                        .animation(
-                            .linear(duration: 2.0).repeatForever(autoreverses: false),
-                            value: progressAnimation
-                        )
-                )
+        VStack {
+            Text(currentStatus.icon)
+                .font(.system(size: 80))
+                .scaleEffect(isAnimating ? 1.1 : 0.9)
+                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isAnimating)
+                .shadow(color: AppColors.primaryBlue.opacity(0.3), radius: 20, x: 0, y: 10)
         }
+        .frame(height: 200) // Maintain similar height to previous view
     }
     
     // MARK: - Progress Content

@@ -108,6 +108,11 @@ struct BedtimeStoriesCreateView: View {
                 }
             }
         }
+        .overlay {
+            if isLoading {
+                BedtimeStoryLoadingView()
+            }
+        }
         .navigationTitle("stories.create.bedtime.story".localized)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -807,6 +812,7 @@ struct BedtimeStoriesCreateView: View {
         isLoading = false
     }
 
+
     private func generateStory() async {
         guard let draft = currentDraft else { return }
 
@@ -816,6 +822,45 @@ struct BedtimeStoriesCreateView: View {
                 voiceId: selectedVoice
             )
             await tokenManager.refreshSilently()
+        }
+    }
+}
+
+struct BedtimeStoryLoadingView: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        VStack(spacing: AppSpacing.xl) {
+            // Animated Icon
+            Text("🌙")
+                .font(.system(size: 80))
+                .scaleEffect(isAnimating ? 1.1 : 0.9)
+                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isAnimating)
+                .onAppear { isAnimating = true }
+                .shadow(color: AppColors.primaryIndigo.opacity(0.3), radius: 20, x: 0, y: 10)
+            
+            VStack(spacing: AppSpacing.sm) {
+                Text("stories.loading.title".localized)
+                    .font(AppTypography.headlineLarge)
+                    .foregroundColor(AppColors.textPrimary)
+                
+                Text("stories.loading.desc".localized)
+                    .font(AppTypography.bodyLarge)
+                    .foregroundColor(AppColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppSpacing.xl)
+            }
+            
+            ProgressView()
+                .tint(AppColors.primaryIndigo)
+                .scaleEffect(1.2)
+                .padding(.top, AppSpacing.lg)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppColors.backgroundLight)
+        .onAppear {
+            // Hide Keyboard immediately when loading starts
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
     }
 }

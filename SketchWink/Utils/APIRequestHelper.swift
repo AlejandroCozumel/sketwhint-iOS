@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Centralized API request helper that automatically adds required headers
 /// including Authorization and X-Profile-ID for family profile system
@@ -118,6 +119,32 @@ class APIRequestHelper {
     /// Check if a profile is currently selected
     var hasSelectedProfile: Bool {
         return currentProfileId != nil
+    }
+    
+    /// Performs a network request wrapped in a background task to ensure completion
+    /// even if the app is backgrounded or the device is locked.
+    /// - Parameter request: The URLRequest to perform
+    /// - Returns: The data and response tuple
+    func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+        
+        // Request background execution time
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask {
+            // End the task if time expires
+            UIApplication.shared.endBackgroundTask(backgroundTaskID)
+            backgroundTaskID = .invalid
+        }
+        
+        defer {
+            // End the task when the request completes
+            if backgroundTaskID != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                backgroundTaskID = .invalid
+            }
+        }
+        
+        // Perform the request
+        return try await URLSession.shared.data(for: request)
     }
 }
 

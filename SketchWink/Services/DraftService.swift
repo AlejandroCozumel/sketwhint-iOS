@@ -60,7 +60,7 @@ class DraftService: ObservableObject {
         }
         #endif
 
-        let (data, response) = try await URLSession.shared.data(for: httpRequest)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(httpRequest)
 
         #if DEBUG
         if let responseString = String(data: data, encoding: .utf8) {
@@ -139,7 +139,7 @@ class DraftService: ObservableObject {
             print("⚠️ WARNING: No current profile found! X-Profile-ID header NOT set")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: httpRequest)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(httpRequest)
 
         #if DEBUG
         if let responseString = String(data: data, encoding: .utf8) {
@@ -192,7 +192,7 @@ class DraftService: ObservableObject {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DraftError.invalidResponse
@@ -229,7 +229,7 @@ class DraftService: ObservableObject {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DraftError.invalidResponse
@@ -274,7 +274,7 @@ class DraftService: ObservableObject {
         
         httpRequest.httpBody = try JSONEncoder().encode(updates)
         
-        let (data, response) = try await URLSession.shared.data(for: httpRequest)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(httpRequest)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DraftError.invalidResponse
@@ -316,7 +316,7 @@ class DraftService: ObservableObject {
         httpRequest.httpMethod = "POST"
         httpRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
-        let (data, response) = try await URLSession.shared.data(for: httpRequest)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(httpRequest)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DraftError.invalidResponse
@@ -358,7 +358,7 @@ class DraftService: ObservableObject {
         httpRequest.httpMethod = "DELETE"
         httpRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
-        let (data, response) = try await URLSession.shared.data(for: httpRequest)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(httpRequest)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw DraftError.invalidResponse
@@ -413,7 +413,7 @@ class DraftService: ObservableObject {
 
         httpRequest.httpBody = try JSONEncoder().encode(requestWithDraftId)
         
-        let (data, response) = try await URLSession.shared.data(for: httpRequest)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(httpRequest)
         
         #if DEBUG
         if let responseString = String(data: data, encoding: .utf8) {

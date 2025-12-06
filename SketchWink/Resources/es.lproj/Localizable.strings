@@ -776,8 +776,12 @@
 "stories.age.group.select" = "Selecciona la edad objetivo para este cuento";
 "stories.generating.story" = "Generando Cuento...";
 "stories.story.preview" = "Vista Previa del Cuento";
+"stories.loading.title" = "Tejiendo tu historia...";
+"stories.loading.desc" = "Nuestra IA está creando un cuento mágico para dormir...";
 
 // MARK: - Books
+"books.creating.story" = "Redactando tu libro...";
+"books.creating.story.desc" = "Nuestra IA está escribiendo e ilustrando tus páginas...";
 "books.title" = "Libros";
 "books.my.library" = "Mi Biblioteca";
 "books.create" = "Crear Libro";

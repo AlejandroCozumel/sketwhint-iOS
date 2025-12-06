@@ -163,7 +163,7 @@ class GenerationService: ObservableObject {
             includeProfileHeader: true  // CRITICAL: Include profile for content tagging
         )
         
-        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(urlRequest)
         
         #if DEBUG
         if let responseString = String(data: data, encoding: .utf8) {
@@ -200,7 +200,7 @@ class GenerationService: ObservableObject {
             includeProfileHeader: true // CRITICAL: Include profile for access control
         )
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
         
         #if DEBUG
         if let responseString = String(data: data, encoding: .utf8) {
@@ -274,7 +274,7 @@ class GenerationService: ObservableObject {
             includeProfileHeader: true  // CRITICAL: Include profile for access control
         )
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await APIRequestHelper.shared.performRequest(request)
         
         #if DEBUG
         print("🌐 GET \(url.absoluteString)")
