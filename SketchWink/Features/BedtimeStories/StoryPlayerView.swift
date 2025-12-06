@@ -146,99 +146,162 @@ struct StoryPlayerView: View {
 
     // MARK: - Unified Player View
     private var playerView: some View {
-        ScrollView {
-            VStack(spacing: AppSpacing.lg) {
-                // Cover image
+        VStack(spacing: 0) {
+            // Header Section (Animated)
+            if audioPlayer.isPlaying {
+                compactHeaderView
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            } else {
+                expandedHeaderView
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            
+            // Scrollable Content
+            KaraokeTextView(
+                storyText: story.storyText ?? "",
+                currentWordIndex: audioPlayer.currentWordIndex,
+                karaokeWords: audioPlayer.karaokeWords
+            )
+            .onAppear {
+                if let storyText = story.storyText {
+                    audioPlayer.prepareKaraokeSync(with: storyText)
+                }
+            }
+        }
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: audioPlayer.isPlaying)
+    }
+    
+    // MARK: - Header Views
+    
+    private var expandedHeaderView: some View {
+        VStack(alignment: .leading, spacing: AppSpacing.md) {
+            // Top Row: Image + Title
+            HStack(alignment: .top, spacing: AppSpacing.md) {
+                // Cover Image
                 AsyncImage(url: URL(string: story.imageUrl)) { imagePhase in
                     switch imagePhase {
                     case .success(let image):
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 300)
+                            .frame(width: 120, height: 120)
                             .clipped()
-                            .cornerRadius(AppSizing.cornerRadius.lg)
+                            .cornerRadius(AppSizing.cornerRadius.md)
                     case .failure(_):
                         Rectangle()
                             .fill(Color(hex: "#6366F1").opacity(0.2))
-                            .frame(height: 300)
-                            .cornerRadius(AppSizing.cornerRadius.lg)
+                            .frame(width: 120, height: 120)
+                            .cornerRadius(AppSizing.cornerRadius.md)
                             .overlay(
                                 Image(systemName: "moon.stars")
-                                    .font(.system(size: 60))
+                                    .font(.system(size: 30))
                                     .foregroundColor(Color(hex: "#6366F1"))
                             )
                     case .empty:
                         Rectangle()
                             .fill(AppColors.surfaceLight)
-                            .frame(height: 300)
+                            .frame(width: 120, height: 120)
                             .shimmer()
-                            .cornerRadius(AppSizing.cornerRadius.lg)
+                            .cornerRadius(AppSizing.cornerRadius.md)
                     @unknown default:
                         EmptyView()
                     }
                 }
-                .padding(.horizontal, AppSpacing.md)
 
-                // Story info
-                VStack(alignment: .leading, spacing: AppSpacing.md) {
+                // Right Column: Title + Age Badge
+                VStack(alignment: .leading, spacing: 8) {
                     Text(story.title)
-                        .font(AppTypography.headlineLarge)
+                        .font(AppTypography.headlineSmall)
+                        .fontWeight(.bold)
                         .foregroundColor(AppColors.textPrimary)
+                        .lineLimit(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                    
+                    if let ageGroup = story.ageGroup {
+                        StoryBadge(
+                            icon: "figure.and.child.holdinghands",
+                            text: ageGroup,
+                            color: Color(hex: "#F59E0B") // Orange
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.top, AppSpacing.lg)
+            
+            // Bottom Row: Scrollable Badges
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    StoryBadge(
+                        icon: "clock.fill",
+                        text: formatDuration(story.duration),
+                        color: Color(hex: "#6366F1") // Indigo
+                    )
 
-                    HStack(spacing: AppSpacing.lg) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock")
-                            Text(formatDuration(story.duration))
-                        }
-                        .font(AppTypography.captionLarge)
-                        .foregroundColor(AppColors.textSecondary)
-
-                        if let voiceName = voiceName {
-                            HStack(spacing: 4) {
-                                Image(systemName: "speaker.wave.2")
-                                Text(voiceName)
-                            }
-                            .font(AppTypography.captionLarge)
-                            .foregroundColor(AppColors.textSecondary)
-                        }
-
-                        if let theme = story.theme {
-                            HStack(spacing: 4) {
-                                Image(systemName: "tag")
-                                Text(theme)
-                            }
-                            .font(AppTypography.captionLarge)
-                            .foregroundColor(AppColors.textSecondary)
-                        }
+                    if let voiceName = voiceName {
+                        StoryBadge(
+                            icon: "waveform",
+                            text: voiceName,
+                            color: Color(hex: "#EC4899") // Pink
+                        )
                     }
 
-                    Divider()
-
-                    // Story text
-                    if let storyText = story.storyText {
-                        if audioPlayer.hasLyrics {
-                            Text(audioPlayer.createHighlightedText(from: storyText))
-                                .font(AppTypography.bodyLarge)
-                                .foregroundColor(AppColors.textPrimary)
-                                .lineSpacing(6)
-                                .onAppear {
-                                    audioPlayer.prepareKaraokeSync(with: storyText)
-                                }
-                        } else {
-                            Text(storyText)
-                                .font(AppTypography.bodyLarge)
-                                .foregroundColor(AppColors.textPrimary)
-                                .lineSpacing(6)
-                        }
+                    if let theme = story.theme {
+                        StoryBadge(
+                            icon: "sparkles",
+                            text: theme,
+                            color: Color(hex: "#14B8A6") // Teal
+                        )
                     }
                 }
                 .padding(.horizontal, AppSpacing.md)
             }
-            .padding(.vertical, AppSpacing.lg)
-            .padding(.bottom, 120) // Space for player controls
+            
+            Divider()
+                .padding(.horizontal, AppSpacing.md)
         }
+    }
+    
+    private var compactHeaderView: some View {
+        HStack(spacing: AppSpacing.md) {
+            // Tiny thumbnail
+            AsyncImage(url: URL(string: story.imageUrl)) { imagePhase in
+                if let image = imagePhase.image {
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 48, height: 48)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    Rectangle()
+                        .fill(Color(hex: "#6366F1").opacity(0.2))
+                        .frame(width: 48, height: 48)
+                        .cornerRadius(8)
+                }
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(story.title)
+                    .font(AppTypography.titleMedium)
+                    .foregroundColor(AppColors.textPrimary)
+                    .lineLimit(1)
+                
+                Text(voiceName ?? "Story")
+                    .font(AppTypography.captionLarge)
+                    .foregroundColor(AppColors.textSecondary)
+            }
+            
+            Spacer()
+        }
+        .padding(AppSpacing.md)
+        .background(.ultraThinMaterial)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(AppColors.borderLight),
+            alignment: .bottom
+        )
     }
 
     // MARK: - Audio Player Controls
@@ -470,7 +533,7 @@ class LyricsAudioPlayer: ObservableObject {
 
     // 🚀 OPTIMIZATION: Pre-computed word position cache (Apple Music style)
     private var wordPositionCache: [(range: Range<AttributedString.Index>, word: String)]?
-    private var karaokeWords: [KaraokeWord] = []
+    @Published var karaokeWords: [KaraokeWord] = []
 
     private var player: AVPlayer?
     private var timeObserver: Any?
@@ -769,5 +832,165 @@ struct AudioSliderStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .accentColor(Color(hex: "#6366F1"))
+    }
+}
+
+// MARK: - Karaoke Text View
+/// Enhanced karaoke-style text view with word-by-word highlighting
+/// Matches web implementation with larger text, scaling animations, and blur effects
+struct KaraokeTextView: View {
+    let storyText: String
+    let currentWordIndex: Int
+    let karaokeWords: [KaraokeWord]
+
+    var body: some View {
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                    // Render text by paragraphs to maintain line breaks
+                    ForEach(paragraphs, id: \.offset) { paragraph in
+                        WordFlowLayout(spacing: 8) {
+                            renderParagraph(paragraph)
+                        }
+                    }
+                }
+                .padding(.horizontal, AppSpacing.md)
+                .padding(.top, AppSpacing.lg)
+                .padding(.bottom, 200) // Ensure last words clear the player controls
+            }
+            .onChange(of: currentWordIndex) { _, newIndex in
+                // Auto-scroll to active word (centered slightly higher)
+                if newIndex >= 0 && newIndex < karaokeWords.count {
+                    let wordID = karaokeWords[newIndex].id
+
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        scrollProxy.scrollTo(wordID, anchor: UnitPoint(x: 0.5, y: 0.4))
+                    }
+                }
+            }
+        }
+    }
+
+    /// Split text into paragraphs
+    private var paragraphs: [(offset: Int, text: String)] {
+        storyText.components(separatedBy: "\n")
+            .enumerated()
+            .map { ($0.offset, $0.element) }
+    }
+
+    /// Render a paragraph with word-by-word highlighting
+    @ViewBuilder
+    private func renderParagraph(_ paragraph: (offset: Int, text: String)) -> some View {
+        let words = paragraph.text.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        let startIndex = calculateStartIndex(for: paragraph.offset)
+
+        ForEach(Array(words.enumerated()), id: \.offset) { wordOffset, word in
+            let globalWordIndex = startIndex + wordOffset
+            renderWord(word, at: globalWordIndex)
+        }
+    }
+
+    /// Render a single word with karaoke styling
+    @ViewBuilder
+    private func renderWord(_ word: String, at index: Int) -> some View {
+        let isCurrentWord = index == currentWordIndex
+
+        Text(word)
+            .font(AppTypography.displayMedium) // 36pt - much larger!
+            .fontWeight(.bold)
+            .foregroundColor(isCurrentWord ? Color(hex: "#6366F1") : Color.gray.opacity(0.35))
+            .scaleEffect(isCurrentWord ? 1.1 : 1.0) // Scale up active word
+            .blur(radius: isCurrentWord ? 0 : 0.3) // Slight blur for inactive words
+            .animation(.easeInOut(duration: 0.2), value: currentWordIndex)
+            .id(index < karaokeWords.count ? karaokeWords[index].id : UUID())
+    }
+
+    /// Calculate starting word index for a paragraph
+    private func calculateStartIndex(for paragraphIndex: Int) -> Int {
+        var index = 0
+        let paragraphTexts = storyText.components(separatedBy: "\n")
+
+        for i in 0..<min(paragraphIndex, paragraphTexts.count) {
+            let words = paragraphTexts[i].components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            index += words.count
+        }
+
+        return index
+    }
+}
+
+// MARK: - Word Flow Layout
+/// Custom layout that flows words like text, wrapping at line boundaries
+struct WordFlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = FlowResult(
+            in: proposal.width ?? 0,
+            subviews: subviews,
+            spacing: spacing
+        )
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = FlowResult(
+            in: bounds.width,
+            subviews: subviews,
+            spacing: spacing
+        )
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + result.positions[index].x, y: bounds.minY + result.positions[index].y), proposal: .unspecified)
+        }
+    }
+
+    struct FlowResult {
+        var size: CGSize = .zero
+        var positions: [CGPoint] = []
+
+        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
+            var x: CGFloat = 0
+            var y: CGFloat = 0
+            var lineHeight: CGFloat = 0
+
+            for subview in subviews {
+                let size = subview.sizeThatFits(.unspecified)
+
+                if x + size.width > maxWidth && x > 0 {
+                    // Move to next line
+                    x = 0
+                    y += lineHeight + spacing
+                    lineHeight = 0
+                }
+
+                positions.append(CGPoint(x: x, y: y))
+                lineHeight = max(lineHeight, size.height)
+                x += size.width + spacing
+            }
+
+            self.size = CGSize(width: maxWidth, height: y + lineHeight)
+        }
+    }
+}
+
+// MARK: - Story Badge Component
+struct StoryBadge: View {
+    let icon: String
+    let text: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .bold))
+            Text(text)
+                .font(AppTypography.captionLarge)
+                .fontWeight(.semibold)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.1))
+        .foregroundColor(color)
+        .clipShape(Capsule())
     }
 }
