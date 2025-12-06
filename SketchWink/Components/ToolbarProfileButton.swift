@@ -17,7 +17,8 @@ struct ToolbarProfileButton: View {
                         .fontWeight(.semibold)
                         .foregroundColor(AppColors.textPrimary)
                         .lineLimit(1)
-                        .truncationMode(.tail)
+                        .truncationMode(.tail)  // Truncate from right: "Alejandro..."
+                        .frame(maxWidth: 90)  // Optimal width for name while keeping credits/plan visible
                 }
             }
         }
