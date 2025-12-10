@@ -1295,6 +1295,13 @@ struct GalleryView: View {
             }
         } catch {
             await MainActor.run {
+                // Suppress cancellation errors
+                let nsError = error as NSError
+                if nsError.domain == NSURLErrorDomain && (nsError.code == NSURLErrorCancelled || nsError.code == NSURLErrorNetworkConnectionLost) {
+                    isLoading = false
+                    return
+                }
+
                 self.error = error
                 showingError = true
                 isLoading = false
@@ -1319,6 +1326,14 @@ struct GalleryView: View {
             }
         } catch {
             await MainActor.run {
+                // Suppress cancellation errors
+                let nsError = error as NSError
+                if nsError.domain == NSURLErrorDomain && (nsError.code == NSURLErrorCancelled || nsError.code == NSURLErrorNetworkConnectionLost) {
+                    currentPage -= 1 // Revert page increment
+                    isLoading = false
+                    return
+                }
+
                 currentPage -= 1 // Revert page increment on error
                 self.error = error
                 showingError = true
@@ -1342,6 +1357,12 @@ struct GalleryView: View {
             }
         } catch {
             await MainActor.run {
+                // Suppress cancellation errors
+                let nsError = error as NSError
+                if nsError.domain == NSURLErrorDomain && (nsError.code == NSURLErrorCancelled || nsError.code == NSURLErrorNetworkConnectionLost) {
+                    return
+                }
+
                 self.error = error
                 showingError = true
             }

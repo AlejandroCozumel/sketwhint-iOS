@@ -387,17 +387,36 @@ class GenerationProgressSSEService: ObservableObject {
 
         // Error occurred
         eventSource.onError = { [weak self] error in
+            guard let self = self else { return }
+            
             DispatchQueue.main.async {
-                self?.connectionError = error
+                self.connectionError = error
             }
-            self?.onError?(error)
+            
+            // Suppress errors if app is in background or if it's a cancellation
+            // This prevents false positive alerts when the user sleeps the device
+            if self.isAppInBackground {
+                #if DEBUG
+                print("🔗 GenerationProgressSSE: 🤫 Suppressing error while backgrounded: \(error.localizedDescription)")
+                #endif
+            } else {
+                // Also check for specific cancellation errors
+                let nsError = error as NSError
+                if nsError.domain == NSURLErrorDomain && (nsError.code == NSURLErrorCancelled || nsError.code == NSURLErrorNetworkConnectionLost) {
+                    #if DEBUG
+                    print("🔗 GenerationProgressSSE: 🤫 Suppressing cancellation/network lost error: \(error.localizedDescription)")
+                    #endif
+                } else {
+                    self.onError?(error)
+                }
+            }
 
             #if DEBUG
             print("🔗 GenerationProgressSSE: Error - \(error.localizedDescription)")
             #endif
 
             // Attempt to reconnect if we are still tracking an active generation
-            self?.scheduleReconnect()
+            self.scheduleReconnect()
         }
 
         // Subscribe to connection state changes

@@ -987,6 +987,13 @@ struct StoryDraftCreationView: View {
             }
         } catch {
             await MainActor.run {
+                // Suppress cancellation errors
+                let nsError = error as NSError
+                if nsError.domain == NSURLErrorDomain && (nsError.code == NSURLErrorCancelled || nsError.code == NSURLErrorNetworkConnectionLost) {
+                    isShowingProgress = false
+                    return
+                }
+
                 self.error = error
                 showingError = true
                 isShowingProgress = false
