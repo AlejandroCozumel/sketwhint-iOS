@@ -787,7 +787,7 @@
 "books.custom.focus" = "Custom Focus (Optional)";
 "books.custom.focus.placeholder" = "Example: Focus on teamwork and courage";
 "books.custom.focus.desc" = "Additional focus description to guide story creation";
-"books.create.draft" = "Create Story Draft";
+"books.create.draft" = "Create Draft (Free)";
 "books.creating.draft" = "Creating Draft...";
 "books.validation.theme.required" = "Please enter a story theme";
 "books.validation.theme.min" = "Story theme must be at least 3 characters";

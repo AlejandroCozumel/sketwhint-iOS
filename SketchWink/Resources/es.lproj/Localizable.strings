@@ -834,7 +834,7 @@
 "books.custom.focus" = "Enfoque Personalizado (Opcional)";
 "books.custom.focus.placeholder" = "Ejemplo: Enfocarse en el trabajo en equipo y la valentía";
 "books.custom.focus.desc" = "Descripción adicional de enfoque para guiar la creación de la historia";
-"books.create.draft" = "Crear Borrador de Historia";
+"books.create.draft" = "Crear Borrador (Gratis)";
 "books.creating.draft" = "Creando Borrador...";
 "books.validation.theme.required" = "Por favor ingresa un tema para la historia";
 "books.validation.theme.min" = "El tema de la historia debe tener al menos 3 caracteres";
