@@ -154,8 +154,7 @@ final class GlobalSSEService: ObservableObject {
             print("🌍 GlobalSSEService: Disconnecting...")
             #endif
             
-            self.eventSource?.disconnect()
-            self.eventSource = nil
+            self.tearDownEventSource()
             
             self.isReconnecting = false
             self.reconnectAttempt = 0
@@ -187,7 +186,7 @@ final class GlobalSSEService: ObservableObject {
         }
         
         // Clean up existing
-        eventSource?.disconnect()
+        tearDownEventSource()
         
         #if DEBUG
         print("🌍 GlobalSSEService: Connecting to \(sseURLString)")
@@ -367,8 +366,7 @@ final class GlobalSSEService: ObservableObject {
             print("🌍 GlobalSSEService: 📱 App backgrounded. No active generations. Soft disconnecting.")
             #endif
             // Soft Disconnect: Kill socket to stop pings immediately.
-            eventSource?.disconnect()
-            eventSource = nil
+            tearDownEventSource(updatePublishedState: false)
         }
     }
     
@@ -415,8 +413,7 @@ final class GlobalSSEService: ObservableObject {
         // "Soft Disconnect": Kill the socket to stop pings/battery drain,
         // BUT do NOT update 'isConnected' or trigger UI changes to avoid crashes.
         print("🌍 GlobalSSEService: 🔌 Soft Disconnecting socket (preserving UI state)...")
-        eventSource?.disconnect()
-        eventSource = nil
+        tearDownEventSource(updatePublishedState: false)
         // We leave 'isConnected' alone. The UI won't know, and doesn't need to know while sleeping.
         // next appDidBecomeActive will reconnect.
     }
@@ -487,6 +484,16 @@ final class GlobalSSEService: ObservableObject {
                 )
             }
         }
+    }
+}
+
+extension GlobalSSEService {
+    private func tearDownEventSource(updatePublishedState: Bool = true) {
+        eventSource?.disconnect(updatePublishedState: updatePublishedState)
+        eventSource = nil
+        
+        // Prevent memory buildup of old EventSource subscriptions (Zombie Objects)
+        cancellables.removeAll()
     }
 }
 
