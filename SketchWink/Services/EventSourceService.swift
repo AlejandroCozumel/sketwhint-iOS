@@ -68,7 +68,7 @@ class EventSourceService: NSObject, ObservableObject {
         #endif
     }
 
-    func disconnect() {
+    func disconnect(updatePublishedState: Bool = true) {
         #if DEBUG
         print("🔗 EventSource: 🔌 Disconnecting...")
         #endif
@@ -83,8 +83,10 @@ class EventSourceService: NSObject, ObservableObject {
         // Clear the buffer
         dataBuffer = ""
 
-        DispatchQueue.main.async {
-            self.isConnected = false
+        if updatePublishedState {
+            DispatchQueue.main.async { [weak self] in
+                self?.isConnected = false
+            }
         }
 
         #if DEBUG
@@ -96,7 +98,7 @@ class EventSourceService: NSObject, ObservableObject {
         #if DEBUG
         print("🔗 EventSource: 💀 EventSourceService Deinit")
         #endif
-        disconnect()
+        disconnect(updatePublishedState: false)
     }
 }
 
@@ -115,16 +117,16 @@ extension EventSourceService: URLSessionDataDelegate {
         #endif
 
         if httpResponse.statusCode == 200 {
-            DispatchQueue.main.async {
-                self.isConnected = true
-                self.connectionError = nil
+            DispatchQueue.main.async { [weak self] in
+                self?.isConnected = true
+                self?.connectionError = nil
             }
             self.onOpen?()
             completionHandler(.allow)
         } else {
             let error = EventSourceError.httpError(httpResponse.statusCode)
-            DispatchQueue.main.async {
-                self.connectionError = error
+            DispatchQueue.main.async { [weak self] in
+                self?.connectionError = error
             }
             self.onError?(error)
             completionHandler(.cancel)
@@ -325,13 +327,13 @@ extension EventSourceService: URLSessionDataDelegate {
         }
         #endif
 
-        DispatchQueue.main.async {
-            self.isConnected = false
+        DispatchQueue.main.async { [weak self] in
+            self?.isConnected = false
         }
 
         if let error = error {
-            DispatchQueue.main.async {
-                self.connectionError = error
+            DispatchQueue.main.async { [weak self] in
+                self?.connectionError = error
             }
             self.onError?(error)
         }
@@ -352,11 +354,11 @@ extension EventSourceService: URLSessionDataDelegate {
         print("🔗 EventSource: 🎬   Data length: \(event.data.count) chars")
         #endif
 
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
             #if DEBUG
             print("🔗 EventSource: 🚀 Calling onMessage handler on main thread")
             #endif
-            self.onMessage?(event)
+            self?.onMessage?(event)
         }
     }
 }

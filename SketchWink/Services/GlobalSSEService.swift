@@ -364,10 +364,11 @@ final class GlobalSSEService: ObservableObject {
             }
         } else {
             #if DEBUG
-            print("🌍 GlobalSSEService: 📱 App backgrounded. No active generations. Letting app suspend normally.")
+            print("🌍 GlobalSSEService: 📱 App backgrounded. No active generations. Soft disconnecting.")
             #endif
-            // Reverted explicit disconnect() to avoid crashes. 
-            // The OS will suspend the app/socket naturally since we aren't playing audio.
+            // Soft Disconnect: Kill socket to stop pings immediately.
+            eventSource?.disconnect()
+            eventSource = nil
         }
     }
     
@@ -384,7 +385,7 @@ final class GlobalSSEService: ObservableObject {
         
         guard authToken != nil else { return }
         
-        if !isConnected {
+        if !isConnected || eventSource == nil {
             #if DEBUG
             print("🌍 GlobalSSEService: 📱 Restoring connection...")
             #endif
@@ -410,7 +411,14 @@ final class GlobalSSEService: ObservableObject {
         print("🌍 GlobalSSEService: 🛑 Smart Suspend: Stopping audio & background task.")
         stopSilentAudio()
         endBackgroundTask()
-        // disconnect() -- REVERTED: Causing crashes/freezes. Letting OS suspend naturally.
+        
+        // "Soft Disconnect": Kill the socket to stop pings/battery drain,
+        // BUT do NOT update 'isConnected' or trigger UI changes to avoid crashes.
+        print("🌍 GlobalSSEService: 🔌 Soft Disconnecting socket (preserving UI state)...")
+        eventSource?.disconnect()
+        eventSource = nil
+        // We leave 'isConnected' alone. The UI won't know, and doesn't need to know while sleeping.
+        // next appDidBecomeActive will reconnect.
     }
     
     // MARK: - Live Activity Helper
