@@ -971,3 +971,12 @@
 "notification.story.completed" = "Your story is ready!";
 "notification.book.ready" = "Your book is ready!";
 "notification.bedtime.story.ready" = "Your bedtime story is ready!";
+// MARK: - Live Activities
+"live_activity.status.generating_book" = "Starting book generation...";
+"live_activity.status.generating_bedtime" = "Preparing bedtime story...";
+"live_activity.status.processing" = "Processing...";
+"live_activity.status.ready" = "Ready!";
+"live_activity.status.failed" = "Failed";
+"live_activity.type.book" = "Story Book";
+"live_activity.type.bedtime" = "Bedtime Story";
+"live_activity.status.default_title" = "New Bedtime Story";

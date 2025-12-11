@@ -17,6 +17,8 @@
 	</array>
 	<key>GIDClientID</key>
 	<string>435370344985-6t3bdis6oeaass8e1gq1vjafp8f608oi.apps.googleusercontent.com</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

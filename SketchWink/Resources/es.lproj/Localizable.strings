@@ -998,3 +998,12 @@
 "notification.story.completed" = "¡Tu cuento está listo!";
 "notification.book.ready" = "¡Tu libro está listo!";
 "notification.bedtime.story.ready" = "¡Tu cuento para dormir está listo!";
+// MARK: - Live Activities
+"live_activity.status.generating_book" = "Iniciando generación del libro...";
+"live_activity.status.generating_bedtime" = "Preparando cuento para dormir...";
+"live_activity.status.processing" = "Procesando...";
+"live_activity.status.ready" = "¡Listo!";
+"live_activity.status.failed" = "Falló";
+"live_activity.type.book" = "Libro de Cuentos";
+"live_activity.type.bedtime" = "Cuento para Dormir";
+"live_activity.status.default_title" = "Nuevo Cuento";

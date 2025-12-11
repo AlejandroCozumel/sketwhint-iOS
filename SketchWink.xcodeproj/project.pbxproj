@@ -11,6 +11,9 @@
 		5C3584B52E930B0900F7FE22 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 5C3584B42E930B0900F7FE22 /* GoogleSignIn */; };
 		5C3584B72E930B0900F7FE22 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5C3584B62E930B0900F7FE22 /* GoogleSignInSwift */; };
 		5C93FAA42E94EC8300C29E13 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5C93FAA32E94EC8300C29E13 /* StoreKit.framework */; };
+		5CFB1AA02EEA74F3009459BC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5CFB1A9F2EEA74F3009459BC /* WidgetKit.framework */; };
+		5CFB1AA22EEA74F3009459BC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5CFB1AA12EEA74F3009459BC /* SwiftUI.framework */; };
+		5CFB1AB32EEA74F5009459BC /* SketchWinkWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5CFB1A9E2EEA74F3009459BC /* SketchWinkWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,7 +31,28 @@
 			remoteGlobalIDString = 5CB437342E7C832D002FC297;
 			remoteInfo = SketchWink;
 		};
+		5CFB1AB12EEA74F5009459BC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5CB4372D2E7C832D002FC297 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5CFB1A9D2EEA74F3009459BC;
+			remoteInfo = SketchWinkWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5CFB1AB82EEA74F5009459BC /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5CFB1AB32EEA74F5009459BC /* SketchWinkWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		5C3584B02E9308EF00F7FE22 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -36,6 +60,9 @@
 		5CB437352E7C832D002FC297 /* SketchWink.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SketchWink.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB437442E7C832E002FC297 /* SketchWinkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SketchWinkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CB4374E2E7C832E002FC297 /* SketchWinkUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SketchWinkUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5CFB1A9E2EEA74F3009459BC /* SketchWinkWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SketchWinkWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5CFB1A9F2EEA74F3009459BC /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		5CFB1AA12EEA74F3009459BC /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -46,6 +73,21 @@
 			);
 			target = 5CB437342E7C832D002FC297 /* SketchWink */;
 		};
+		5CFB1AB72EEA74F5009459BC /* Exceptions for "SketchWinkWidget" folder in "SketchWinkWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5CFB1A9D2EEA74F3009459BC /* SketchWinkWidgetExtension */;
+		};
+		5CFB1ABA2EEA7894009459BC /* Exceptions for "SketchWink" folder in "SketchWinkWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Features/LiveActivity/Models/GenerationAttributes.swift,
+				Features/LiveActivity/UI/GenerationLiveActivityView.swift,
+			);
+			target = 5CFB1A9D2EEA74F3009459BC /* SketchWinkWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -53,6 +95,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				5C848FC92E8F285A00F2EF40 /* Exceptions for "SketchWink" folder in "SketchWink" target */,
+				5CFB1ABA2EEA7894009459BC /* Exceptions for "SketchWink" folder in "SketchWinkWidgetExtension" target */,
 			);
 			path = SketchWink;
 			sourceTree = "<group>";
@@ -65,6 +108,14 @@
 		5CB437512E7C832E002FC297 /* SketchWinkUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SketchWinkUITests;
+			sourceTree = "<group>";
+		};
+		5CFB1AA32EEA74F3009459BC /* SketchWinkWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5CFB1AB72EEA74F5009459BC /* Exceptions for "SketchWinkWidget" folder in "SketchWinkWidgetExtension" target */,
+			);
+			path = SketchWinkWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -94,6 +145,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5CFB1A9B2EEA74F3009459BC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5CFB1AA22EEA74F3009459BC /* SwiftUI.framework in Frameworks */,
+				5CFB1AA02EEA74F3009459BC /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -101,6 +161,8 @@
 			isa = PBXGroup;
 			children = (
 				5C93FAA32E94EC8300C29E13 /* StoreKit.framework */,
+				5CFB1A9F2EEA74F3009459BC /* WidgetKit.framework */,
+				5CFB1AA12EEA74F3009459BC /* SwiftUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -111,6 +173,7 @@
 				5CB437372E7C832D002FC297 /* SketchWink */,
 				5CB437472E7C832E002FC297 /* SketchWinkTests */,
 				5CB437512E7C832E002FC297 /* SketchWinkUITests */,
+				5CFB1AA32EEA74F3009459BC /* SketchWinkWidget */,
 				5CB437362E7C832D002FC297 /* Products */,
 				5C3584B02E9308EF00F7FE22 /* GoogleService-Info.plist */,
 				5C93FAA22E94EC8300C29E13 /* Frameworks */,
@@ -123,6 +186,7 @@
 				5CB437352E7C832D002FC297 /* SketchWink.app */,
 				5CB437442E7C832E002FC297 /* SketchWinkTests.xctest */,
 				5CB4374E2E7C832E002FC297 /* SketchWinkUITests.xctest */,
+				5CFB1A9E2EEA74F3009459BC /* SketchWinkWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -137,10 +201,12 @@
 				5CB437312E7C832D002FC297 /* Sources */,
 				5CB437322E7C832D002FC297 /* Frameworks */,
 				5CB437332E7C832D002FC297 /* Resources */,
+				5CFB1AB82EEA74F5009459BC /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5CFB1AB22EEA74F5009459BC /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5CB437372E7C832D002FC297 /* SketchWink */,
@@ -200,6 +266,28 @@
 			productReference = 5CB4374E2E7C832E002FC297 /* SketchWinkUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		5CFB1A9D2EEA74F3009459BC /* SketchWinkWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5CFB1AB42EEA74F5009459BC /* Build configuration list for PBXNativeTarget "SketchWinkWidgetExtension" */;
+			buildPhases = (
+				5CFB1A9A2EEA74F3009459BC /* Sources */,
+				5CFB1A9B2EEA74F3009459BC /* Frameworks */,
+				5CFB1A9C2EEA74F3009459BC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5CFB1AA32EEA74F3009459BC /* SketchWinkWidget */,
+			);
+			name = SketchWinkWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = SketchWinkWidgetExtension;
+			productReference = 5CFB1A9E2EEA74F3009459BC /* SketchWinkWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -220,6 +308,9 @@
 					5CB4374D2E7C832E002FC297 = {
 						CreatedOnToolsVersion = 26.0;
 						TestTargetID = 5CB437342E7C832D002FC297;
+					};
+					5CFB1A9D2EEA74F3009459BC = {
+						CreatedOnToolsVersion = 26.0;
 					};
 				};
 			};
@@ -244,6 +335,7 @@
 				5CB437342E7C832D002FC297 /* SketchWink */,
 				5CB437432E7C832E002FC297 /* SketchWinkTests */,
 				5CB4374D2E7C832E002FC297 /* SketchWinkUITests */,
+				5CFB1A9D2EEA74F3009459BC /* SketchWinkWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -265,6 +357,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5CB4374C2E7C832E002FC297 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5CFB1A9C2EEA74F3009459BC /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -295,6 +394,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5CFB1A9A2EEA74F3009459BC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -307,6 +413,11 @@
 			isa = PBXTargetDependency;
 			target = 5CB437342E7C832D002FC297 /* SketchWink */;
 			targetProxy = 5CB4374F2E7C832E002FC297 /* PBXContainerItemProxy */;
+		};
+		5CFB1AB22EEA74F5009459BC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5CFB1A9D2EEA74F3009459BC /* SketchWinkWidgetExtension */;
+			targetProxy = 5CFB1AB12EEA74F5009459BC /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -594,6 +705,68 @@
 			};
 			name = Release;
 		};
+		5CFB1AB52EEA74F5009459BC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XVMB5B3F2Y;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SketchWinkWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SketchWinkWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = sketchwink.SketchWink.SketchWinkWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5CFB1AB62EEA74F5009459BC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XVMB5B3F2Y;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SketchWinkWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SketchWinkWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = sketchwink.SketchWink.SketchWinkWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -629,6 +802,15 @@
 			buildConfigurations = (
 				5CB4375F2E7C832E002FC297 /* Debug */,
 				5CB437602E7C832E002FC297 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5CFB1AB42EEA74F5009459BC /* Build configuration list for PBXNativeTarget "SketchWinkWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5CFB1AB52EEA74F5009459BC /* Debug */,
+				5CFB1AB62EEA74F5009459BC /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -75,6 +75,10 @@ class EventSourceService: NSObject, ObservableObject {
 
         urlSessionTask?.cancel()
         urlSessionTask = nil
+        
+        // IMPORTANT: Invalidate session to release the delegate (self) and break retain cycle
+        urlSession?.invalidateAndCancel()
+        urlSession = nil
 
         // Clear the buffer
         dataBuffer = ""
@@ -84,11 +88,14 @@ class EventSourceService: NSObject, ObservableObject {
         }
 
         #if DEBUG
-        print("🔗 EventSource: 🔌 Disconnected and cleaned up")
+        print("🔗 EventSource: 🔌 Disconnected, session invalidated, and cleaned up")
         #endif
     }
-
+    
     deinit {
+        #if DEBUG
+        print("🔗 EventSource: 💀 EventSourceService Deinit")
+        #endif
         disconnect()
     }
 }

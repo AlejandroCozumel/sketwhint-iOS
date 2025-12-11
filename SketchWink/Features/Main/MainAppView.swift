@@ -64,6 +64,43 @@ struct MainAppView: View {
             _ = BooksService.shared
             _ = BedtimeStoriesService.shared
         }
+        .onOpenURL { url in
+            handleDeepLink(url)
+        }
+    }
+    
+    private func handleDeepLink(_ url: URL) {
+        print("🔗 MainAppView: Handling deep link: \(url)")
+        // Scheme: sketchwink://open-story?id=...&type=...
+        guard url.scheme == "sketchwink", url.host == "open-story" else { return }
+        
+        // Parse query items
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+              let queryItems = components.queryItems else { return }
+              
+        let generationId = queryItems.first(where: { $0.name == "id" })?.value
+        let typeRaw = queryItems.first(where: { $0.name == "type" })?.value
+        
+        // 1. Dismiss the Live Activity immediately
+        if let generationId = generationId {
+            // Dismiss specific activity by ID
+            if #available(iOS 16.1, *) {
+                LiveActivityManager.shared.dismissActivity(generationId: generationId)
+            }
+        }
+        
+        // 2. Navigate to appropriate tab
+        // User requested: "send me directly to bedtime stories"
+        if let typeRaw = typeRaw {
+            if typeRaw == "book" {
+                selectedTab = .books
+            } else {
+                selectedTab = .stories
+            }
+        } else {
+            // Default fallback
+            selectedTab = .stories
+        }
     }
     
     private func setupGlobalSSEListener() {

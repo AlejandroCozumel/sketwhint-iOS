@@ -1,42 +1,116 @@
 import Foundation
 import Combine
 import UIKit
+import AVFoundation
 
-// MARK: - Global SSE Service
-/// Handles the persistent SSE connection to the server, managing authentication,
-/// app lifecycle (background/foreground), and exponential backoff for reconnections.
-/// Dispatches generic events to observers.
-class GlobalSSEService: ObservableObject {
+final class GlobalSSEService: ObservableObject {
     static let shared = GlobalSSEService()
-
-    // MARK: - Connection State
+    
+    // MARK: - Properties
+    
+    // Connection State
     @Published var isConnected = false
     @Published var connectionError: Error?
+    
     @Published var lastEventAt: Date?
     
-    // Core SSE client
+    // User Context
+    private var authToken: String?
+    private var currentProfileId: String?
+    
+    // Service
     private var eventSource: EventSourceService?
     private var cancellables = Set<AnyCancellable>()
     
-    // Authentication
-    private var authToken: String?
-    
-    // Reconnection logic
+    // Reconnection Logic
     private var isReconnecting = false
     private var reconnectAttempt = 0
     private let maxReconnectAttempts = 5
-    private var hasOpened = false
-    
-    // App lifecycle state
     private var isAppInBackground = false
+    private var hasOpened = false // Track if we ever successfully connected
     
-    // Event Observers
-    // Dictionary mapping event types to a set of closures
+    // Listeners
     private var observers: [String: [(EventSourceEvent) -> Void]] = [:]
     private var observersLock = NSLock()
     
+    // Background Task Support
+    private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+    private var audioPlayer: AVAudioPlayer?
+    
     private init() {
+        print("🌍 GlobalSSEService: Initializing shared instance")
         setupAppLifecycleObservers()
+        prepareSilentAudio()
+    }
+    
+    // MARK: - Silent Audio Setup
+    
+    private func prepareSilentAudio() {
+        // Generate a 1-second silent WAV file in memory
+        // RIFF header (12) + fmt chunk (24) + data chunk (8) + 1 sec of silence (44100 * 2 bytes)
+        // Total ~88KB. Minimal overhead.
+        
+        let sampleRate: Int32 = 44100
+        let duration: Int32 = 5 // 5 Seconds loop
+        let dataSize = Int32(sampleRate * duration * 2) // 16-bit mono
+        let fileSize = 36 + dataSize
+        
+        var wavData = Data()
+        
+        // RIFF chunk
+        wavData.append(contentsOf: "RIFF".utf8)
+        wavData.append(withUnsafeBytes(of: fileSize) { Data($0) })
+        wavData.append(contentsOf: "WAVE".utf8)
+        
+        // fmt chunk
+        wavData.append(contentsOf: "fmt ".utf8)
+        wavData.append(withUnsafeBytes(of: Int32(16)) { Data($0) }) // chunk size
+        wavData.append(withUnsafeBytes(of: Int16(1)) { Data($0) }) // audio format (PCM)
+        wavData.append(withUnsafeBytes(of: Int16(1)) { Data($0) }) // num channels (1)
+        wavData.append(withUnsafeBytes(of: sampleRate) { Data($0) }) // sample rate
+        wavData.append(withUnsafeBytes(of: sampleRate * 2) { Data($0) }) // byte rate
+        wavData.append(withUnsafeBytes(of: Int16(2)) { Data($0) }) // block align
+        wavData.append(withUnsafeBytes(of: Int16(16)) { Data($0) }) // bits per sample
+        
+        // data chunk
+        wavData.append(contentsOf: "data".utf8)
+        wavData.append(withUnsafeBytes(of: dataSize) { Data($0) })
+        
+        // Silence (zeros)
+        wavData.append(Data(count: Int(dataSize)))
+        
+        do {
+            audioPlayer = try AVAudioPlayer(data: wavData)
+            audioPlayer?.numberOfLoops = -1 // Infinite loop
+            audioPlayer?.volume = 0.0 // Silent
+            audioPlayer?.prepareToPlay()
+            #if DEBUG
+            print("🌍 GlobalSSEService: 🔇 Silent audio player prepared")
+            #endif
+        } catch {
+            print("🌍 GlobalSSEService: ❌ Failed to create silent audio player: \(error)")
+        }
+    }
+    
+    private func startSilentAudio() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: .mixWithOthers)
+            try AVAudioSession.sharedInstance().setActive(true)
+            audioPlayer?.play()
+            #if DEBUG
+            print("🌍 GlobalSSEService: 🔇 Silent audio started (background keep-alive)")
+            #endif
+        } catch {
+            print("🌍 GlobalSSEService: ❌ Failed to start silent audio: \(error)")
+        }
+    }
+    
+    private func stopSilentAudio() {
+        audioPlayer?.stop()
+        #if DEBUG
+        print("🌍 GlobalSSEService: 🔇 Silent audio stopped")
+        #endif
+        // We don't deactivate the session immediately as it might cut off actual audio if playing
     }
     
     // MARK: - Public API
@@ -179,6 +253,13 @@ class GlobalSSEService: ObservableObject {
         
         guard let type = event.type else { return }
         
+        // Dynamic Island / Live Activity Integration
+        if #available(iOS 16.1, *) {
+            if type == "progress" {
+                handleLiveActivityUpdate(event)
+            }
+        }
+        
         // Dispatch to observers
         observersLock.lock()
         let handlers = observers[type] ?? []
@@ -247,6 +328,7 @@ class GlobalSSEService: ObservableObject {
     
     // MARK: - App Lifecycle
     
+
     private func setupAppLifecycleObservers() {
         NotificationCenter.default.addObserver(
             self, selector: #selector(appDidEnterBackground),
@@ -261,23 +343,33 @@ class GlobalSSEService: ObservableObject {
     @objc private func appDidEnterBackground() {
         isAppInBackground = true
         #if DEBUG
-        print("🌍 GlobalSSEService: 📱 App backgrounded. Suspending connection.")
+        print("🌍 GlobalSSEService: 📱 App backgrounded. Engaging Keep-Alive protocols.")
         #endif
         
-        // Disconnect to be a good citizen and save battery
-        // We keep 'authToken' so we can reconnect later
-        eventSource?.disconnect()
-        eventSource = nil
+        // 1. Start Silent Audio (Primary Keep-Alive)
+        // This leverages the 'audio' background mode to keep the app running indefinitely.
+        startSilentAudio()
         
-        DispatchQueue.main.async {
-            self.isConnected = false
+        // 2. Start Background Task (Secondary/Fallback)
+        // This covers the gap before audio session activates or if audio fails.
+        backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
+            #if DEBUG
+            print("🌍 GlobalSSEService: ⏰ Background time expired. Disconnecting.")
+            #endif
+            // If we reach here, audio failed to keep us alive.
+            self?.disconnect()
+            self?.stopSilentAudio() 
+            self?.endBackgroundTask()
         }
-        
-        hasOpened = false
     }
     
     @objc private func appDidBecomeActive() {
         isAppInBackground = false
+        
+        // Stop the explicit background hacks
+        stopSilentAudio()
+        endBackgroundTask()
+        
         #if DEBUG
         print("🌍 GlobalSSEService: 📱 App foregrounded.")
         #endif
@@ -293,8 +385,66 @@ class GlobalSSEService: ObservableObject {
         }
     }
     
+    private func endBackgroundTask() {
+        if backgroundTask != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTask)
+            backgroundTask = .invalid
+        }
+    }
+    
     deinit {
         NotificationCenter.default.removeObserver(self)
+    }
+    
+    // MARK: - Live Activity Helper
+    
+    @available(iOS 16.1, *)
+    private func handleLiveActivityUpdate(_ event: EventSourceEvent) {
+        // Debug raw data
+        #if DEBUG
+        let dataString = event.data
+        print("🌍 GlobalSSEService: 🔍 Processing Live Activity Event: \(dataString)")
+        #endif
+
+        guard let data = event.data.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let generationId = json["generationId"] as? String else {
+            #if DEBUG
+            print("🌍 GlobalSSEService: ⚠️ Live Activity Update skipped - invalid structure or missing generationId")
+            #endif
+            return
+        }
+        
+        let status = json["status"] as? String
+        let progress = json["progress"] as? Double
+        let message = json["message"] as? String
+        let contentTypeString = json["contentType"] as? String
+        
+        // Map content type string to GenerationType
+        let type: GenerationAttributes.GenerationType = (contentTypeString == "story_book") ? .book : .bedtimeStory
+        
+        // If completed or failed, end the activity
+        if status == "completed" {
+            LiveActivityManager.shared.endGenerationActivity(
+                generationId: generationId,
+                status: .completed
+            )
+        } else if status == "failed" {
+            LiveActivityManager.shared.endGenerationActivity(
+                generationId: generationId,
+                status: .failed
+            )
+        } else {
+            // Otherwise update progress (and start if missing)
+            if let progress = progress {
+                LiveActivityManager.shared.updateGenerationProgress(
+                    generationId: generationId,
+                    progress: progress,
+                    message: message,
+                    type: type
+                )
+            }
+        }
     }
 }
 

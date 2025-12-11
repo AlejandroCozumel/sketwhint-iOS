@@ -383,7 +383,19 @@ class BedtimeStoriesService: ObservableObject {
         print("   - Voice: \(voiceId)")
         print("   - Speed: \(speed)")
         #endif
-
+        
+        // Start Live Activity (Dynamic Island)
+        if #available(iOS 16.1, *) {
+            // We assume generationId == draftId for progress tracking
+            let title = currentDraft?.title ?? "New Bedtime Story"
+            LiveActivityManager.shared.startGenerationActivity(
+                generationId: draftId,
+                storyTitle: title,
+                type: .bedtimeStory,
+                thumbnailUrl: nil // Will be available on completion
+            )
+        }
+        
         let (data, response) = try await APIRequestHelper.shared.performRequest(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
