@@ -50,6 +50,24 @@ struct MainAppView: View {
                 }
             }
         }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                // Req 2: If user opens app manually, clear any "Completed" widgets
+                if #available(iOS 16.1, *) {
+                    Task {
+                        let didDismiss = await LiveActivityManager.shared.dismissAllCompletedActivities()
+                        if didDismiss {
+                            // If we just wiped a completed widget, show the success toast!
+                            withAnimation {
+                                self.toastMessage = "notification.bedtime.story.ready".localized
+                                self.toastType = .success
+                                self.showToast = true
+                            }
+                        }
+                    }
+                }
+            }
+        }
         .task {
             await tokenManager.initialize()
             
@@ -60,6 +78,11 @@ struct MainAppView: View {
             
             setupGlobalSSEListener()
             
+            // Start cleanup immediately on launch too
+            if #available(iOS 16.1, *) {
+                _ = await LiveActivityManager.shared.dismissAllCompletedActivities()
+            }
+            
             // Force initialization of services to ensure their SSE listeners are active
             _ = BooksService.shared
             _ = BedtimeStoriesService.shared
@@ -68,6 +91,9 @@ struct MainAppView: View {
             handleDeepLink(url)
         }
     }
+    
+    // Environment
+    @Environment(\.scenePhase) private var scenePhase
     
     private func handleDeepLink(_ url: URL) {
         print("🔗 MainAppView: Handling deep link: \(url)")
@@ -81,11 +107,11 @@ struct MainAppView: View {
         let generationId = queryItems.first(where: { $0.name == "id" })?.value
         let typeRaw = queryItems.first(where: { $0.name == "type" })?.value
         
-        // 1. Dismiss the Live Activity immediately
+        // 1. Dismiss the Live Activity (ONLY if completed)
         if let generationId = generationId {
-            // Dismiss specific activity by ID
+            // Dismiss specific activity by ID if it is done
             if #available(iOS 16.1, *) {
-                LiveActivityManager.shared.dismissActivity(generationId: generationId)
+                LiveActivityManager.shared.dismissIfCompleted(generationId: generationId)
             }
         }
         

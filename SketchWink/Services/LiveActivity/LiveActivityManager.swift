@@ -125,13 +125,35 @@ class LiveActivityManager {
         }
     }
     
-    // Helper to dismiss a specific activity immediately (e.g. on tap)
-    func dismissActivity(generationId: String) {
+    // Req 1: Only dismiss on tap if it's actually finished.
+    // If it's still generating, we want to keep it on the island while opening the app.
+    func dismissIfCompleted(generationId: String) {
         Task {
-            if let activity = Activity<GenerationAttributes>.activities.first(where: { $0.attributes.generationId == generationId }) {
-                print("👋 LiveActivityManager: Dismissing activity \(generationId) on user tap")
+            guard let activity = Activity<GenerationAttributes>.activities.first(where: { $0.attributes.generationId == generationId }) else { return }
+            
+            // Check the *current* state of the activity content
+            if activity.content.state.status == .completed || activity.content.state.status == .failed {
+                print("👋 LiveActivityManager: Dismissing COMPLETED activity \(generationId) on user tap")
+                await activity.end(nil, dismissalPolicy: .immediate)
+            } else {
+                print("👀 LiveActivityManager: User tapped GENERATING activity \(generationId). Keeping it alive.")
+            }
+        }
+    }
+    
+    // Req 2: If we open the app and find lingering "Completed" widgets, kill them.
+    // Returns true if a completed activity was found and dismissed (so we can show a toast)
+    func dismissAllCompletedActivities() async -> Bool {
+        var dismissedSomething = false
+        for activity in Activity<GenerationAttributes>.activities {
+            if activity.content.state.status == .completed {
+                print("🧹 LiveActivityManager: Cleaning up lingering completed activity \(activity.id)")
+                await activity.end(nil, dismissalPolicy: .immediate)
+                dismissedSomething = true
+            } else if activity.content.state.status == .failed {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
+        return dismissedSomething
     }
 }
