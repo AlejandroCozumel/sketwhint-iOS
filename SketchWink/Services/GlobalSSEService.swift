@@ -146,20 +146,21 @@ final class GlobalSSEService: ObservableObject {
     }
     
     /// Disconnect manually (e.g. logout)
+    /// Disconnect manually (e.g. logout)
     func disconnect() {
-        #if DEBUG
-        print("🌍 GlobalSSEService: Disconnecting...")
-        #endif
-        
-        eventSource?.disconnect()
-        eventSource = nil
-        
-        isReconnecting = false
-        reconnectAttempt = 0
-        hasOpened = false
-        authToken = nil // Clear token on manual disconnect
-        
+        // Ensure state mutation happens on Main Thread to prevent EXC_BAD_ACCESS on @Published
         DispatchQueue.main.async {
+            #if DEBUG
+            print("🌍 GlobalSSEService: Disconnecting...")
+            #endif
+            
+            self.eventSource?.disconnect()
+            self.eventSource = nil
+            
+            self.isReconnecting = false
+            self.reconnectAttempt = 0
+            self.hasOpened = false
+            self.authToken = nil // Clear token on manual disconnect
             self.isConnected = false
         }
     }
@@ -342,24 +343,31 @@ final class GlobalSSEService: ObservableObject {
     
     @objc private func appDidEnterBackground() {
         isAppInBackground = true
-        #if DEBUG
-        print("🌍 GlobalSSEService: 📱 App backgrounded. Engaging Keep-Alive protocols.")
-        #endif
         
-        // 1. Start Silent Audio (Primary Keep-Alive)
-        // This leverages the 'audio' background mode to keep the app running indefinitely.
-        startSilentAudio()
-        
-        // 2. Start Background Task (Secondary/Fallback)
-        // This covers the gap before audio session activates or if audio fails.
-        backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
+        // Only engage "Keep-Alive" if we actually have active generations running.
+        if LiveActivityManager.shared.hasActiveActivities() {
             #if DEBUG
-            print("🌍 GlobalSSEService: ⏰ Background time expired. Disconnecting.")
+            print("🌍 GlobalSSEService: 📱 App backgrounded. Engaging Keep-Alive protocols for active generation.")
             #endif
-            // If we reach here, audio failed to keep us alive.
-            self?.disconnect()
-            self?.stopSilentAudio() 
-            self?.endBackgroundTask()
+            
+            // 1. Start Silent Audio (Primary Keep-Alive)
+            startSilentAudio()
+            
+            // 2. Start Background Task (Secondary/Fallback)
+            backgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
+                #if DEBUG
+                print("🌍 GlobalSSEService: ⏰ Background time expired. Disconnecting.")
+                #endif
+                self?.disconnect()
+                self?.stopSilentAudio() 
+                self?.endBackgroundTask()
+            }
+        } else {
+            #if DEBUG
+            print("🌍 GlobalSSEService: 📱 App backgrounded. No active generations. Letting app suspend normally.")
+            #endif
+            // Reverted explicit disconnect() to avoid crashes. 
+            // The OS will suspend the app/socket naturally since we aren't playing audio.
         }
     }
     
@@ -396,6 +404,15 @@ final class GlobalSSEService: ObservableObject {
         NotificationCenter.default.removeObserver(self)
     }
     
+    // Helper to stop all background keep-alive hacks
+    // AND disconnect the socket to ensure no more data usage/pings.
+    private func stopBackgroundWork() {
+        print("🌍 GlobalSSEService: 🛑 Smart Suspend: Stopping audio & background task.")
+        stopSilentAudio()
+        endBackgroundTask()
+        // disconnect() -- REVERTED: Causing crashes/freezes. Letting OS suspend naturally.
+    }
+    
     // MARK: - Live Activity Helper
     
     @available(iOS 16.1, *)
@@ -403,15 +420,12 @@ final class GlobalSSEService: ObservableObject {
         // Debug raw data
         #if DEBUG
         let dataString = event.data
-        print("🌍 GlobalSSEService: 🔍 Processing Live Activity Event: \(dataString)")
+        // print("🌍 GlobalSSEService: 🔍 Processing Live Activity Event: \(dataString)")
         #endif
 
         guard let data = event.data.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let generationId = json["generationId"] as? String else {
-            #if DEBUG
-            print("🌍 GlobalSSEService: ⚠️ Live Activity Update skipped - invalid structure or missing generationId")
-            #endif
             return
         }
         
@@ -423,17 +437,37 @@ final class GlobalSSEService: ObservableObject {
         // Map content type string to GenerationType
         let type: GenerationAttributes.GenerationType = (contentTypeString == "story_book") ? .book : .bedtimeStory
         
-        // If completed or failed, end the activity
+        // If completed or failed, end the activity AND stop background work
         if status == "completed" {
             LiveActivityManager.shared.endGenerationActivity(
                 generationId: generationId,
                 status: .completed
             )
+            // Smart Suspend: Check if ANY valid work remains. Only stop if queue is empty AND we are in background.
+            // Race Condition Fix: endGenerationActivity is async, so the activity might still report as 'generating' for a few ms.
+            // We must manually exclude the current ID from the check or check if ONLY this one is left.
+            let validWorkRemains = LiveActivityManager.shared.hasActiveActivities(excluding: generationId)
+            
+            if !validWorkRemains && isAppInBackground {
+                stopBackgroundWork()
+            } else {
+                 #if DEBUG
+                 print("🌍 GlobalSSEService: ⚠️ Job completed. Keeping connection (Background: \(isAppInBackground), Active Activities: \(validWorkRemains))")
+                 #endif
+            }
+            
         } else if status == "failed" {
             LiveActivityManager.shared.endGenerationActivity(
                 generationId: generationId,
                 status: .failed
             )
+            // Smart Suspend: Check if ANY valid work remains & Backgrounded
+            let validWorkRemains = LiveActivityManager.shared.hasActiveActivities(excluding: generationId)
+            
+            if !validWorkRemains && isAppInBackground {
+                stopBackgroundWork()
+            }
+            
         } else {
             // Otherwise update progress (and start if missing)
             if let progress = progress {

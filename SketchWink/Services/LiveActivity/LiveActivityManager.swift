@@ -145,15 +145,33 @@ class LiveActivityManager {
     // Returns true if a completed activity was found and dismissed (so we can show a toast)
     func dismissAllCompletedActivities() async -> Bool {
         var dismissedSomething = false
+        print("🔍 LiveActivityManager: Scanning \(Activity<GenerationAttributes>.activities.count) activities for completion...")
+        
         for activity in Activity<GenerationAttributes>.activities {
+            print("   - Activity \(activity.id): status=\(activity.content.state.status)")
+            
             if activity.content.state.status == .completed {
-                print("🧹 LiveActivityManager: Cleaning up lingering completed activity \(activity.id)")
+                print("🧹 LiveActivityManager: Found COMPLETED activity. Dismissing.")
                 await activity.end(nil, dismissalPolicy: .immediate)
                 dismissedSomething = true
             } else if activity.content.state.status == .failed {
+                print("🧹 LiveActivityManager: Found FAILED activity. Dismissing.")
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
         return dismissedSomething
+    }
+    
+    // Check if there are any active (generating) activities.
+    // This is crucial for "Smart Suspend" to ensure we don't kill the background connection
+    // if there is still another generation running (in case of overlap/race conditions).
+    // Parameter excluding: Ignore this specific ID (useful when we know a specific job just finished but async update hasn't run yet)
+    func hasActiveActivities(excluding excludedId: String? = nil) -> Bool {
+        return Activity<GenerationAttributes>.activities.contains { activity in
+            if let excludedId = excludedId, activity.attributes.generationId == excludedId {
+                return false // Ignore this one
+            }
+            return activity.content.state.status == .generating
+        }
     }
 }

@@ -52,16 +52,25 @@ struct MainAppView: View {
         }
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
+                print("📱 MainAppView: Scene became active. Checking for completed activities...")
                 // Req 2: If user opens app manually, clear any "Completed" widgets
                 if #available(iOS 16.1, *) {
                     Task {
+                        // Add a tiny delay to ensure ActivityKit is ready
+                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+                        
                         let didDismiss = await LiveActivityManager.shared.dismissAllCompletedActivities()
+                        print("📱 MainAppView: dismissAllCompletedActivities returned: \(didDismiss)")
+                        
                         if didDismiss {
                             // If we just wiped a completed widget, show the success toast!
-                            withAnimation {
-                                self.toastMessage = "notification.bedtime.story.ready".localized
-                                self.toastType = .success
-                                self.showToast = true
+                            await MainActor.run {
+                                print("📱 MainAppView: Showing SUCCESS toast")
+                                withAnimation {
+                                    self.toastMessage = "notification.bedtime.story.ready".localized
+                                    self.toastType = .success
+                                    self.showToast = true
+                                }
                             }
                         }
                     }
