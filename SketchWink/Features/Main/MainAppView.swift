@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct MainAppView: View {
     @State private var selectedTab: Tab = .art
@@ -8,6 +9,14 @@ struct MainAppView: View {
     init() {
         Self.configureAppearance()
     }
+
+    // Toast State
+    @State private var showToast = false
+    @State private var toastMessage = ""
+    @State private var toastType: ToastModifier.ToastType = .success
+    
+    // Global Listener
+    @State private var sseCancellable: AnyCancellable?
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -32,6 +41,7 @@ struct MainAppView: View {
             }
         }
         .tint(AppColors.primaryBlue)
+        .toast(isShowing: $showToast, message: toastMessage, type: toastType)
         .onChange(of: selectedTab) { oldValue, newValue in
             // Silent token refresh when navigating to Art tab
             if newValue == .art {
@@ -42,6 +52,47 @@ struct MainAppView: View {
         }
         .task {
             await tokenManager.initialize()
+            
+            // Connect to Global SSE on app launch
+            if let token = try? KeychainManager.shared.retrieveToken() {
+                GlobalSSEService.shared.connect(authToken: token)
+            }
+            
+            setupGlobalSSEListener()
+        }
+    }
+    
+    private func setupGlobalSSEListener() {
+        // Listen for all progress events from the global stream
+        GlobalSSEService.shared.observe(event: "progress") { event in
+            DispatchQueue.main.async {
+                // Parse the event data
+                let dataString = event.data
+                if let data = dataString.data(using: .utf8),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let status = json["status"] as? String {
+                    
+                    // Only show toast for completed events
+                    if status == "completed" {
+                        
+                        // Try to get a specific message or title if available
+                        // Spec says: "message": "Story is ready!"
+                        if let message = json["message"] as? String {
+                            self.toastMessage = message
+                        } else {
+                            // Fallback generic message
+                            self.toastMessage = "notification.story.completed".localized
+                        }
+                        
+                        self.toastType = .success
+                        self.showToast = true
+                        
+                        #if DEBUG
+                        print("🔔 MainAppView: Showing toast for completion")
+                        #endif
+                    }
+                }
+            }
         }
     }
 }

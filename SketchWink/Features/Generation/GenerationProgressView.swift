@@ -375,6 +375,7 @@ struct GenerationProgressView: View {
         case .completing: return 90
         case .completed: return 100
         case .failed: return 0
+        case .cancelled: return 0
         }
     }
     
@@ -461,6 +462,8 @@ extension GenerationStatus {
             return NSLocalizedString("progress.completed.description", comment: "")
         case .failed:
             return NSLocalizedString("progress.failed.description", comment: "")
+        case .cancelled:
+            return NSLocalizedString("progress.cancelled.description", comment: "")
         }
     }
 }

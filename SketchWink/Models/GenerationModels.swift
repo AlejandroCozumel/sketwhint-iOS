@@ -306,3 +306,66 @@ extension GenerationOption {
         return description.isEmpty ? style : description
     }
 }
+
+// MARK: - Generation Progress Models (Shared)
+
+/// Represents the real-time progress of a generation
+struct GenerationProgress {
+    let generationId: String
+    let status: GenerationStatus
+    let progress: Int
+    let imageCount: Int
+    let error: String?
+    
+    // UI helper for progress bar (0.0 to 1.0)
+    var progressPercentage: Double {
+        return Double(progress) / 100.0
+    }
+}
+
+/// Standardized status enum for generations
+enum GenerationStatus: String, Codable {
+    case queued
+    case starting
+    case processing
+    case completing
+    case completed
+    case failed
+    case cancelled
+    
+    var icon: String {
+        switch self {
+        case .queued: return "⏳"
+        case .starting: return "✨"
+        case .processing: return "🎨"
+        case .completing: return "⚡"
+        case .completed: return "🎉"
+        case .failed: return "❌"
+        case .cancelled: return "🚫"
+        }
+    }
+    
+    var displayMessage: String {
+        switch self {
+        case .queued: return NSLocalizedString("progress.queued", comment: "")
+        case .starting: return NSLocalizedString("progress.starting", comment: "")
+        case .processing: return NSLocalizedString("progress.processing", comment: "")
+        case .completing: return NSLocalizedString("progress.completing", comment: "")
+        case .completed: return NSLocalizedString("progress.completed", comment: "")
+        case .failed: return NSLocalizedString("progress.failed", comment: "")
+        case .cancelled: return NSLocalizedString("progress.cancelled", comment: "")
+        }
+    }
+}
+
+/// Errors related to generation progress
+enum GenerationProgressError: LocalizedError {
+    case generationFailed(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .generationFailed(let message):
+            return message
+        }
+    }
+}

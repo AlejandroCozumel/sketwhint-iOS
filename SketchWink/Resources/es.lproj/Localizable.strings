@@ -993,3 +993,6 @@
 "photo.picker.take.photo.desc" = "Usa tu cámara para capturar una nueva foto";
 "photo.picker.choose.gallery" = "Elegir de Galería";
 "photo.picker.choose.gallery.desc" = "Selecciona una foto existente de tu biblioteca";
+
+// MARK: - Notifications
+"notification.story.completed" = "¡Tu cuento está listo!";

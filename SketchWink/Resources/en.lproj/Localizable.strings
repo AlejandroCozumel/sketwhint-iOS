@@ -966,3 +966,6 @@
 // MARK: - Book Draft Loading
 "books.creating.story" = "Drafting your book...";
 "books.creating.story.desc" = "Our AI is writing and illustrating your pages...";
+
+// MARK: - Notifications
+"notification.story.completed" = "Your story is ready!";

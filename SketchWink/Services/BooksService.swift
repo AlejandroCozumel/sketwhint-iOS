@@ -15,7 +15,43 @@ class BooksService: ObservableObject {
     private let baseURL = AppConfig.API.baseURL
     private var cancellables = Set<AnyCancellable>()
 
-    private init() {}
+    private init() {
+        setupGlobalListeners()
+    }
+    
+    private func setupGlobalListeners() {
+        // Listen for all progress events from the global stream
+        GlobalSSEService.shared.observe(event: "progress") { [weak self] event in
+            guard let self = self else { return }
+            
+            // We only care about completion notifications here
+            // Parse the event data
+            let dataString = event.data
+            guard let data = dataString.data(using: .utf8) else { return }
+            
+            // Simple parsing to check status without full decoding overhead if possible
+            // OR use the existing GenerationProgressData struct if available
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let status = json["status"] as? String,
+                   status == "completed" {
+                    
+                    #if DEBUG
+                    print("📚 BooksService: Received 'completed' status, refreshing books...")
+                    #endif
+                    
+                    Task { @MainActor [weak self] in
+                        // Refresh the books list to show the new book
+                        await self?.refreshBooks()
+                    }
+                }
+            } catch {
+                #if DEBUG
+                print("📚 BooksService: Failed to parse event data: \(error)")
+                #endif
+            }
+        }
+    }
     
     // MARK: - Books Management
     
@@ -138,6 +174,11 @@ class BooksService: ObservableObject {
             print("❌ BooksService: Error loading books - \(error)")
             #endif
         }
+    }
+    
+    /// Refresh books list (reload first page)
+    func refreshBooks() async {
+        await loadBooks(page: 1)
     }
     
     /// Get book pages for reading experience
