@@ -72,16 +72,9 @@ struct MainAppView: View {
             DispatchQueue.main.async {
                 // Parse the event data
                 let dataString = event.data
-                #if DEBUG
-                print("🔔 MainAppView: Received SSE event data: \(dataString)")
-                #endif
                 
                 if let data = dataString.data(using: .utf8),
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                   
-                   #if DEBUG
-                   print("🔔 MainAppView: JSON parsed successfully: \(json)")
-                   #endif
                    
                    if let status = json["status"] as? String {
                     
@@ -101,10 +94,6 @@ struct MainAppView: View {
                                 self.toastMessage = "notification.story.completed".localized
                             }
                         }
-                        
-                        #if DEBUG
-                        print("🔔 MainAppView: showing toast msg: \(self.toastMessage)")
-                        #endif
                         
                         withAnimation {
                             self.toastType = .success

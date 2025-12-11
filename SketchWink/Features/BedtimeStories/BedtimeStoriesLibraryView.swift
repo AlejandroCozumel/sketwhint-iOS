@@ -134,9 +134,6 @@ struct BedtimeStoriesLibraryView: View {
             }
         }
         .onChange(of: service.lastRefresh) { _, _ in
-            #if DEBUG
-            print("🔄 BedtimeStoriesLibraryView: Received refresh signal from service")
-            #endif
             // Reload with current filters
             applyFilters()
         }

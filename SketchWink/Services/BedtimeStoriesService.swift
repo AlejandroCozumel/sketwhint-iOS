@@ -37,10 +37,6 @@ class BedtimeStoriesService: ObservableObject {
                    let contentType = json["contentType"] as? String,
                    contentType == "bedtime_story" {
                     
-                    #if DEBUG
-                    print("🌙 BedtimeStoriesService: Received 'completed' status, triggering refresh...")
-                    #endif
-                    
                     Task { @MainActor [weak self] in
                         // Signal views to refresh with their current parameters
                         self?.lastRefresh = Date()
