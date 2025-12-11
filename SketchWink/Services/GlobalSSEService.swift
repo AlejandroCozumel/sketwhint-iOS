@@ -425,7 +425,7 @@ final class GlobalSSEService: ObservableObject {
         // Debug raw data
         #if DEBUG
         let dataString = event.data
-        // print("🌍 GlobalSSEService: 🔍 Processing Live Activity Event: \(dataString)")
+        print("🌍 GlobalSSEService: 🔍 Processing Live Activity Event: \(dataString)")
         #endif
 
         guard let data = event.data.data(using: .utf8),
@@ -476,12 +476,19 @@ final class GlobalSSEService: ObservableObject {
         } else {
             // Otherwise update progress (and start if missing)
             if let progress = progress {
+                #if DEBUG
+                print("🌍 GlobalSSEService: ✅ Parsed progress: \(progress). Calling LiveActivityManager...")
+                #endif
                 LiveActivityManager.shared.updateGenerationProgress(
                     generationId: generationId,
                     progress: progress,
                     message: message,
                     type: type
                 )
+            } else {
+                #if DEBUG
+                print("🌍 GlobalSSEService: ⚠️ Failed to parse progress from JSON")
+                #endif
             }
         }
     }

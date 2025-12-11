@@ -59,15 +59,19 @@ struct MainAppView: View {
                         // Add a tiny delay to ensure ActivityKit is ready
                         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
                         
-                        let didDismiss = await LiveActivityManager.shared.dismissAllCompletedActivities()
-                        print("📱 MainAppView: dismissAllCompletedActivities returned: \(didDismiss)")
+                        let dismissedType = await LiveActivityManager.shared.dismissAllCompletedActivities()
+                        print("📱 MainAppView: dismissAllCompletedActivities returned: \(String(describing: dismissedType))")
                         
-                        if didDismiss {
+                        if let type = dismissedType {
                             // If we just wiped a completed widget, show the success toast!
                             await MainActor.run {
                                 print("📱 MainAppView: Showing SUCCESS toast")
                                 withAnimation {
-                                    self.toastMessage = "notification.bedtime.story.ready".localized
+                                    if type == .book {
+                                        self.toastMessage = "notification.book.ready".localized
+                                    } else {
+                                        self.toastMessage = "notification.bedtime.story.ready".localized
+                                    }
                                     self.toastType = .success
                                     self.showToast = true
                                 }

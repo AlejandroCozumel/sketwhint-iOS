@@ -142,9 +142,9 @@ class LiveActivityManager {
     }
     
     // Req 2: If we open the app and find lingering "Completed" widgets, kill them.
-    // Returns true if a completed activity was found and dismissed (so we can show a toast)
-    func dismissAllCompletedActivities() async -> Bool {
-        var dismissedSomething = false
+    // Returns the type of the dismissed activity so we can show a specific toast
+    func dismissAllCompletedActivities() async -> GenerationAttributes.GenerationType? {
+        var dismissedType: GenerationAttributes.GenerationType? = nil
         print("🔍 LiveActivityManager: Scanning \(Activity<GenerationAttributes>.activities.count) activities for completion...")
         
         for activity in Activity<GenerationAttributes>.activities {
@@ -153,13 +153,15 @@ class LiveActivityManager {
             if activity.content.state.status == .completed {
                 print("🧹 LiveActivityManager: Found COMPLETED activity. Dismissing.")
                 await activity.end(nil, dismissalPolicy: .immediate)
-                dismissedSomething = true
+                dismissedType = activity.attributes.type
             } else if activity.content.state.status == .failed {
                 print("🧹 LiveActivityManager: Found FAILED activity. Dismissing.")
                 await activity.end(nil, dismissalPolicy: .immediate)
+                // We don't necessarily show a success toast for failed ones, but we could return nil or handle separately.
+                // For now, let's only return type if it was completed successfully.
             }
         }
-        return dismissedSomething
+        return dismissedType
     }
     
     // Check if there are any active (generating) activities.
