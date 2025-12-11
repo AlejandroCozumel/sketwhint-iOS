@@ -969,3 +969,5 @@
 
 // MARK: - Notifications
 "notification.story.completed" = "Your story is ready!";
+"notification.book.ready" = "Your book is ready!";
+"notification.bedtime.story.ready" = "Your bedtime story is ready!";

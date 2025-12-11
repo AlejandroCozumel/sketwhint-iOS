@@ -36,13 +36,17 @@ class BooksService: ObservableObject {
                    let status = json["status"] as? String,
                    status == "completed" {
                     
-                    #if DEBUG
-                    print("📚 BooksService: Received 'completed' status, refreshing books...")
-                    #endif
-                    
-                    Task { @MainActor [weak self] in
-                        // Refresh the books list to show the new book
-                        await self?.refreshBooks()
+                    // Check content type if available (default to true for backward compatibility or if missing)
+                    let contentType = json["contentType"] as? String
+                    if contentType == "story_book" || contentType == nil {
+                        #if DEBUG
+                        print("📚 BooksService: Received 'completed' status, refreshing books...")
+                        #endif
+                        
+                        Task { @MainActor [weak self] in
+                            // Refresh the books list to show the new book
+                            await self?.refreshBooks()
+                        }
                     }
                 }
             } catch {

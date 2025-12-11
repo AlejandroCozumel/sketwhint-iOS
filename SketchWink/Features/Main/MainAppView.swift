@@ -59,6 +59,10 @@ struct MainAppView: View {
             }
             
             setupGlobalSSEListener()
+            
+            // Force initialization of services to ensure their SSE listeners are active
+            _ = BooksService.shared
+            _ = BedtimeStoriesService.shared
         }
     }
     
@@ -68,32 +72,49 @@ struct MainAppView: View {
             DispatchQueue.main.async {
                 // Parse the event data
                 let dataString = event.data
+                #if DEBUG
+                print("🔔 MainAppView: Received SSE event data: \(dataString)")
+                #endif
+                
                 if let data = dataString.data(using: .utf8),
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let status = json["status"] as? String {
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                   
+                   #if DEBUG
+                   print("🔔 MainAppView: JSON parsed successfully: \(json)")
+                   #endif
+                   
+                   if let status = json["status"] as? String {
                     
-                    // Only show toast for completed events
                     if status == "completed" {
+                        // Determine the correct message based on content type
+                        let contentType = json["contentType"] as? String
                         
-                        // Try to get a specific message or title if available
-                        // Spec says: "message": "Story is ready!"
-                        if let message = json["message"] as? String {
-                            self.toastMessage = message
+                        if contentType == "bedtime_story" {
+                            self.toastMessage = "notification.bedtime.story.ready".localized
+                        } else if contentType == "story_book" {
+                            self.toastMessage = "notification.book.ready".localized
                         } else {
-                            // Fallback generic message
-                            self.toastMessage = "notification.story.completed".localized
+                            // Fallback to generic message from payload or default
+                            if let message = json["message"] as? String {
+                                self.toastMessage = message
+                            } else {
+                                self.toastMessage = "notification.story.completed".localized
+                            }
                         }
                         
-                        self.toastType = .success
-                        self.showToast = true
-                        
                         #if DEBUG
-                        print("🔔 MainAppView: Showing toast for completion")
+                        print("🔔 MainAppView: showing toast msg: \(self.toastMessage)")
                         #endif
+                        
+                        withAnimation {
+                            self.toastType = .success
+                            self.showToast = true
+                        }
                     }
                 }
             }
         }
+    }
     }
 }
 

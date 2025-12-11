@@ -996,3 +996,5 @@
 
 // MARK: - Notifications
 "notification.story.completed" = "¡Tu cuento está listo!";
+"notification.book.ready" = "¡Tu libro está listo!";
+"notification.bedtime.story.ready" = "¡Tu cuento para dormir está listo!";

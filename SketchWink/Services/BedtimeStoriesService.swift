@@ -11,11 +11,51 @@ class BedtimeStoriesService: ObservableObject {
     @Published var stories: [BedtimeStory] = []
     @Published var currentDraft: BedtimeDraft?
     @Published var focusTags: [BedtimeFocusTag] = []
+
     @Published var error: String?
+    @Published var lastRefresh: Date = Date()
 
     private let baseURL = AppConfig.API.baseURL
 
-    private init() {}
+    private init() {
+        setupGlobalListeners()
+    }
+    
+    private func setupGlobalListeners() {
+        // Listen for all progress events from the global stream
+        GlobalSSEService.shared.observe(event: "progress") { [weak self] event in
+            guard let self = self else { return }
+            
+            // Parse for completion of bedtime stories
+            let dataString = event.data
+            guard let data = dataString.data(using: .utf8) else { return }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let status = json["status"] as? String,
+                   status == "completed",
+                   let contentType = json["contentType"] as? String,
+                   contentType == "bedtime_story" {
+                    
+                    #if DEBUG
+                    print("🌙 BedtimeStoriesService: Received 'completed' status, triggering refresh...")
+                    #endif
+                    
+                    Task { @MainActor [weak self] in
+                        // Signal views to refresh with their current parameters
+                        self?.lastRefresh = Date()
+                        
+                        // Also update the singleton's default list
+                        try? await self?.getStories(page: 1, limit: 20)
+                    }
+                }
+            } catch {
+                #if DEBUG
+                print("🌙 BedtimeStoriesService: Failed to parse event data: \(error)")
+                #endif
+            }
+        }
+    }
 
     // MARK: - 1. Load Configuration (Auth Required)
 
