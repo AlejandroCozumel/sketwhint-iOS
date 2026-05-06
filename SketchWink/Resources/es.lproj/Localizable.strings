@@ -748,6 +748,8 @@
 "stories.step.of.3" = "Paso %d de 3";
 "stories.create.draft.free" = "Crear Borrador (Gratis)";
 "stories.creating.draft" = "Creando Borrador...";
+"stories.tokens.available" = "%d créditos disponibles";
+"stories.insufficient.tokens.length" = "Necesitas %d créditos, tienes %d.";
 "stories.enter.story.idea" = "Por favor ingresa una idea para el cuento";
 "stories.story.title" = "Título del Cuento";
 "stories.story.text" = "Texto del Cuento";

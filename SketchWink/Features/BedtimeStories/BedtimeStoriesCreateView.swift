@@ -56,6 +56,22 @@ struct BedtimeStoriesCreateView: View {
         voices.first { $0.id == selectedVoice }?.description
     }
 
+    private var availableTokens: Int {
+        tokenManager.totalTokens
+    }
+
+    private var canAffordSelectedLength: Bool {
+        tokenManager.canAffordGeneration(cost: selectedLength.tokenCost)
+    }
+
+    private var currentGenerationTokenCost: Int {
+        currentDraft?.tokenCost ?? selectedLength.tokenCost
+    }
+
+    private var canAffordCurrentGeneration: Bool {
+        tokenManager.canAffordGeneration(cost: currentGenerationTokenCost)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Progress indicator
@@ -315,10 +331,32 @@ struct BedtimeStoriesCreateView: View {
                 }
                 HStack(spacing: AppSpacing.sm) {
                     ForEach(BedtimeStoryLength.allCases, id: \.rawValue) { length in
-                        LengthButton(length: length, isSelected: selectedLength == length) {
-                            selectedLength = length
+                        LengthButton(
+                            length: length,
+                            isSelected: selectedLength == length,
+                            isDisabled: !canAfford(length)
+                        ) {
+                            if canAfford(length) {
+                                selectedLength = length
+                            }
                         }
                     }
+                }
+
+                HStack(spacing: AppSpacing.xs) {
+                    Image(systemName: "circle.inset.filled")
+                        .font(.system(size: 11))
+                    Text(String(format: "stories.tokens.available".localized, availableTokens))
+                        .font(AppTypography.captionLarge)
+                }
+                .foregroundColor(AppColors.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if !canAffordSelectedLength {
+                    Text(String(format: "stories.insufficient.tokens.length".localized, selectedLength.tokenCost, availableTokens))
+                        .font(AppTypography.captionLarge)
+                        .foregroundColor(AppColors.errorRed)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }.cardStyle()
 
@@ -487,7 +525,7 @@ struct BedtimeStoriesCreateView: View {
             .disabled(!canCreateDraft || isLoading)
 
             if !canCreateDraft {
-                Text("stories.enter.story.idea".localized)
+                Text(createDraftDisabledMessage)
                     .captionMedium()
                     .foregroundColor(AppColors.errorRed)
                     .multilineTextAlignment(.center)
@@ -496,7 +534,15 @@ struct BedtimeStoriesCreateView: View {
     }
 
     private var canCreateDraft: Bool {
-        !prompt.isEmpty
+        !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && canAffordSelectedLength
+    }
+
+    private var createDraftDisabledMessage: String {
+        if prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "stories.enter.story.idea".localized
+        }
+
+        return String(format: "stories.insufficient.tokens.length".localized, selectedLength.tokenCost, availableTokens)
     }
 
     // MARK: - Step 3: Draft Preview & Generate
@@ -597,15 +643,26 @@ struct BedtimeStoriesCreateView: View {
 
             // Generate Story Button
             Button {
-                showingTokenConfirmation = true
+                if canAffordCurrentGeneration {
+                    showingTokenConfirmation = true
+                } else {
+                    showInsufficientTokensError(required: currentGenerationTokenCost)
+                }
             } label: {
                 Text(isLoading ? "stories.generating.story".localized : "stories.generate.story".localized)
                     .largeButtonStyle(
                         backgroundColor: AppColors.primaryIndigo,
-                        isDisabled: isLoading
+                        isDisabled: isLoading || !canAffordCurrentGeneration
                     )
             }
-            .disabled(isLoading)
+            .disabled(isLoading || !canAffordCurrentGeneration)
+
+            if !canAffordCurrentGeneration {
+                Text(String(format: "stories.insufficient.tokens.length".localized, currentGenerationTokenCost, availableTokens))
+                    .captionMedium()
+                    .foregroundColor(AppColors.errorRed)
+                    .multilineTextAlignment(.center)
+            }
         }
     }
 
@@ -657,6 +714,15 @@ struct BedtimeStoriesCreateView: View {
         !editedStoryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private func canAfford(_ length: BedtimeStoryLength) -> Bool {
+        tokenManager.canAffordGeneration(cost: length.tokenCost)
+    }
+
+    private func showInsufficientTokensError(required: Int) {
+        error = String(format: "stories.insufficient.tokens.length".localized, required, availableTokens)
+        showingError = true
+    }
+
     // MARK: - Actions
 
     /// Load config, themes, and focus tags on initial view appearance
@@ -666,8 +732,9 @@ struct BedtimeStoriesCreateView: View {
             async let configTask = service.loadConfig()
             async let themesTask = service.getThemes()
             async let focusTagsTask = service.getFocusTags()
+            async let tokenBalanceTask: Void = tokenManager.refreshSilently()
 
-            let (config, themesResponse, _) = try await (configTask, themesTask, focusTagsTask)
+            let (config, themesResponse, _, _) = try await (configTask, themesTask, focusTagsTask, tokenBalanceTask)
 
             await MainActor.run {
                 voices = config.voices
@@ -751,6 +818,10 @@ struct BedtimeStoriesCreateView: View {
 
     private func createDraft() async {
         guard let theme = selectedTheme else { return }
+        guard canAffordSelectedLength else {
+            showInsufficientTokensError(required: selectedLength.tokenCost)
+            return
+        }
 
         isLoading = true
         do {
@@ -833,12 +904,23 @@ struct BedtimeStoriesCreateView: View {
 
     private func generateStory() async {
         guard let draft = currentDraft else { return }
+        guard canAffordCurrentGeneration else {
+            showInsufficientTokensError(required: currentGenerationTokenCost)
+            return
+        }
 
         Task {
-            _ = try? await service.generateStory(
-                draftId: draft.id,
-                voiceId: selectedVoice
-            )
+            do {
+                _ = try await service.generateStory(
+                    draftId: draft.id,
+                    voiceId: selectedVoice
+                )
+            } catch {
+                await MainActor.run {
+                    self.error = error.localizedDescription
+                    showingError = true
+                }
+            }
             await tokenManager.refreshSilently()
         }
     }
@@ -986,6 +1068,7 @@ struct ThemeCard: View {
 struct LengthButton: View {
     let length: BedtimeStoryLength
     let isSelected: Bool
+    let isDisabled: Bool
     let action: () -> Void
 
     var body: some View {
@@ -993,28 +1076,55 @@ struct LengthButton: View {
             VStack(spacing: 6) {
                 Text(length.rawValue.capitalized)
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundColor(isSelected ? .white : AppColors.textPrimary)
+                    .foregroundColor(titleColor)
                 Text(durationText)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isSelected ? .white.opacity(0.9) : AppColors.textSecondary)
+                    .foregroundColor(subtitleColor)
                 HStack(spacing: 2) {
                     Image(systemName: "circle.inset.filled")
                         .font(.system(size: 10))
                     Text("\(length.tokenCost)")
                         .font(.system(size: 11, weight: .semibold))
                 }
-                .foregroundColor(isSelected ? .white.opacity(0.85) : AppColors.warningOrange)
+                .foregroundColor(tokenColor)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 80)
-            .background(isSelected ? AppColors.primaryIndigo : AppColors.backgroundLight)
+            .background(backgroundColor)
             .cornerRadius(AppSizing.cornerRadius.md)
             .overlay(
                 RoundedRectangle(cornerRadius: AppSizing.cornerRadius.md)
-                    .stroke(isSelected ? AppColors.primaryIndigo : AppColors.borderLight, lineWidth: isSelected ? 2 : 1)
+                    .stroke(borderColor, lineWidth: isSelected ? 2 : 1)
             )
         }
         .buttonStyle(PlainButtonStyle())
+        .disabled(isDisabled)
+        .opacity(isDisabled ? 0.55 : 1)
+    }
+
+    private var titleColor: Color {
+        if isSelected { return .white }
+        return isDisabled ? AppColors.textSecondary : AppColors.textPrimary
+    }
+
+    private var subtitleColor: Color {
+        if isSelected { return .white.opacity(0.9) }
+        return AppColors.textSecondary
+    }
+
+    private var tokenColor: Color {
+        if isSelected { return .white.opacity(0.85) }
+        return isDisabled ? AppColors.textSecondary : AppColors.warningOrange
+    }
+
+    private var backgroundColor: Color {
+        if isSelected { return AppColors.primaryIndigo }
+        return isDisabled ? AppColors.borderLight.opacity(0.4) : AppColors.backgroundLight
+    }
+
+    private var borderColor: Color {
+        if isSelected { return AppColors.primaryIndigo }
+        return isDisabled ? AppColors.borderLight.opacity(0.7) : AppColors.borderLight
     }
 
     private var durationText: String {
