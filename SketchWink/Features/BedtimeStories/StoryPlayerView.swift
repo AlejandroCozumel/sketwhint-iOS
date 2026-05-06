@@ -527,6 +527,7 @@ class LyricsAudioPlayer: ObservableObject {
     @Published var duration: Double = 0
     @Published var progress: Double = 0
     @Published var currentWordIndex: Int = 0
+    @Published var hasFinished = false
 
     let hasLyrics: Bool
     let words: [WordTimestamp]
@@ -601,10 +602,10 @@ class LyricsAudioPlayer: ObservableObject {
                     self.progress = duration > 0 ? time.seconds / duration : 0
                 }
 
-                // Auto-stop at end
+                // Keep the player at the end. Pressing Play again restarts from the beginning.
                 if let duration = self.player?.currentItem?.duration.seconds,
                    time.seconds >= duration - 0.5 {
-                    self.stop()
+                    self.finishPlayback(duration: duration)
                 }
             }
         }
@@ -633,6 +634,14 @@ class LyricsAudioPlayer: ObservableObject {
     }
 
     func play() {
+        if hasFinished || (duration > 0 && currentTime >= duration - 0.5) {
+            player?.seek(to: .zero)
+            currentTime = 0
+            progress = 0
+            currentWordIndex = 0
+            hasFinished = false
+        }
+
         player?.play()
         isPlaying = true
         print("▶️ Playing audio")
@@ -648,16 +657,34 @@ class LyricsAudioPlayer: ObservableObject {
         player?.pause()
         player?.seek(to: .zero)
         isPlaying = false
+        hasFinished = false
         currentTime = 0
         progress = 0
         currentWordIndex = 0
         print("⏹ Stopped audio")
     }
 
+    private func finishPlayback(duration: Double) {
+        guard !hasFinished else { return }
+
+        player?.pause()
+        isPlaying = false
+        hasFinished = true
+        currentTime = duration
+        progress = 1
+
+        if hasLyrics, !karaokeWords.isEmpty {
+            currentWordIndex = karaokeWords.count - 1
+        }
+
+        print("✅ Finished audio")
+    }
+
     func seekForward() {
         guard let currentTime = player?.currentTime() else { return }
         let newTime = CMTimeAdd(currentTime, CMTime(seconds: 15, preferredTimescale: 1))
         player?.seek(to: newTime)
+        hasFinished = false
         print("⏩ Seek forward 15s")
     }
 
@@ -665,12 +692,14 @@ class LyricsAudioPlayer: ObservableObject {
         guard let currentTime = player?.currentTime() else { return }
         let newTime = CMTimeSubtract(currentTime, CMTime(seconds: 15, preferredTimescale: 1))
         player?.seek(to: newTime)
+        hasFinished = false
         print("⏪ Seek backward 15s")
     }
 
     func seek(to time: Double) {
         let cmTime = CMTime(seconds: time, preferredTimescale: 1)
         player?.seek(to: cmTime)
+        hasFinished = false
         print("⏭ Seek to \(time)s")
     }
 
